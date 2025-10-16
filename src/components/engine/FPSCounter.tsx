@@ -1,0 +1,32 @@
+import { useEffect, useState } from 'react';
+
+export function FPSCounter() {
+    const [stats, setStats] = useState<{ fps: number; updateTime: number; renderTime: number }>({
+        fps: 0,
+        updateTime: 0,
+        renderTime: 0,
+    });
+    useEffect(() => {
+        const interval = setInterval(() => {
+            if (window.engine) {
+                setStats({
+                    fps: window.engine.fps,
+                    updateTime: window.engine.updateTime,
+                    renderTime: window.engine.renderTime,
+                });
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <p>
+            FPS: {stats.fps}
+            <br />
+            Update: {stats.updateTime.toFixed(1)}ms
+            <br />
+            Render: {stats.renderTime.toFixed(1)}ms
+        </p>
+    );
+}
