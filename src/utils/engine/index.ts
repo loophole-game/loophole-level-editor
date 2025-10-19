@@ -374,11 +374,10 @@ export class Engine {
     }
 
     #setMousePosition(position: Position): void {
-        if (this.#mouseState.onScreen) {
-            this.#mouseState.justMoved = true;
-        }
         this.#mouseState.x = position.x;
         this.#mouseState.y = position.y;
+        this.#mouseState.justMoved = true;
+        this.#mouseState.onScreen = true;
     }
 
     #setMouseOnScreen(onScreen: boolean, position: Position): void {

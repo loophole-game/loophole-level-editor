@@ -47,7 +47,7 @@ export class Entity implements Renderable {
         this._enabled = enabled;
     }
 
-    get transform(): Readonly<C_Transform> | null {
+    get transform(): Readonly<C_Transform> {
         return this._transform;
     }
 
@@ -227,11 +227,23 @@ export class Entity implements Renderable {
             }
         }
 
+        if (this._transform && !this._transform.localMatrix.isIdentity) {
+            out.push(new RenderCommand(RENDER_CMD.POP_TRANSFORM, null));
+        }
+
         // Then components
         for (const component of this._components) {
             if (component.enabled) {
                 component.queueRenderCommands(out);
             }
+        }
+
+        if (this._transform && !this._transform.localMatrix.isIdentity) {
+            out.push(
+                new RenderCommand(RENDER_CMD.PUSH_TRANSFORM, null, {
+                    t: this._transform.localMatrix,
+                }),
+            );
         }
 
         // Then non-negative z-index children

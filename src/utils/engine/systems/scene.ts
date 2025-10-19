@@ -138,8 +138,9 @@ export class SceneSystem {
         this.#activeScenesByID.set(scene.id, scene);
         this.#activeScenesByName.set(scene.name, scene);
 
-        const rootEntity = new Entity(`scene-root-${scene.id}`);
-        this.#sceneRootEntities.set(scene.id, this.#worldRootEntity.addChildren(rootEntity));
+        const rootEntity = new Entity(`scene-root-${scene.name}-${scene.id}`);
+        this.#worldRootEntity.addChildren(rootEntity);
+        this.#sceneRootEntities.set(scene.id, rootEntity);
         if (!this.#defaultScene) {
             this.#defaultScene = scene;
         }

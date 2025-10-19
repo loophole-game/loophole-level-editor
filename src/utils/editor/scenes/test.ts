@@ -72,6 +72,7 @@ export class TestScene extends Scene {
                 `Nested Box Level ${i + 1}`,
                 new C_Shape(`Box Level ${i + 1}`, 'RECT', {
                     fillStyle: `hsl(${(i * 40) % 360}, 70%, 50%)`,
+                    lineWidth: 0.1,
                 }),
             )
                 .setScale({ x: 0.75, y: 0.75 })

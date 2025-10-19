@@ -42,15 +42,15 @@ export const RENDER_CMD = {
 } as const;
 type CMD = (typeof RENDER_CMD)[keyof typeof RENDER_CMD];
 
-type DrawDataShape = {
+export type DrawDataShape = {
     x: number;
     y: number;
     w: number;
     h: number;
-    fill?: boolean;
-    stroke?: boolean;
+    rx?: number;
+    ry?: number;
 };
-type DrawDataImage = {
+export type DrawDataImage = {
     x: number;
     y: number;
     w: number;
@@ -59,19 +59,20 @@ type DrawDataImage = {
     sy?: number;
     sw?: number;
     sh?: number;
+    rx?: number;
+    ry?: number;
 };
-type DrawDataText = {
+export type DrawDataText = {
     x: number;
     y: number;
     text: string;
 };
 
-type RenderCommandData = { t: DOMMatrix } | DrawDataShape | DrawDataImage | DrawDataText;
+export type RenderCommandData = { t: DOMMatrix } | DrawDataShape | DrawDataImage | DrawDataText;
 
 export class RenderCommand {
     #cmd: CMD;
     #style: RenderStyle;
-    #zIndex: number;
     #data: RenderCommandData | null;
     #source: CanvasImageSource | null;
 
@@ -79,12 +80,10 @@ export class RenderCommand {
         cmd: CMD,
         style?: RenderStyle | null,
         data?: RenderCommandData | null,
-        zIndex: number = 0,
         source?: CanvasImageSource | null,
     ) {
         this.#cmd = cmd;
         this.#style = style ?? {};
-        this.#zIndex = zIndex;
         this.#data = data ?? null;
         this.#source = source ?? null;
     }
@@ -95,10 +94,6 @@ export class RenderCommand {
 
     get style(): RenderStyle {
         return this.#style;
-    }
-
-    get zIndex(): number {
-        return this.#zIndex;
     }
 
     get data(): RenderCommandData | null {
@@ -120,7 +115,8 @@ export class RenderSystem {
         this.#applyStyle(ctx, DEFAULT_RENDER_STYLE);
 
         for (const command of stream) {
-            const { style, data } = command;
+            const { style: _style, data } = command;
+            const style = { ...DEFAULT_RENDER_STYLE, ..._style };
             switch (command.cmd) {
                 case RENDER_CMD.PUSH_TRANSFORM: {
                     if (!data || !('t' in data)) {
@@ -143,13 +139,35 @@ export class RenderSystem {
                         continue;
                     }
 
-                    const { x, y, w, h } = data;
+                    const { x, y, w, h, rx = 1, ry = 1 } = data;
                     this.#applyStyle(ctx, style);
-                    if ('fill' in data && data.fill) {
-                        ctx.fillRect(x, y, w, h);
+
+                    // Draw strokes as a single path to avoid overlapping
+                    if (style.strokeStyle && style.lineWidth && style.lineWidth > 0) {
+                        for (let i = 0; i < rx; i++) {
+                            for (let j = 0; j < ry; j++) {
+                                ctx.strokeRect(
+                                    x + i * (w + style.lineWidth / 2),
+                                    y + j * (h + style.lineWidth / 2),
+                                    w,
+                                    h,
+                                );
+                            }
+                        }
                     }
-                    if ('stroke' in data && data.stroke) {
-                        ctx.strokeRect(x, y, w, h);
+
+                    // Draw fills first
+                    if (style.fillStyle) {
+                        for (let i = 0; i < rx; i++) {
+                            for (let j = 0; j < ry; j++) {
+                                ctx.fillRect(
+                                    x + i * (w + style.lineWidth / 2),
+                                    y + j * (h + style.lineWidth / 2),
+                                    w,
+                                    h,
+                                );
+                            }
+                        }
                     }
 
                     break;
@@ -180,9 +198,11 @@ export class RenderSystem {
     };
 
     #applyStyle = (ctx: CanvasRenderingContext2D, style: RenderStyle) => {
-        for (const key in style) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (ctx as any)[key] = style[key as keyof RenderStyle];
-        }
+        Object.entries(style).forEach(([key, value]) => {
+            if (value !== undefined) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (ctx as any)[key] = value;
+            }
+        });
     };
 }
