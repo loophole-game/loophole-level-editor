@@ -6,7 +6,7 @@ import {
     TILE_EDGE_HEIGHT_FRACTION,
     TILE_EDGE_WIDTH_FRACTION,
     TILE_SIZE,
-} from '../utils';
+} from '../../utils';
 import type { Loophole_Entity, Loophole_Int2 } from '../externalLevelSchema';
 import type { OnTileChangedCallback } from '..';
 import { C_PointerTarget } from '../../engine/components/PointerTarget';

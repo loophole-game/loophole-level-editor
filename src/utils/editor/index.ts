@@ -9,7 +9,7 @@ import {
     getLoopholeEntityPositionType,
     TILE_SIZE,
     type LoopholeEntityPositionType,
-} from './utils';
+} from '../utils';
 
 const SCENES: AvailableScenes = {
     [TestScene.name]: (name) => new TestScene(name),
@@ -47,6 +47,7 @@ export class Editor extends Engine {
             ...options,
         });
 
+        /*
         const entities: Loophole_Entity[] = [];
         for (let x = -10; x < 10; x++) {
             for (let y = -10; y < 10; y++) {
@@ -73,6 +74,7 @@ export class Editor extends Engine {
             },
             exitPosition: { x: 10, y: 10 },
         };
+        */
     }
 
     get level(): Loophole_Level | null {

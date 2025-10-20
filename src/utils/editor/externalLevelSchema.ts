@@ -25,17 +25,28 @@ export type Loophole_EdgePosition = {
 //    - "DOWN"  = 270 deg counter-clockwise
 export type Loophole_Direction = 'RIGHT' | 'UP' | 'LEFT' | 'DOWN';
 
+// The color palette for the walls and floors.
+//    0: orange floor & blue walls
+//    1: blue floor & orange/purple walls
+//    2: purple floor & red walls
+//    3: pink floor & purple walls
+//    4: pale green floor & green walls
+//    5: blue floor & green walls
+//    6: white floor & red walls
+export const ColorPalette = {
+    ORANGE: 0,
+    BLUE: 1,
+    PURPLE: 2,
+    PINK: 3,
+    PALE_GREEN: 4,
+    GREEN: 5,
+    WHITE: 6,
+};
+export type ColorPalette = (typeof ColorPalette)[keyof typeof ColorPalette];
+
 export type Loophole_Level = {
     version: 0;
-    // The color palette for the walls and floors.
-    //    0: orange floor & blue walls
-    //    1: blue floor & orange/purple walls
-    //    2: purple floor & red walls
-    //    3: pink floor & purple walls
-    //    4: pale green floor & green walls
-    //    5: blue floor & green walls
-    //    6: white floor & red walls
-    colorPalette: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+    colorPalette: ColorPalette;
     // The entity for the time machine that the player will spawn inside.
     entrance: Loophole_TimeMachine;
     // The position where the level exit will be created.
@@ -59,6 +70,13 @@ export type Loophole_Entity =
     | Loophole_Button
     | Loophole_Door
     | Loophole_Wire;
+export type Loophole_EntityType = Loophole_Entity['entityType'];
+
+export type Loophole_ExtendedEntityType =
+    | Exclude<Loophole_EntityType, 'MUSHROOM'>
+    | 'MUSHROOM_BLUE'
+    | 'MUSHROOM_GREEN'
+    | 'MUSHROOM_RED';
 
 // A time machine, including the walls and doors around it.
 export type Loophole_TimeMachine = {
