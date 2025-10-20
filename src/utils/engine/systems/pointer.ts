@@ -15,103 +15,134 @@ export const MouseButton = {
 } as const;
 export type MouseButton = (typeof MouseButton)[keyof typeof MouseButton];
 
-export interface MouseState extends Position, Record<MouseButton, MouseButtonState> {
+export interface PointerState extends Position, Record<MouseButton, MouseButtonState> {
+    scrollDelta: number;
     justMoved: boolean;
     onScreen: boolean;
-    worldX: number;
-    worldY: number;
+    justMovedOnScreen: boolean;
+    justMovedOffScreen: boolean;
+    worldPosition: Position;
 }
 
 export class PointerSystem {
     #engine: Engine;
 
-    #mouseState: MouseState = {
+    #pointerState: PointerState = {
+        scrollDelta: 0,
         justMoved: false,
         x: 0,
         y: 0,
-        worldX: 0,
-        worldY: 0,
+        worldPosition: { x: 0, y: 0 },
         onScreen: false,
+        justMovedOnScreen: false,
+        justMovedOffScreen: false,
         [MouseButton.LEFT]: { down: false, pressed: false, released: false },
         [MouseButton.MIDDLE]: { down: false, pressed: false, released: false },
         [MouseButton.RIGHT]: { down: false, pressed: false, released: false },
     };
-    #lastMouseState: MouseState = { ...this.#mouseState };
+    #lastPointerState: PointerState = { ...this.#pointerState };
 
     constructor(engine: Engine) {
         this.#engine = engine;
     }
 
-    get mouseState(): MouseState {
-        return this.#mouseState;
+    get pointerState(): Readonly<PointerState> {
+        return this.#pointerState;
     }
 
-    get mousePosition(): Readonly<Position> {
+    get pointerPosition(): Readonly<Position> {
         return {
-            x: this.#mouseState.x,
-            y: this.#mouseState.y,
+            x: this.#pointerState.x,
+            y: this.#pointerState.y,
         };
     }
 
-    set mousePosition(position: Position) {
-        this.#mouseState.x = position.x;
-        this.#mouseState.y = position.y;
-        this.#mouseState.justMoved = true;
-        this.#mouseState.onScreen = true;
+    set pointerPosition(position: Position) {
+        this.#pointerState.x = position.x;
+        this.#pointerState.y = position.y;
+        this.#pointerState.justMovedOnScreen = !this.#pointerState.onScreen;
+        this.#pointerState.justMovedOffScreen = false;
+        this.#pointerState.justMoved = true;
+        this.#pointerState.onScreen = true;
     }
 
-    get mouseWorldPosition(): Readonly<Position> {
+    set pointerScrollDelta(delta: number) {
+        this.#pointerState.scrollDelta = delta;
+    }
+
+    get pointerWorldPosition(): Readonly<Position> {
         return {
-            x: this.#mouseState.worldX,
-            y: this.#mouseState.worldY,
+            x: this.#pointerState.worldPosition.x,
+            y: this.#pointerState.worldPosition.y,
         };
     }
 
-    get mouseOnScreen(): boolean {
-        return this.#mouseState.onScreen;
+    get pointerOnScreen(): boolean {
+        return this.#pointerState.onScreen;
     }
 
-    set mouseOnScreen(onScreen: boolean) {
-        this.#mouseState.onScreen = onScreen;
+    set pointerOnScreen(onScreen: boolean) {
+        this.#pointerState.justMovedOnScreen = !this.#pointerState.onScreen && onScreen;
+        this.#pointerState.justMovedOffScreen = this.#pointerState.onScreen && !onScreen;
+        this.#pointerState.onScreen = onScreen;
     }
 
-    getMouseButton(button: MouseButton): MouseButtonState {
-        return this.#mouseState[button];
+    getPointerButton(button: MouseButton): MouseButtonState {
+        return this.#pointerState[button];
     }
 
-    setMouseButton(button: MouseButton, state: Partial<MouseButtonState>) {
-        this.#mouseState[button] = { ...this.#mouseState[button], ...state };
+    setPointerButton(button: MouseButton, state: Partial<MouseButtonState>) {
+        this.#pointerState[button] = { ...this.#pointerState[button], ...state };
     }
 
     update(): void {
-        this.#mouseState.justMoved =
-            this.#mouseState.x !== this.#lastMouseState.x ||
-            this.#mouseState.y !== this.#lastMouseState.y;
+        this.#pointerState.justMoved =
+            this.#pointerState.x !== this.#lastPointerState.x ||
+            this.#pointerState.y !== this.#lastPointerState.y;
+        this.#pointerState.worldPosition = this.#engine.screenToWorld(this.#pointerState);
         Object.values(MouseButton).forEach((button: MouseButton) => {
-            this.#mouseState[button].pressed =
-                this.#mouseState[button].down && !this.#lastMouseState[button].down;
-            this.#mouseState[button].released =
-                !this.#mouseState[button].down && this.#lastMouseState[button].down;
+            this.#pointerState[button].pressed =
+                this.#pointerState[button].down && !this.#lastPointerState[button].down;
+            this.#pointerState[button].released =
+                !this.#pointerState[button].down && this.#lastPointerState[button].down;
         });
 
-        this.#lastMouseState = {
-            ...this.#mouseState,
-            [MouseButton.LEFT]: { ...this.#mouseState[MouseButton.LEFT] },
-            [MouseButton.MIDDLE]: { ...this.#mouseState[MouseButton.MIDDLE] },
-            [MouseButton.RIGHT]: { ...this.#mouseState[MouseButton.RIGHT] },
+        this.#lastPointerState = {
+            ...this.#pointerState,
+            [MouseButton.LEFT]: { ...this.#pointerState[MouseButton.LEFT] },
+            [MouseButton.MIDDLE]: { ...this.#pointerState[MouseButton.MIDDLE] },
+            [MouseButton.RIGHT]: { ...this.#pointerState[MouseButton.RIGHT] },
         };
 
-        if (this.#mouseState.onScreen) {
-            const pointerTargets = this.#engine.rootEntity.getComponentsInTree<C_PointerTarget>(
-                C_PointerTarget.name,
-            );
-            const pointerWorldPosition = this.#engine.screenToWorld(this.#mouseState);
-            for (const pointerTarget of pointerTargets) {
-                const isPointerOver = pointerTarget.checkIfPointerOver(pointerWorldPosition);
+        if (this.#pointerState.onScreen) {
+            const pointerTargets = this.#resetAllPointerTargets();
+            for (let i = pointerTargets.length - 1; i >= 0; i--) {
+                const pointerTarget = pointerTargets[i];
+                const isPointerOver = pointerTarget.checkIfPointerOver(
+                    this.#pointerState.worldPosition,
+                );
                 if (isPointerOver) {
                     break;
                 }
             }
+        } else if (this.#pointerState.justMovedOffScreen) {
+            this.#resetAllPointerTargets();
         }
+
+        if (this.#pointerState.justMovedOnScreen) {
+            this.#pointerState.justMovedOnScreen = false;
+        }
+    }
+
+    #resetAllPointerTargets(): C_PointerTarget[] {
+        const pointerTargets = this.#engine.rootEntity.getComponentsInTree<C_PointerTarget>(
+            C_PointerTarget.name,
+        );
+        for (let i = pointerTargets.length - 1; i >= 0; i--) {
+            const pointerTarget = pointerTargets[i];
+            pointerTarget.isPointerOver = false;
+        }
+
+        return pointerTargets;
     }
 }

@@ -3,7 +3,7 @@ import { RenderSystem } from './systems/render';
 import { type Position } from './types';
 import type { AvailableScenes, Scene, SceneIdentifier } from './systems/scene';
 import { SceneSystem } from './systems/scene';
-import { MouseButton, PointerSystem, type MouseState } from './systems/pointer';
+import { MouseButton, PointerSystem, type PointerState } from './systems/pointer';
 
 type BrowserEvent =
     | 'mousemove'
@@ -100,15 +100,21 @@ export class Engine {
         this._pointerSystem = new PointerSystem(this);
 
         this.addBrowserEventHandler('mousedown', (_, data) =>
-            this.#setMouseButtonDown(data.button, true),
+            this.#setPointerButtonDown(data.button, true),
         );
         this.addBrowserEventHandler('mouseup', (_, data) =>
-            this.#setMouseButtonDown(data.button, false),
+            this.#setPointerButtonDown(data.button, false),
         );
-        this.addBrowserEventHandler('mousemove', (_, data) => this.#setMousePosition(data));
-        this.addBrowserEventHandler('mouseenter', (_, data) => this.#setMouseOnScreen(true, data));
-        this.addBrowserEventHandler('mouseleave', (_, data) => this.#setMouseOnScreen(false, data));
-        this.addBrowserEventHandler('mousewheel', (_, { delta }) => this.#setMouseWheel(delta));
+        this.addBrowserEventHandler('mousemove', (_, data) => this.#setPointerPosition(data));
+        this.addBrowserEventHandler('mouseenter', (_, data) =>
+            this.#setPointerOnScreen(true, data),
+        );
+        this.addBrowserEventHandler('mouseleave', (_, data) =>
+            this.#setPointerOnScreen(false, data),
+        );
+        this.addBrowserEventHandler('mousewheel', (_, { delta }) =>
+            this.#setPointerScrollDelta(delta),
+        );
 
         this._options = { ...DEFAULT_ENGINE_OPTIONS, ...options };
         this._camera = { ...DEFAULT_CAMERA_OPTIONS, ...this._options.cameraStart };
@@ -134,6 +140,7 @@ export class Engine {
         if (canvas) {
             this.forceRender();
         }
+        this.#worldToScreenMatrixDirty = true;
     }
 
     get canvasSize(): Position | null {
@@ -176,13 +183,14 @@ export class Engine {
                 .translate(this._camera.position.x, this._camera.position.y)
                 .rotate(this._camera.rotation)
                 .scale(this._camera.zoom, this._camera.zoom);
+            this.#worldToScreenMatrixDirty = false;
         }
 
         return this._worldToScreenMatrix;
     }
 
-    get pointerState(): Readonly<MouseState> {
-        return this._pointerSystem.mouseState;
+    get pointerState(): Readonly<PointerState> {
+        return this._pointerSystem.pointerState;
     }
 
     get fps(): number {
@@ -244,14 +252,24 @@ export class Engine {
 
     setCameraPosition(position: Position): void {
         this._camera.position = position;
+        this.#worldToScreenMatrixDirty = true;
     }
 
     setCameraZoom(zoom: number): void {
         this._camera.zoom = zoom;
+        this.#clampCameraZoom();
+        this.#worldToScreenMatrixDirty = true;
+    }
+
+    zoomCamera(delta: number): void {
+        this._camera.zoom += delta * this._options.zoomSpeed;
+        this.#clampCameraZoom();
+        this.#worldToScreenMatrixDirty = true;
     }
 
     setCameraRotation(rotation: number): void {
         this._camera.rotation = rotation;
+        this.#worldToScreenMatrixDirty = true;
     }
 
     addBrowserEventHandler<T extends BrowserEvent>(
@@ -365,25 +383,21 @@ export class Engine {
         });
     }
 
-    #setMousePosition(position: Position): void {
-        this._pointerSystem.mousePosition = position;
+    #setPointerPosition(position: Position): void {
+        this._pointerSystem.pointerPosition = position;
     }
 
-    #setMouseOnScreen(onScreen: boolean, position: Position): void {
-        this._pointerSystem.mousePosition = position;
-        this._pointerSystem.mouseOnScreen = onScreen;
+    #setPointerOnScreen(onScreen: boolean, position: Position): void {
+        this._pointerSystem.pointerPosition = position;
+        this._pointerSystem.pointerOnScreen = onScreen;
     }
 
-    #setMouseWheel(delta: number): void {
-        this._camera.zoom += delta * this._options.zoomSpeed;
-        this._camera.zoom = Math.max(
-            this._options.minZoom,
-            Math.min(this._options.maxZoom, this._camera.zoom),
-        );
+    #setPointerScrollDelta(delta: number): void {
+        this._pointerSystem.pointerScrollDelta = delta;
     }
 
-    #setMouseButtonDown(button: MouseButton, down: boolean): void {
-        this._pointerSystem.setMouseButton(button, { down });
+    #setPointerButtonDown(button: MouseButton, down: boolean): void {
+        this._pointerSystem.setPointerButton(button, { down });
     }
 
     #applyOptions(newOptions: EngineOptions): void {
@@ -393,5 +407,12 @@ export class Engine {
         );
 
         this._options = { ...this._options, ...newOptions };
+    }
+
+    #clampCameraZoom(): void {
+        this._camera.zoom = Math.max(
+            this._options.minZoom,
+            Math.min(this._options.maxZoom, this._camera.zoom),
+        );
     }
 }

@@ -46,6 +46,11 @@ export class C_CameraDrag extends Component {
             this.#dragStartCameraPosition = null;
         }
 
+        if (window.engine.pointerState.scrollDelta !== 0) {
+            window.engine.zoomCamera(window.engine.pointerState.scrollDelta);
+            updated = true;
+        }
+
         return updated;
     }
 }

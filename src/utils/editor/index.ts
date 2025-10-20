@@ -47,23 +47,28 @@ export class Editor extends Engine {
             ...options,
         });
 
+        const entities: Loophole_Entity[] = [];
+        for (let x = -10; x < 10; x++) {
+            for (let y = -10; y < 10; y++) {
+                entities.push({
+                    entityType: 'WALL',
+                    edgePosition: { cell: { x, y }, alignment: 'RIGHT' },
+                });
+                entities.push({
+                    entityType: 'BUTTON',
+                    position: { x, y },
+                    channel: 0,
+                });
+            }
+        }
+
         this.level = {
             colorPalette: 0,
-            entities: [
-                {
-                    entityType: 'WALL',
-                    edgePosition: { cell: { x: 2, y: 0 }, alignment: 'RIGHT' },
-                },
-                {
-                    entityType: 'BUTTON',
-                    position: { x: 2, y: 0 },
-                    channel: 0,
-                },
-            ],
+            entities: entities,
             version: 0,
             entrance: {
                 entityType: 'TIME_MACHINE',
-                position: { x: 2, y: 0 },
+                position: { x: 0, y: 0 },
                 rotation: 'RIGHT',
             },
             exitPosition: { x: 10, y: 10 },
@@ -126,7 +131,7 @@ export class Editor extends Engine {
 
     #getTile(position: Loophole_Int2, type: LoopholeEntityPositionType): TileData {
         const positionKey = this.#positionKey(position);
-        const list = type === 'CELL' ? this.#cells : this.#edges;
+        const list: Record<string, TileData> = type === 'CELL' ? this.#cells : this.#edges;
         if (!list[positionKey]) {
             const entity = (
                 type === 'CELL'
@@ -137,8 +142,7 @@ export class Editor extends Engine {
                     x: position.x * TILE_SIZE,
                     y: position.y * TILE_SIZE,
                 })
-                .setScale({ x: TILE_SIZE, y: TILE_SIZE * 1.3452 })
-                .setRotation(23);
+                .setScale({ x: TILE_SIZE, y: TILE_SIZE });
 
             this.addSceneEntities(GridScene.name, entity);
             list[positionKey] = {

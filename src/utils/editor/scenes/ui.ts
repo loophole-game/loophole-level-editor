@@ -27,7 +27,6 @@ class E_Cursor extends Entity {
         let updated = super.update(deltaTime);
 
         const position = window.engine.screenToWorld(window.engine.pointerState);
-        console.log(position);
         if (
             position.x !== this._transform.position.x ||
             position.y !== this._transform.position.y

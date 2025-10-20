@@ -1,7 +1,12 @@
 import { C_Shape } from '../../engine/components/Shape';
 import { Entity } from '../../engine/entities';
 import { Scene } from '../../engine/systems/scene';
-import { TILE_SIZE } from '../utils';
+import {
+    TILE_CENTER_FRACTION,
+    TILE_EDGE_HEIGHT_FRACTION,
+    TILE_EDGE_WIDTH_FRACTION,
+    TILE_SIZE,
+} from '../utils';
 import type { Loophole_Entity, Loophole_Int2 } from '../externalLevelSchema';
 import type { OnTileChangedCallback } from '..';
 import { C_PointerTarget } from '../../engine/components/PointerTarget';
@@ -126,30 +131,78 @@ export class E_Cell extends E_Tile {
         entities: Loophole_Entity[],
         onChanged: OnTileChangedCallback,
     ) {
-        const shape = new C_Shape('shape', 'RECT', { fillStyle: 'red' });
-        const pointerTarget = new C_PointerTarget();
-        super('cell', position, entities, onChanged, shape, pointerTarget);
+        super('cell', position, entities, onChanged);
 
-        this.#shape = shape;
-        this.#pointerTarget = pointerTarget;
+        this.#shape = new C_Shape('shape', 'RECT');
+        this.#pointerTarget = new C_PointerTarget();
+        this.addChildren(
+            new Entity('cell-shape', this.#shape, this.#pointerTarget).setScale({
+                x: TILE_CENTER_FRACTION,
+                y: TILE_CENTER_FRACTION,
+            }),
+        );
     }
 
-    override update(deltaTime: number): boolean {
-        this.#shape.style.fillStyle = this.#pointerTarget.isPointerOver ? 'blue' : 'red';
+    override update(): boolean {
+        this.#shape.style.fillStyle = this.#pointerTarget.isPointerOver ? 'green' : 'darkgrey';
 
-        const delta = deltaTime * 1000;
-        this.rotate(delta);
         return true;
     }
 }
 
+interface EdgeData {
+    rootEntity: Entity;
+    shape: C_Shape;
+    pointerTarget: C_PointerTarget;
+}
+
 export class E_Edge extends E_Tile {
+    #rightEdge: EdgeData;
+    #topEdge: EdgeData;
+
     constructor(
         position: Loophole_Int2,
         entities: Loophole_Entity[],
         onChanged: OnTileChangedCallback,
     ) {
         super('edge', position, entities, onChanged);
+
+        const rightEdgeShape = new C_Shape('shape', 'RECT');
+        const rightEdgePointerTarget = new C_PointerTarget();
+        this.#rightEdge = {
+            rootEntity: new Entity('rightEdge', rightEdgeShape)
+                .setPosition({ x: 0.5, y: 0 })
+                .setScale({ x: TILE_EDGE_HEIGHT_FRACTION, y: TILE_EDGE_WIDTH_FRACTION })
+                .addComponents(rightEdgeShape, rightEdgePointerTarget),
+            shape: rightEdgeShape,
+            pointerTarget: rightEdgePointerTarget,
+        };
+
+        const topEdgeShape = new C_Shape('shape', 'RECT');
+        const topEdgePointerTarget = new C_PointerTarget();
+        this.#topEdge = {
+            rootEntity: new Entity('topEdge', topEdgeShape)
+                .setPosition({ x: 0, y: -0.5 })
+                .setScale({ x: TILE_EDGE_WIDTH_FRACTION, y: TILE_EDGE_HEIGHT_FRACTION })
+                .addComponents(topEdgeShape, topEdgePointerTarget),
+            shape: topEdgeShape,
+            pointerTarget: topEdgePointerTarget,
+        };
+
+        this.addChildren(this.#rightEdge.rootEntity, this.#topEdge.rootEntity);
+    }
+
+    override update(deltaTime: number): boolean {
+        super.update(deltaTime);
+
+        this.#rightEdge.shape.style.fillStyle = this.#rightEdge.pointerTarget.isPointerOver
+            ? 'green'
+            : 'grey';
+        this.#topEdge.shape.style.fillStyle = this.#topEdge.pointerTarget.isPointerOver
+            ? 'green'
+            : 'grey';
+
+        return true;
     }
 }
 
