@@ -53,10 +53,10 @@ export class C_Shape extends DrawableComponent {
             }
             case 'ELLIPSE': {
                 const data: DrawDataShape = {
-                    x: 0,
-                    y: 0,
-                    w: 1,
-                    h: 1,
+                    x: this.entity.transform.position.x,
+                    y: this.entity.transform.position.y,
+                    w: this.entity.transform.scale.x,
+                    h: this.entity.transform.scale.y,
                 };
                 if (this.#repeat) {
                     data.rx = this.#repeat.x;

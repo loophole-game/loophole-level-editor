@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Engine } from '../../utils/engine';
-import type { MouseButton, Position } from '../../utils/engine/types';
+import type { Position } from '../../utils/engine/types';
+import type { MouseButton } from '../../utils/engine/systems/pointer';
 
 const calculateCanvasSize = (width: number, height: number, aspectRatio?: number): Position => {
     if (aspectRatio) {

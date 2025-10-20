@@ -79,11 +79,8 @@ export class Entity implements Renderable {
         return this._children;
     }
 
-    getComponentsInTree<T extends Component>(typeString: string): RecursiveArray<T> {
-        return [
-            ...this._children.map((c) => c.getComponentsInTree<T>(typeString)),
-            ...this._components.filter((c) => c.typeString === typeString && c.enabled),
-        ] as RecursiveArray<T>;
+    getComponentsInTree<T extends Component>(typeString: string): T[] {
+        return this.#getComponentsInTree<T>(typeString).flat() as T[];
     }
 
     update(deltaTime: number): boolean {
@@ -293,5 +290,14 @@ export class Entity implements Renderable {
 
     #sortComponents(): void {
         this._components.sort(this.#sortByZIndex);
+    }
+
+    #getComponentsInTree<T extends Component>(typeString: string): RecursiveArray<T> {
+        return [
+            ...this._children.map((c) => c.getComponentsInTree<T>(typeString)),
+            ...this._components.filter((c) => {
+                return c.typeString === typeString && c.enabled;
+            }),
+        ].filter((item) => Object.values(item).length > 0) as RecursiveArray<T>;
     }
 }

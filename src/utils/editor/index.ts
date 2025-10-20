@@ -52,18 +52,18 @@ export class Editor extends Engine {
             entities: [
                 {
                     entityType: 'WALL',
-                    edgePosition: { cell: { x: 0, y: 0 }, alignment: 'RIGHT' },
+                    edgePosition: { cell: { x: 2, y: 0 }, alignment: 'RIGHT' },
                 },
                 {
                     entityType: 'BUTTON',
-                    position: { x: 0, y: 0 },
+                    position: { x: 2, y: 0 },
                     channel: 0,
                 },
             ],
             version: 0,
             entrance: {
                 entityType: 'TIME_MACHINE',
-                position: { x: 0, y: 0 },
+                position: { x: 2, y: 0 },
                 rotation: 'RIGHT',
             },
             exitPosition: { x: 10, y: 10 },
@@ -128,15 +128,17 @@ export class Editor extends Engine {
         const positionKey = this.#positionKey(position);
         const list = type === 'CELL' ? this.#cells : this.#edges;
         if (!list[positionKey]) {
-            const entity =
+            const entity = (
                 type === 'CELL'
                     ? new E_Cell(position, [], this.#onTileEntitiesChanged.bind(this))
                     : new E_Edge(position, [], this.#onTileEntitiesChanged.bind(this))
-                          .setPosition({
-                              x: position.x * TILE_SIZE,
-                              y: position.y * TILE_SIZE,
-                          })
-                          .setScale({ x: TILE_SIZE, y: TILE_SIZE });
+            )
+                .setPosition({
+                    x: position.x * TILE_SIZE,
+                    y: position.y * TILE_SIZE,
+                })
+                .setScale({ x: TILE_SIZE, y: TILE_SIZE * 1.3452 })
+                .setRotation(23);
 
             this.addSceneEntities(GridScene.name, entity);
             list[positionKey] = {

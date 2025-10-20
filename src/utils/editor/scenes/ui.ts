@@ -1,10 +1,10 @@
 import { C_CameraDrag } from '../../engine/components/CameraDrag';
 import { C_Shape } from '../../engine/components/Shape';
 import { Entity } from '../../engine/entities';
+import { MouseButton } from '../../engine/systems/pointer';
 import { Scene } from '../../engine/systems/scene';
-import { MouseButton } from '../../engine/types';
 
-const CURSOR_SIZE = 8;
+const CURSOR_SIZE = 32;
 
 class E_Cursor extends Entity {
     #shapeComp: C_Shape;
@@ -12,9 +12,7 @@ class E_Cursor extends Entity {
 
     constructor() {
         const comp = new C_Shape('cursor', 'ELLIPSE', {
-            fillStyle: 'blue',
-            strokeStyle: 'white',
-            lineWidth: 2,
+            fillStyle: 'white',
             globalAlpha: 0,
         });
 
@@ -28,7 +26,8 @@ class E_Cursor extends Entity {
     override update(deltaTime: number): boolean {
         let updated = super.update(deltaTime);
 
-        const position = window.engine.mouseToWorld(window.engine.mouseState);
+        const position = window.engine.screenToWorld(window.engine.pointerState);
+        console.log(position);
         if (
             position.x !== this._transform.position.x ||
             position.y !== this._transform.position.y
@@ -37,7 +36,7 @@ class E_Cursor extends Entity {
             updated = true;
         }
 
-        const active = window.engine.mouseState.onScreen;
+        const active = window.engine.pointerState.onScreen;
         const targetOpacity = active ? 1 : 0;
         if (this.#opacity !== targetOpacity) {
             this.#opacity = Math.max(
@@ -48,7 +47,7 @@ class E_Cursor extends Entity {
             updated = true;
         }
 
-        const targetScale = this._transform.scale.x / window.engine.camera.zoom;
+        const targetScale = CURSOR_SIZE / window.engine.camera.zoom;
         if (this._transform.scale.x !== targetScale) {
             this.setScale({ x: targetScale, y: targetScale });
             updated = true;

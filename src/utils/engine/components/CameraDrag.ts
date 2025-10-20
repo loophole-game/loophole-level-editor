@@ -1,5 +1,6 @@
 import { Component } from '.';
-import { MouseButton, type Position } from '../types';
+import { MouseButton } from '../systems/pointer';
+import { type Position } from '../types';
 
 export class C_CameraDrag extends Component {
     #mouseButtons: MouseButton[] = [];
@@ -14,33 +15,26 @@ export class C_CameraDrag extends Component {
 
     override update(deltaTime: number): boolean {
         let updated = super.update(deltaTime);
-        if (!window.engine.canvasSize) {
-            return updated;
-        }
 
-        const buttonStates = this.#mouseButtons.map((btn) => window.engine.mouseState[btn]);
+        const buttonStates = this.#mouseButtons.map((btn) => window.engine.pointerState[btn]);
         if (buttonStates.some((state) => state.pressed) && !this.#dragStartMousePosition) {
-            this.#dragStartMousePosition = { ...window.engine.mouseState };
-            this.#dragStartCameraPosition = {
-                x: window.engine.camera.position.x - window.engine.canvasSize.x / 2,
-                y: window.engine.camera.position.y - window.engine.canvasSize.y / 2,
-            };
+            this.#dragStartMousePosition = { ...window.engine.pointerState };
+            this.#dragStartCameraPosition = { ...window.engine.camera.position };
         }
 
-        if (window.engine.mouseState.justMoved) {
+        if (window.engine.pointerState.justMoved) {
             if (
                 buttonStates.some((state) => state.down) &&
                 this.#dragStartMousePosition &&
                 this.#dragStartCameraPosition
             ) {
-                const mouseDelta = {
-                    x: this.#dragStartMousePosition.x - window.engine.mouseState.x,
-                    y: this.#dragStartMousePosition.y - window.engine.mouseState.y,
+                const screenDelta = {
+                    x: window.engine.pointerState.x - this.#dragStartMousePosition.x,
+                    y: window.engine.pointerState.y - this.#dragStartMousePosition.y,
                 };
-                const worldDelta = window.engine.mouseToWorld(mouseDelta, true);
                 window.engine.setCameraPosition({
-                    x: this.#dragStartCameraPosition.x - worldDelta.x,
-                    y: this.#dragStartCameraPosition.y - worldDelta.y,
+                    x: this.#dragStartCameraPosition.x + screenDelta.x,
+                    y: this.#dragStartCameraPosition.y + screenDelta.y,
                 });
             }
 

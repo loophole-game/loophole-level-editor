@@ -1,6 +1,6 @@
 import type { Loophole_Entity, Loophole_Int2 } from './externalLevelSchema';
 
-export const TILE_SIZE = 50;
+export const TILE_SIZE = 100;
 export const MAX_ENTITY_COUNT = 4000;
 
 export type LoopholeEntityPositionType = 'CELL' | 'EDGE';

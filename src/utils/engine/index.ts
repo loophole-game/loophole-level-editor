@@ -1,8 +1,9 @@
 import { Entity } from './entities';
 import { RenderSystem } from './systems/render';
-import { MouseButton, type MouseState, type Position } from './types';
+import { type Position } from './types';
 import type { AvailableScenes, Scene, SceneIdentifier } from './systems/scene';
 import { SceneSystem } from './systems/scene';
+import { MouseButton, PointerSystem, type MouseState } from './systems/pointer';
 
 type BrowserEvent =
     | 'mousemove'
@@ -71,20 +72,14 @@ export class Engine {
     _camera: Required<CameraState>;
     _rootEntity: Entity;
 
+    _worldToScreenMatrix: DOMMatrix | null = null;
+    #worldToScreenMatrixDirty: boolean = true;
+
     _renderSystem: RenderSystem;
     _sceneSystem: SceneSystem;
+    _pointerSystem: PointerSystem;
 
     #forceRender: boolean = true;
-    #mouseState: MouseState = {
-        justMoved: false,
-        x: 0,
-        y: 0,
-        onScreen: false,
-        [MouseButton.LEFT]: { down: false, pressed: false, released: false },
-        [MouseButton.MIDDLE]: { down: false, pressed: false, released: false },
-        [MouseButton.RIGHT]: { down: false, pressed: false, released: false },
-    };
-    #lastMouseState: MouseState = { ...this.#mouseState };
 
     #lastTime: number = performance.now();
 
@@ -102,6 +97,7 @@ export class Engine {
         this._rootEntity = new Entity('root');
         this._renderSystem = new RenderSystem();
         this._sceneSystem = new SceneSystem(this._rootEntity);
+        this._pointerSystem = new PointerSystem(this);
 
         this.addBrowserEventHandler('mousedown', (_, data) =>
             this.#setMouseButtonDown(data.button, true),
@@ -162,14 +158,31 @@ export class Engine {
 
     set camera(newCamera: CameraState) {
         this._camera = { ...DEFAULT_CAMERA_OPTIONS, ...newCamera };
+        this.#worldToScreenMatrixDirty = true;
     }
 
     get rootEntity(): Readonly<Entity> {
         return this._rootEntity;
     }
 
-    get mouseState(): Readonly<MouseState> {
-        return { ...this.#mouseState };
+    get worldToScreenMatrix(): Readonly<DOMMatrix> {
+        if (!this._worldToScreenMatrix || this.#worldToScreenMatrixDirty) {
+            if (!this.canvasSize) {
+                return new DOMMatrix();
+            }
+
+            this._worldToScreenMatrix = new DOMMatrix()
+                .translate(this.canvasSize.x / 2, this.canvasSize.y / 2)
+                .translate(this._camera.position.x, this._camera.position.y)
+                .rotate(this._camera.rotation)
+                .scale(this._camera.zoom, this._camera.zoom);
+        }
+
+        return this._worldToScreenMatrix;
+    }
+
+    get pointerState(): Readonly<MouseState> {
+        return this._pointerSystem.mouseState;
     }
 
     get fps(): number {
@@ -210,26 +223,23 @@ export class Engine {
         this.#forceRender = true;
     }
 
-    mouseToWorld(position: Position, ignorePosition: boolean = false): Position {
+    screenToWorld(position: Position): Position {
         if (!this._canvas) {
             return position;
         }
-        const x = position.x - this._canvas.width / 2;
-        const y = position.y - this._canvas.height / 2;
 
-        const rotation = -this._camera.rotation * (Math.PI / 180);
-        const cos = Math.cos(rotation);
-        const sin = Math.sin(rotation);
-        const rotatedX = x * cos - y * sin;
-        const rotatedY = x * sin + y * cos;
+        const screenToWorldMatrix = this.worldToScreenMatrix.inverse();
+        const p = screenToWorldMatrix.transformPoint(new DOMPoint(position.x, position.y));
 
-        const worldX = rotatedX;
-        const worldY = rotatedY;
+        return { x: p.x, y: p.y };
+    }
 
-        return {
-            x: ignorePosition ? worldX : worldX - this._camera.position.x * this._camera.zoom,
-            y: ignorePosition ? worldY : worldY - this._camera.position.y * this._camera.zoom,
-        };
+    worldToScreen(position: Position): Position {
+        if (!this._canvas) {
+            return position;
+        }
+
+        return this.worldToScreenMatrix.transformPoint(new DOMPoint(position.x, position.y));
     }
 
     setCameraPosition(position: Position): void {
@@ -273,25 +283,6 @@ export class Engine {
     onMouseLeave: BrowserEventHandler<'mouseleave'> = (...args) =>
         this.#handleBrowserEvent(...args);
     onMouseOver: BrowserEventHandler<'mouseover'> = (...args) => this.#handleBrowserEvent(...args);
-
-    #inputs(): void {
-        this.#mouseState.justMoved =
-            this.#mouseState.x !== this.#lastMouseState.x ||
-            this.#mouseState.y !== this.#lastMouseState.y;
-        Object.values(MouseButton).forEach((button: MouseButton) => {
-            this.#mouseState[button].pressed =
-                this.#mouseState[button].down && !this.#lastMouseState[button].down;
-            this.#mouseState[button].released =
-                !this.#mouseState[button].down && this.#lastMouseState[button].down;
-        });
-
-        this.#lastMouseState = {
-            ...this.#mouseState,
-            [MouseButton.LEFT]: { ...this.#mouseState[MouseButton.LEFT] },
-            [MouseButton.MIDDLE]: { ...this.#mouseState[MouseButton.MIDDLE] },
-            [MouseButton.RIGHT]: { ...this.#mouseState[MouseButton.RIGHT] },
-        };
-    }
 
     #update(deltaTime: number): boolean {
         const startTime = performance.now();
@@ -356,8 +347,9 @@ export class Engine {
             this.#fpsTimeAccumulator = 0;
         }
 
-        this.#inputs();
+        this._pointerSystem.update();
         const sceneUpdated = this._sceneSystem.update(deltaTime);
+
         const entityUpdated = this.#update(deltaTime);
         if (sceneUpdated || entityUpdated || this.#forceRender) {
             this.#render();
@@ -374,16 +366,12 @@ export class Engine {
     }
 
     #setMousePosition(position: Position): void {
-        this.#mouseState.x = position.x;
-        this.#mouseState.y = position.y;
-        this.#mouseState.justMoved = true;
-        this.#mouseState.onScreen = true;
+        this._pointerSystem.mousePosition = position;
     }
 
     #setMouseOnScreen(onScreen: boolean, position: Position): void {
-        this.#mouseState.onScreen = onScreen;
-        this.#mouseState.x = position.x;
-        this.#mouseState.y = position.y;
+        this._pointerSystem.mousePosition = position;
+        this._pointerSystem.mouseOnScreen = onScreen;
     }
 
     #setMouseWheel(delta: number): void {
@@ -395,7 +383,7 @@ export class Engine {
     }
 
     #setMouseButtonDown(button: MouseButton, down: boolean): void {
-        this.#mouseState[button].down = down;
+        this._pointerSystem.setMouseButton(button, { down });
     }
 
     #applyOptions(newOptions: EngineOptions): void {

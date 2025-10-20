@@ -4,6 +4,8 @@ import { Scene } from '../../engine/systems/scene';
 import { TILE_SIZE } from '../utils';
 import type { Loophole_Entity, Loophole_Int2 } from '../externalLevelSchema';
 import type { OnTileChangedCallback } from '..';
+import { C_PointerTarget } from '../../engine/components/PointerTarget';
+import type { Component } from '../../engine/components';
 
 const GRID_BUFFER = 2;
 
@@ -76,8 +78,9 @@ export abstract class E_Tile extends Entity {
         position: Loophole_Int2,
         entities: Loophole_Entity[],
         onChanged: OnTileChangedCallback,
+        ...components: Component[]
     ) {
-        super(name, new C_Shape('shape', 'RECT', { fillStyle: 'red' }));
+        super(name, ...components);
 
         this.setPosition(position);
         this._position = position;
@@ -115,12 +118,28 @@ export abstract class E_Tile extends Entity {
 }
 
 export class E_Cell extends E_Tile {
+    #shape: C_Shape;
+    #pointerTarget: C_PointerTarget;
+
     constructor(
         position: Loophole_Int2,
         entities: Loophole_Entity[],
         onChanged: OnTileChangedCallback,
     ) {
-        super('cell', position, entities, onChanged);
+        const shape = new C_Shape('shape', 'RECT', { fillStyle: 'red' });
+        const pointerTarget = new C_PointerTarget();
+        super('cell', position, entities, onChanged, shape, pointerTarget);
+
+        this.#shape = shape;
+        this.#pointerTarget = pointerTarget;
+    }
+
+    override update(deltaTime: number): boolean {
+        this.#shape.style.fillStyle = this.#pointerTarget.isPointerOver ? 'blue' : 'red';
+
+        const delta = deltaTime * 1000;
+        this.rotate(delta);
+        return true;
     }
 }
 
@@ -136,6 +155,6 @@ export class E_Edge extends E_Tile {
 
 export class GridScene extends Scene {
     override create() {
-        this.addEntities(new E_Grid());
+        this.addEntities(new E_Grid().setZIndex(-1));
     }
 }

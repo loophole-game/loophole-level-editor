@@ -18,7 +18,7 @@ export interface RenderStyle {
 
 export const DEFAULT_RENDER_STYLE: Required<RenderStyle> = {
     fillStyle: 'white',
-    strokeStyle: 'black',
+    strokeStyle: '',
     lineWidth: 0,
     lineJoin: 'miter',
     lineCap: 'butt',
@@ -181,10 +181,10 @@ export class RenderSystem {
                     this.#applyStyle(ctx, style);
                     ctx.beginPath();
                     ctx.ellipse(x, y, w / 2, h / 2, 0, 0, 2 * Math.PI);
-                    if ('fill' in data && data.fill) {
+                    if (style.fillStyle) {
                         ctx.fill();
                     }
-                    if ('stroke' in data && data.stroke) {
+                    if (style.strokeStyle) {
                         ctx.stroke();
                     }
                     ctx.closePath();

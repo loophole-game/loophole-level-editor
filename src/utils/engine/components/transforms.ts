@@ -31,7 +31,8 @@ export class C_Transform extends Component {
     }
 
     get worldRotation(): number {
-        return this.worldMatrix.e;
+        const matrix = this.worldMatrix;
+        return Math.atan2(matrix.b, matrix.a) * (180 / Math.PI);
     }
 
     get scale(): Readonly<Position> {
@@ -39,9 +40,10 @@ export class C_Transform extends Component {
     }
 
     get worldScale(): Readonly<Position> {
+        const matrix = this.worldMatrix;
         return {
-            x: this.worldMatrix.a,
-            y: this.worldMatrix.d,
+            x: Math.sqrt(matrix.a * matrix.a + matrix.b * matrix.b),
+            y: Math.sqrt(matrix.c * matrix.c + matrix.d * matrix.d),
         };
     }
 
