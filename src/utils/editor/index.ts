@@ -1,6 +1,13 @@
 import { Engine, type EngineOptions } from '../engine';
 import type { AvailableScenes } from '../engine/systems/scene';
-import type { Loophole_Entity, Loophole_Int2, Loophole_Level } from './externalLevelSchema';
+import type {
+    Loophole_Direction,
+    Loophole_EdgeAlignment,
+    Loophole_Entity,
+    Loophole_ExtendedEntityType,
+    Loophole_Int2,
+    Loophole_Level,
+} from './externalLevelSchema';
 import { E_Cell, E_Edge, GridScene } from './scenes/grid';
 import { TestScene } from './scenes/test';
 import { UIScene } from './scenes/ui';
@@ -8,11 +15,12 @@ import {
     ENTITY_METADATA,
     getLoopholeEntityPosition,
     getLoopholeEntityPositionType,
+    loopholePositionToEnginePosition,
     TILE_SIZE,
-    type LoopholeEntityPositionType,
+    type LoopholePositionType,
 } from '../utils';
 import { getAppStore } from '../store';
-import type { Position } from '../engine/types';
+import { positionsEqual } from '../engine/utils';
 
 const SCENES: AvailableScenes = {
     [TestScene.name]: (name) => new TestScene(name),
@@ -115,13 +123,27 @@ export class Editor extends Engine {
         return false;
     }
 
-    addTileEntities(position: Position, ...entities: Loophole_Entity[]) {
-        this.#level.entities.push(...entities);
-        this.#addTileEntitiesToGrid(position, ...entities);
+    placeTile(
+        position: Loophole_Int2,
+        entityType: Loophole_ExtendedEntityType,
+        edgeAlignment: Loophole_EdgeAlignment,
+        rotation: Loophole_Direction,
+    ) {
+        const { createEntity, tileOwnership } = ENTITY_METADATA[entityType];
+        const entity = createEntity(position, edgeAlignment, rotation);
+        const entityPosition = getLoopholeEntityPosition(entity);
+        this.#level.entities = this.#level.entities.filter(
+            (e) =>
+                !positionsEqual(position, getLoopholeEntityPosition(e)) ||
+                (tileOwnership === 'ONLY_TYPE_IN_TILE' ? e.entityType !== entityType : false),
+        );
+
+        this.#level.entities.push(entity);
+        this.#addTileEntitiesToGrid(entityPosition, entity);
         this.#onLevelChanged(this.#level);
     }
 
-    #addTileEntitiesToGrid(position: Position, ...entities: Loophole_Entity[]) {
+    #addTileEntitiesToGrid(position: Loophole_Int2, ...entities: Loophole_Entity[]) {
         const cellEntities: Loophole_Entity[] = [];
         const edgeEntities: Loophole_Entity[] = [];
         entities.forEach((entity) => {
@@ -144,14 +166,15 @@ export class Editor extends Engine {
         }
     }
 
-    #getTile(position: Loophole_Int2, type: LoopholeEntityPositionType): TileData {
+    #getTile(position: Loophole_Int2, type: LoopholePositionType): TileData {
         const positionKey = this.#positionKey(position);
         const list: Record<string, TileData> = type === 'CELL' ? this.#cells : this.#edges;
         if (!list[positionKey]) {
+            const enginePosition = loopholePositionToEnginePosition(position);
             const entity = (type === 'CELL' ? new E_Cell(position) : new E_Edge(position))
                 .setPosition({
-                    x: position.x * TILE_SIZE,
-                    y: position.y * TILE_SIZE,
+                    x: enginePosition.x * TILE_SIZE,
+                    y: enginePosition.y * TILE_SIZE,
                 })
                 .setScale({ x: TILE_SIZE, y: TILE_SIZE });
 

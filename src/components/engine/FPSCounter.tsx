@@ -1,6 +1,11 @@
+import { cn } from '@/lib/utils';
 import { useEffect, useState } from 'react';
 
-export function FPSCounter() {
+interface FPSCounterProps {
+    className?: string;
+}
+
+export function FPSCounter({ className }: FPSCounterProps) {
     const [stats, setStats] = useState<{ fps: number; updateTime: number; renderTime: number }>({
         fps: 0,
         updateTime: 0,
@@ -21,7 +26,7 @@ export function FPSCounter() {
     }, []);
 
     return (
-        <p className="mt-auto text-white font-bold">
+        <p className={cn('text-white font-bold', className)}>
             FPS: {stats.fps}
             <br />
             Update: {stats.updateTime.toFixed(1)}ms

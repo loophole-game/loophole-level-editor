@@ -78,12 +78,14 @@ export abstract class Component implements Renderable {
 
 export abstract class C_Drawable extends Component {
     protected _origin: Position;
+    protected _scale: Position;
     protected _style: RenderStyle;
 
-    constructor(name: string, origin: Position, style?: RenderStyle) {
+    constructor(name: string, origin: Position, scale: Position, style?: RenderStyle) {
         super(name);
 
         this._origin = origin;
+        this._scale = scale;
         this._style = style ?? {};
     }
 
@@ -101,6 +103,15 @@ export abstract class C_Drawable extends Component {
 
     setOrigin(origin: Position): this {
         this._origin = origin;
+        return this;
+    }
+
+    get scale(): Position {
+        return this._scale;
+    }
+
+    setScale(scale: Position): this {
+        this._scale = scale;
         return this;
     }
 

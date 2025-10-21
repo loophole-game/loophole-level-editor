@@ -9,11 +9,15 @@ import {
     TILE_EDGE_WIDTH_FRACTION,
     TILE_SIZE,
 } from '../../utils';
-import type { Loophole_Entity, Loophole_Int2 } from '../externalLevelSchema';
+import type {
+    Loophole_EdgeAlignment,
+    Loophole_Entity,
+    Loophole_Int2,
+} from '../externalLevelSchema';
 import { C_PointerTarget } from '../../engine/components/PointerTarget';
-import type { Component } from '../../engine/components';
 import { getAppStore } from '@/utils/store';
 import { C_Image } from '@/utils/engine/components/Image';
+import { Component } from '@/utils/engine/components';
 
 const GRID_BUFFER = 2;
 
@@ -75,11 +79,37 @@ class E_Grid extends Entity {
     }
 }
 
-export abstract class E_Tile extends Entity {
-    _tilePosition: Loophole_Int2;
-    _entities: Loophole_Entity[] = [];
+class C_PointerVisual extends Component {
+    #pointerTarget: C_PointerTarget;
+    #shape: C_Shape;
 
-    protected _images: C_Image[] = [];
+    #opacity: number = 0;
+
+    constructor(pointerTarget: C_PointerTarget, shape: C_Shape) {
+        super('PointerVisual');
+
+        this.#pointerTarget = pointerTarget;
+        this.#shape = shape;
+        this.#shape.style.globalAlpha = 0;
+        this.#shape.setScale({ x: 1.1, y: 1.1 });
+    }
+
+    override update(deltaTime: number): boolean {
+        const active = this.#pointerTarget.isPointerOver;
+        const targetOpacity = active ? 1 : 0;
+        if (targetOpacity !== this.#opacity) {
+            this.#opacity = Math.max(0, Math.min(1, this.#opacity + deltaTime * (active ? 7 : -7)));
+            this.#shape.style.globalAlpha = this.#opacity;
+            return true;
+        } else {
+            return false;
+        }
+    }
+}
+
+export abstract class E_Tile extends Entity {
+    protected _tilePosition: Loophole_Int2;
+    protected _entities: Loophole_Entity[] = [];
     protected _entitiesDirty: boolean = true;
 
     constructor(name: string, position: Loophole_Int2, ...components: Component[]) {
@@ -106,7 +136,6 @@ export abstract class E_Tile extends Entity {
         this._entities.sort(
             (a, b) => ENTITY_TYPE_DRAW_ORDER[a.entityType] - ENTITY_TYPE_DRAW_ORDER[b.entityType],
         );
-        console.log('Sorted entities:', this._entities);
         this._entitiesDirty = true;
     }
 
@@ -120,50 +149,63 @@ export class E_Cell extends E_Tile {
     #pointerTarget: C_PointerTarget;
     #cell: Entity;
 
+    #images: C_Image[] = [];
+
     constructor(position: Loophole_Int2) {
         super('cell', position);
 
         this.#pointerTarget = new C_PointerTarget();
-        this.#cell = new Entity('cell-shape', this.#pointerTarget).setScale({
+        const pointerShape = new C_Shape('pointerShape', 'RECT');
+        this.#cell = new Entity(
+            'cell-shape',
+            this.#pointerTarget,
+            pointerShape,
+            new C_PointerVisual(this.#pointerTarget, pointerShape),
+        ).setScale({
             x: TILE_CENTER_FRACTION,
             y: TILE_CENTER_FRACTION,
         });
         this.addChildren(this.#cell);
     }
 
-    override update(): boolean {
+    override update(deltaTime: number): boolean {
+        const updated = super.update(deltaTime);
+
         if (this.#pointerTarget.isPointerOver) {
             getAppStore().setHighlightedEngineTile(this);
         }
 
         if (this._entitiesDirty) {
-            while (this._images.length < this._entities.length) {
+            while (this.#images.length < this._entities.length) {
                 const img = new C_Image('entityImage', '', {
                     imageSmoothingEnabled: false,
-                }).setEnabled(false);
+                });
                 this.#cell.addComponents(img);
-                this._images.push(img);
+                this.#images.push(img);
             }
 
-            for (let i = 0; i < this._images.length; i++) {
+            for (let i = 0; i < this.#images.length; i++) {
                 if (i < this._entities.length) {
-                    const img = this._images[i];
+                    const img = this.#images[i];
                     img.setEnabled(true);
 
                     const entity = this._entities[i];
                     if ('mushroomType' in entity) {
-                        img.imageName =
-                            entity.mushroomType === 'BLUE'
-                                ? 'MUSHROOM_BLUE'
-                                : entity.mushroomType === 'GREEN'
-                                  ? 'MUSHROOM_GREEN'
-                                  : 'MUSHROOM_RED';
+                        const { name } =
+                            ENTITY_METADATA[
+                                entity.mushroomType === 'BLUE'
+                                    ? 'MUSHROOM_BLUE'
+                                    : entity.mushroomType === 'GREEN'
+                                      ? 'MUSHROOM_GREEN'
+                                      : 'MUSHROOM_RED'
+                            ];
+                        img.imageName = name;
                     } else {
                         const { name } = ENTITY_METADATA[entity.entityType];
                         img.imageName = name;
                     }
                 } else {
-                    this._images[i].setEnabled(false);
+                    this.#images[i].setEnabled(false);
                 }
             }
 
@@ -171,15 +213,16 @@ export class E_Cell extends E_Tile {
             return true;
         }
 
-        return false;
+        return updated;
     }
 }
 
 interface EdgeData {
-    rootEntity: Entity;
+    imageEntity: Entity;
+    image: C_Image;
+    shapeEntity: Entity;
     shape: C_Shape;
     pointerTarget: C_PointerTarget;
-    image: C_Image;
 }
 
 export class E_Edge extends E_Tile {
@@ -189,38 +232,13 @@ export class E_Edge extends E_Tile {
     constructor(position: Loophole_Int2) {
         super('edge', position);
 
-        const rightEdgeImage = new C_Image('rightEdgeImage', '', { imageSmoothingEnabled: false });
-        const rightEdgeShape = new C_Shape('shape', 'RECT', { imageSmoothingEnabled: true });
-        const rightEdgePointerTarget = new C_PointerTarget();
-        this.#rightEdge = {
-            rootEntity: new Entity('rightEdge', rightEdgeShape)
-                .setPosition({ x: 0.5, y: 0 })
-                .setScale({ x: TILE_EDGE_HEIGHT_FRACTION, y: TILE_EDGE_WIDTH_FRACTION })
-                .addComponents(rightEdgeShape, rightEdgeImage, rightEdgePointerTarget),
-            shape: rightEdgeShape,
-            pointerTarget: rightEdgePointerTarget,
-            image: rightEdgeImage,
-        };
-
-        const topEdgeImage = new C_Image('topEdgeImage', '', { imageSmoothingEnabled: false });
-        const topEdgeShape = new C_Shape('shape', 'RECT', {
-            imageSmoothingEnabled: true,
-        });
-        const topEdgePointerTarget = new C_PointerTarget();
-        this.#topEdge = {
-            rootEntity: new Entity('topEdge', topEdgeShape)
-                .setPosition({ x: 0, y: -0.5 })
-                .setScale({ x: TILE_EDGE_WIDTH_FRACTION, y: TILE_EDGE_HEIGHT_FRACTION })
-                .addComponents(topEdgeShape, topEdgeImage, topEdgePointerTarget),
-            shape: topEdgeShape,
-            pointerTarget: topEdgePointerTarget,
-            image: topEdgeImage,
-        };
-
-        this.addChildren(this.#rightEdge.rootEntity, this.#topEdge.rootEntity);
+        this.#rightEdge = this.#createEdge('RIGHT');
+        this.#topEdge = this.#createEdge('TOP');
     }
 
-    override update(): boolean {
+    override update(deltaTime: number): boolean {
+        const updated = super.update(deltaTime);
+
         const { setHighlightedEngineTile } = getAppStore();
         if (this.#rightEdge.pointerTarget.isPointerOver) {
             setHighlightedEngineTile(this);
@@ -232,10 +250,60 @@ export class E_Edge extends E_Tile {
         if (this._entitiesDirty) {
             this._entitiesDirty = false;
 
+            this.#rightEdge.image.enabled = false;
+            this.#topEdge.image.enabled = false;
+            for (const entity of this._entities) {
+                if ('edgePosition' in entity) {
+                    const edge =
+                        entity.edgePosition.alignment === 'RIGHT' ? this.#rightEdge : this.#topEdge;
+                    const { name } = ENTITY_METADATA[entity.entityType];
+                    edge.image.imageName = name;
+                    edge.image.enabled = true;
+                }
+            }
+
             return true;
         }
 
-        return false;
+        return updated;
+    }
+
+    #createEdge(edgeAlignment: Loophole_EdgeAlignment) {
+        const edge: EdgeData = {
+            imageEntity: new Entity('edgeImage')
+                .setZIndex(1)
+                .setRotation(edgeAlignment === 'RIGHT' ? 0 : 90)
+                .setScale({
+                    x: TILE_CENTER_FRACTION,
+                    y: TILE_CENTER_FRACTION,
+                }),
+            image: new C_Image('edgeImage', '', { imageSmoothingEnabled: false }),
+            shapeEntity: new Entity('edgeShape'),
+            shape: new C_Shape('edgeShape', 'RECT'),
+            pointerTarget: new C_PointerTarget(),
+        };
+        edge.imageEntity.addComponents(edge.image);
+        edge.shapeEntity.addComponents(
+            edge.pointerTarget,
+            edge.shape,
+            new C_PointerVisual(edge.pointerTarget, edge.shape),
+        );
+
+        if (edgeAlignment === 'RIGHT') {
+            edge.shapeEntity
+                .setPosition({ x: 0.5, y: 0 })
+                .setScale({ x: TILE_EDGE_HEIGHT_FRACTION, y: TILE_EDGE_WIDTH_FRACTION });
+            edge.imageEntity.setPosition({ x: 0.5, y: 0 });
+        } else {
+            edge.shapeEntity
+                .setPosition({ x: 0, y: -0.5 })
+                .setScale({ x: TILE_EDGE_WIDTH_FRACTION, y: TILE_EDGE_HEIGHT_FRACTION });
+            edge.imageEntity.setPosition({ x: 0, y: -0.5 });
+        }
+
+        this.addChildren(edge.shapeEntity, edge.imageEntity);
+
+        return edge;
     }
 }
 
@@ -249,7 +317,6 @@ export class GridScene extends Scene {
                         fillStyle: 'black',
                     }),
                 )
-                .setZIndex(0)
                 .setScale({ x: 12, y: 12 }),
         );
     }

@@ -15,7 +15,12 @@ export class C_Shape extends C_Drawable {
     #repeat: Position | null;
 
     constructor(name: string, shape: Shape, style?: RenderStyle, repeat?: Position) {
-        super(name, shape === 'ELLIPSE' ? { x: 0, y: 0 } : { x: 0.5, y: 0.5 }, style);
+        super(
+            name,
+            shape === 'ELLIPSE' ? { x: 0, y: 0 } : { x: 0.5, y: 0.5 },
+            { x: 1, y: 1 },
+            style,
+        );
 
         this.#shape = shape;
         this.#repeat = repeat ?? null;
@@ -37,10 +42,10 @@ export class C_Shape extends C_Drawable {
         switch (this.#shape) {
             case 'RECT': {
                 const data: DrawDataShape = {
-                    x: -this._origin.x,
-                    y: -this._origin.y,
-                    w: 1,
-                    h: 1,
+                    x: (-1 - (this._scale.x - 1)) * this._origin.x,
+                    y: (-1 - (this._scale.y - 1)) * this._origin.y,
+                    w: this._scale.x,
+                    h: this._scale.y,
                 };
                 if (this.#repeat) {
                     data.rx = this.#repeat.x;
@@ -53,10 +58,10 @@ export class C_Shape extends C_Drawable {
             }
             case 'ELLIPSE': {
                 const data: DrawDataShape = {
-                    x: -this._origin.x,
-                    y: -this._origin.y,
-                    w: 1,
-                    h: 1,
+                    x: (-1 - (this._scale.x - 1)) * this._origin.x,
+                    y: (-1 - (this._scale.y - 1)) * this._origin.y,
+                    w: this._scale.x,
+                    h: this._scale.y,
                 };
                 if (this.#repeat) {
                     data.rx = this.#repeat.x;

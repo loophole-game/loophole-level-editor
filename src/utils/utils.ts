@@ -2,7 +2,9 @@ import { v4 } from 'uuid';
 import type {
     Loophole_Button,
     Loophole_Curtain,
+    Loophole_Direction,
     Loophole_Door,
+    Loophole_EdgeAlignment,
     Loophole_Entity,
     Loophole_EntityType,
     Loophole_ExtendedEntityType,
@@ -17,6 +19,7 @@ import type {
     Loophole_Wall,
     Loophole_Wire,
 } from './editor/externalLevelSchema';
+import type { Position } from './engine/types';
 
 export const TILE_EDGE_HEIGHT_FRACTION = 0.3;
 export const TILE_EDGE_WIDTH_FRACTION = 1;
@@ -25,7 +28,7 @@ export const TILE_SIZE = 100;
 
 export const MAX_ENTITY_COUNT = 4000;
 
-export type LoopholeEntityPositionType = 'CELL' | 'EDGE';
+export type LoopholePositionType = 'CELL' | 'EDGE';
 
 const ENTITY_TYPE_DRAW_ORDER_LIST: Loophole_EntityType[] = [
     'WIRE',
@@ -49,34 +52,27 @@ export const ENTITY_TYPE_DRAW_ORDER: Record<Loophole_EntityType, number> =
         {} as Record<Loophole_EntityType, number>,
     );
 
-export const getLoopholeEntityPositionType = (
-    entity: Loophole_Entity,
-): LoopholeEntityPositionType => {
-    if (
-        entity.entityType === 'WALL' ||
-        entity.entityType === 'CURTAIN' ||
-        entity.entityType === 'ONE_WAY' ||
-        entity.entityType === 'GLASS' ||
-        entity.entityType === 'DOOR'
-    ) {
+export const getLoopholeEntityPositionType = (entity: Loophole_Entity): LoopholePositionType => {
+    if ('edgePosition' in entity) {
         return 'EDGE';
-    } else {
-        return 'CELL';
     }
+
+    return 'CELL';
 };
 
 export const getLoopholeEntityPosition = (entity: Loophole_Entity): Loophole_Int2 => {
-    if (
-        entity.entityType === 'WALL' ||
-        entity.entityType === 'CURTAIN' ||
-        entity.entityType === 'ONE_WAY' ||
-        entity.entityType === 'GLASS' ||
-        entity.entityType === 'DOOR'
-    ) {
+    if ('edgePosition' in entity) {
         return entity.edgePosition.cell;
-    } else {
-        return entity.position;
     }
+
+    return entity.position;
+};
+
+export const loopholePositionToEnginePosition = (position: Loophole_Int2): Position => {
+    return {
+        x: position.x,
+        y: -position.y,
+    };
 };
 
 export const ColorPalette = {
@@ -100,14 +96,21 @@ export type LevelWithMetadata = {
 
 export const getTimestamp = (): number => Date.now();
 
+type TileOwnership = 'ONLY_ENTITY_IN_TILE' | 'ONLY_TYPE_IN_TILE';
+
 interface EntityMetadata {
     name: string;
     description: string;
     src: string;
     type: Loophole_EntityType;
     extendedType: Loophole_ExtendedEntityType;
-    positionType: LoopholeEntityPositionType;
-    createEntity: (position: Loophole_Int2) => Loophole_Entity;
+    positionType: LoopholePositionType;
+    createEntity: (
+        position: Loophole_Int2,
+        edgeAlignment: Loophole_EdgeAlignment,
+        rotation: Loophole_Direction,
+    ) => Loophole_Entity;
+    tileOwnership: TileOwnership;
 }
 
 export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata> = {
@@ -118,11 +121,12 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         type: 'TIME_MACHINE',
         extendedType: 'TIME_MACHINE',
         positionType: 'CELL',
-        createEntity: (position: Loophole_Int2): Loophole_TimeMachine => ({
+        createEntity: (position, _, rotation): Loophole_TimeMachine => ({
             entityType: 'TIME_MACHINE',
             position,
-            rotation: 'RIGHT',
+            rotation,
         }),
+        tileOwnership: 'ONLY_ENTITY_IN_TILE',
     },
     WALL: {
         name: 'Wall',
@@ -131,10 +135,11 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         type: 'WALL',
         extendedType: 'WALL',
         positionType: 'EDGE',
-        createEntity: (position: Loophole_Int2): Loophole_Wall => ({
+        createEntity: (position, edgeAlignment): Loophole_Wall => ({
             entityType: 'WALL',
-            edgePosition: { cell: position, alignment: 'RIGHT' },
+            edgePosition: { cell: position, alignment: edgeAlignment },
         }),
+        tileOwnership: 'ONLY_ENTITY_IN_TILE',
     },
     CURTAIN: {
         name: 'Curtain',
@@ -143,10 +148,11 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         type: 'CURTAIN',
         extendedType: 'CURTAIN',
         positionType: 'EDGE',
-        createEntity: (position: Loophole_Int2): Loophole_Curtain => ({
+        createEntity: (position, edgeAlignment): Loophole_Curtain => ({
             entityType: 'CURTAIN',
-            edgePosition: { cell: position, alignment: 'RIGHT' },
+            edgePosition: { cell: position, alignment: edgeAlignment },
         }),
+        tileOwnership: 'ONLY_ENTITY_IN_TILE',
     },
     ONE_WAY: {
         name: 'One Way',
@@ -155,11 +161,12 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         type: 'ONE_WAY',
         extendedType: 'ONE_WAY',
         positionType: 'EDGE',
-        createEntity: (position: Loophole_Int2): Loophole_OneWay => ({
+        createEntity: (position, edgeAlignment): Loophole_OneWay => ({
             entityType: 'ONE_WAY',
-            edgePosition: { cell: position, alignment: 'RIGHT' },
+            edgePosition: { cell: position, alignment: edgeAlignment },
             flipDirection: false,
         }),
+        tileOwnership: 'ONLY_ENTITY_IN_TILE',
     },
     GLASS: {
         name: 'Glass',
@@ -168,10 +175,11 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         type: 'GLASS',
         extendedType: 'GLASS',
         positionType: 'EDGE',
-        createEntity: (position: Loophole_Int2): Loophole_Glass => ({
+        createEntity: (position, edgeAlignment): Loophole_Glass => ({
             entityType: 'GLASS',
-            edgePosition: { cell: position, alignment: 'RIGHT' },
+            edgePosition: { cell: position, alignment: edgeAlignment },
         }),
+        tileOwnership: 'ONLY_ENTITY_IN_TILE',
     },
     STAFF: {
         name: 'Staff',
@@ -180,10 +188,11 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         type: 'STAFF',
         extendedType: 'STAFF',
         positionType: 'CELL',
-        createEntity: (position: Loophole_Int2): Loophole_Staff => ({
+        createEntity: (position): Loophole_Staff => ({
             entityType: 'STAFF',
             position,
         }),
+        tileOwnership: 'ONLY_TYPE_IN_TILE',
     },
     SAUCE: {
         name: 'Sauce',
@@ -192,10 +201,11 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         type: 'SAUCE',
         extendedType: 'SAUCE',
         positionType: 'CELL',
-        createEntity: (position: Loophole_Int2): Loophole_Sauce => ({
+        createEntity: (position): Loophole_Sauce => ({
             entityType: 'SAUCE',
             position,
         }),
+        tileOwnership: 'ONLY_TYPE_IN_TILE',
     },
     BUTTON: {
         name: 'Button',
@@ -204,11 +214,12 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         type: 'BUTTON',
         extendedType: 'BUTTON',
         positionType: 'CELL',
-        createEntity: (position: Loophole_Int2): Loophole_Button => ({
+        createEntity: (position): Loophole_Button => ({
             entityType: 'BUTTON',
             position,
             channel: 0,
         }),
+        tileOwnership: 'ONLY_TYPE_IN_TILE',
     },
     DOOR: {
         name: 'Door',
@@ -216,12 +227,13 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         src: 'pixel/door.png',
         type: 'DOOR',
         extendedType: 'DOOR',
-        positionType: 'CELL',
-        createEntity: (position: Loophole_Int2): Loophole_Door => ({
+        positionType: 'EDGE',
+        createEntity: (position, edgeAlignment): Loophole_Door => ({
             entityType: 'DOOR',
-            edgePosition: { cell: position, alignment: 'RIGHT' },
+            edgePosition: { cell: position, alignment: edgeAlignment },
             channel: 0,
         }),
+        tileOwnership: 'ONLY_ENTITY_IN_TILE',
     },
     WIRE: {
         name: 'Wire',
@@ -230,13 +242,14 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         type: 'WIRE',
         extendedType: 'WIRE',
         positionType: 'CELL',
-        createEntity: (position: Loophole_Int2): Loophole_Wire => ({
+        createEntity: (position, _, rotation): Loophole_Wire => ({
             entityType: 'WIRE',
             position,
             sprite: 'STRAIGHT',
             channel: 0,
-            rotation: 'RIGHT',
+            rotation,
         }),
+        tileOwnership: 'ONLY_TYPE_IN_TILE',
     },
     MUSHROOM_BLUE: {
         name: 'Invisibility Pickup',
@@ -245,11 +258,12 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         type: 'MUSHROOM',
         extendedType: 'MUSHROOM_BLUE',
         positionType: 'CELL',
-        createEntity: (position: Loophole_Int2): Loophole_Mushroom => ({
+        createEntity: (position): Loophole_Mushroom => ({
             entityType: 'MUSHROOM',
             position,
             mushroomType: 'BLUE',
         }),
+        tileOwnership: 'ONLY_TYPE_IN_TILE',
     },
     MUSHROOM_GREEN: {
         name: 'Drugs Pickup',
@@ -258,11 +272,12 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         type: 'MUSHROOM',
         extendedType: 'MUSHROOM_GREEN',
         positionType: 'CELL',
-        createEntity: (position: Loophole_Int2): Loophole_Mushroom => ({
+        createEntity: (position): Loophole_Mushroom => ({
             entityType: 'MUSHROOM',
             position,
             mushroomType: 'GREEN',
         }),
+        tileOwnership: 'ONLY_TYPE_IN_TILE',
     },
     MUSHROOM_RED: {
         name: 'Shield Pickup',
@@ -271,11 +286,12 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         type: 'MUSHROOM',
         extendedType: 'MUSHROOM_RED',
         positionType: 'CELL',
-        createEntity: (position: Loophole_Int2): Loophole_Mushroom => ({
+        createEntity: (position): Loophole_Mushroom => ({
             entityType: 'MUSHROOM',
             position,
             mushroomType: 'RED',
         }),
+        tileOwnership: 'ONLY_TYPE_IN_TILE',
     },
 };
 
@@ -296,11 +312,3 @@ export const createLevelWithMetadata = (name: string): LevelWithMetadata => ({
         version: 0,
     },
 });
-
-export const getLoopholeEntityPositon = (entity: Loophole_Entity): Loophole_Int2 => {
-    if ('edgePosition' in entity) {
-        return entity.edgePosition.cell;
-    }
-
-    return entity.position;
-};

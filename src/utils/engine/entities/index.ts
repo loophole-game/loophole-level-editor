@@ -100,10 +100,6 @@ export class Entity implements Renderable {
     }
 
     update(deltaTime: number): boolean {
-        if (!this._enabled) {
-            return false;
-        }
-
         let updated = this._updated;
         this._updated = false;
 

@@ -1,11 +1,17 @@
-import { ENTITY_METADATA, TILE_CENTER_FRACTION, TILE_SIZE } from '@/utils/utils';
+import {
+    ENTITY_METADATA,
+    loopholePositionToEnginePosition,
+    TILE_CENTER_FRACTION,
+    TILE_SIZE,
+} from '@/utils/utils';
 import { Entity } from '../../engine/entities';
 import { Scene } from '../../engine/systems/scene';
 import { C_Image } from '@/utils/engine/components/Image';
 import { getAppStore } from '@/utils/store';
-import type { Loophole_ExtendedEntityType, Loophole_Int2 } from '../externalLevelSchema';
+import type { Loophole_EdgeAlignment } from '../externalLevelSchema';
 import { MouseButton } from '@/utils/engine/systems/pointer';
 import type { Editor } from '..';
+import type { Position } from '@/utils/engine/types';
 
 class E_Cursor extends Entity {
     #editor: Editor;
@@ -28,15 +34,17 @@ class E_Cursor extends Entity {
     override update(deltaTime: number): boolean {
         let updated = super.update(deltaTime);
 
-        const { selectedEntityType } = getAppStore();
+        const { selectedEntityType, tileRotation } = getAppStore();
         let active = false;
         if (window.engine.pointerState.onScreen && selectedEntityType) {
             const { positionType, name } = ENTITY_METADATA[selectedEntityType];
             this.#image.imageName = name;
 
-            let tilePosition: Loophole_Int2 = { x: 0, y: 0 };
+            let tilePosition: Position = { x: 0, y: 0 },
+                cursorPosition: Position = { x: 0, y: 0 };
+            let edgeAlignment: Loophole_EdgeAlignment = 'RIGHT';
             if (positionType === 'CELL') {
-                tilePosition = {
+                cursorPosition = {
                     x: Math.round(window.engine.pointerState.worldPosition.x / TILE_SIZE),
                     y: Math.round(window.engine.pointerState.worldPosition.y / TILE_SIZE),
                 };
@@ -47,29 +55,42 @@ class E_Cursor extends Entity {
                 const localY = window.engine.pointerState.worldPosition.y - cellY * TILE_SIZE;
 
                 if (Math.abs(localX) > Math.abs(localY)) {
-                    tilePosition = {
-                        x: localX > 0 ? (cellX + 0.5) * TILE_SIZE : cellX - 0.5,
+                    cursorPosition = {
+                        x: localX > 0 ? cellX + 0.5 : cellX - 0.5,
                         y: cellY,
                     };
+                    edgeAlignment = 'RIGHT';
+
                     this.setRotation(0);
                 } else {
-                    tilePosition = {
-                        x: cellX * TILE_SIZE,
-                        y: localY > 0 ? (cellY + 0.5) * TILE_SIZE : (cellY - 0.5) * TILE_SIZE,
+                    cursorPosition = {
+                        x: cellX,
+                        y: localY > 0 ? cellY + 0.5 : cellY - 0.5,
                     };
+                    edgeAlignment = 'TOP';
+
                     this.setRotation(90);
                 }
-
-                active = true;
             }
 
+            tilePosition = loopholePositionToEnginePosition(cursorPosition);
+            tilePosition = {
+                x: Math.floor(tilePosition.x),
+                y: Math.floor(tilePosition.y),
+            };
+
             this.setPosition({
-                x: tilePosition.x * TILE_SIZE,
-                y: tilePosition.y * TILE_SIZE,
+                x: cursorPosition.x * TILE_SIZE,
+                y: cursorPosition.y * TILE_SIZE,
             });
 
             if (window.engine.pointerState[MouseButton.LEFT].pressed) {
-                this.#placeEntityAtTile(tilePosition, selectedEntityType);
+                this.#editor.placeTile(
+                    tilePosition,
+                    selectedEntityType,
+                    edgeAlignment,
+                    tileRotation ?? 'RIGHT',
+                );
             }
             active = true;
             updated = true;
@@ -83,10 +104,6 @@ class E_Cursor extends Entity {
         }
 
         return updated;
-    }
-
-    #placeEntityAtTile(position: Loophole_Int2, entityType: Loophole_ExtendedEntityType) {
-        this.#editor.addTileEntities(position, ENTITY_METADATA[entityType].createEntity(position));
     }
 }
 

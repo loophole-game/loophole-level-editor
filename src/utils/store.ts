@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { createLevelWithMetadata, type LevelWithMetadata } from './utils';
-import type { Loophole_ExtendedEntityType } from './editor/externalLevelSchema';
+import type { Loophole_Direction, Loophole_ExtendedEntityType } from './editor/externalLevelSchema';
 import { useMemo } from 'react';
 import type { E_Tile } from './editor/scenes/grid';
 
@@ -16,6 +16,8 @@ interface AppStore {
     setSelectedEntityType: (entityType: Loophole_ExtendedEntityType) => void;
     highlightedEngineTile: E_Tile | null;
     setHighlightedEngineTile: (tile: E_Tile | null) => void;
+    tileRotation: Loophole_Direction | null;
+    setTileRotation: (rotation: Loophole_Direction) => void;
 }
 
 export const useAppStore = create<AppStore>()(
@@ -50,6 +52,8 @@ export const useAppStore = create<AppStore>()(
                 setSelectedEntityType: (entityType) => set({ selectedEntityType: entityType }),
                 highlightedEngineTile: null,
                 setHighlightedEngineTile: (tile) => set({ highlightedEngineTile: tile }),
+                tileRotation: null,
+                setTileRotation: (rotation) => set({ tileRotation: rotation }),
             };
         },
         {
@@ -58,6 +62,7 @@ export const useAppStore = create<AppStore>()(
             partialize: (state) => ({
                 levels: state.levels,
                 activeLevelID: state.activeLevelID,
+                selectedEntityType: state.selectedEntityType,
             }),
             version: 1,
             migrate: () => {},

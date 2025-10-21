@@ -30,7 +30,7 @@ function App() {
             <div className="h-full flex flex-col p-4 gap-4 z-10 pointer-events-none">
                 <TopPanel />
                 <TilePicker />
-                <FPSCounter />
+                <FPSCounter className="fixed top-20 right-4 text-right" />
             </div>
         </div>
     );

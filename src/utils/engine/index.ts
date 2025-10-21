@@ -237,7 +237,6 @@ export class Engine {
     }
 
     addSceneEntities(sceneName: string, ...entities: Entity[]): void {
-        console.log('Adding entities to scene:', sceneName, entities);
         this._sceneSystem.addEntities(sceneName, ...entities);
     }
 

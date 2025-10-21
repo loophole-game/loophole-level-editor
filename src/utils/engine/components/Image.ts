@@ -13,7 +13,7 @@ export class C_Image extends C_Drawable {
     #repeat: Position | null;
 
     constructor(name: string, imageName: string, style?: RenderStyle, repeat?: Position) {
-        super(name, { x: 0.5, y: 0.5 }, style);
+        super(name, { x: 0.5, y: 0.5 }, { x: 1, y: 1 }, style);
 
         this.#imageName = imageName;
         this.#repeat = repeat ?? null;
@@ -36,7 +36,7 @@ export class C_Image extends C_Drawable {
     }
 
     override queueRenderCommands(out: RenderCommandStream): void {
-        if (!this.entity?.transform) {
+        if (!this._entity || !this.#imageName) {
             return;
         }
 

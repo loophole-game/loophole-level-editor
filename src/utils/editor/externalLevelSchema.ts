@@ -4,6 +4,8 @@
 // Must have an integer value.
 export type Loophole_Int = number;
 
+export type Loophole_EdgeAlignment = 'RIGHT' | 'TOP';
+
 // Represents a position in the level.
 export type Loophole_Int2 = {
     x: Loophole_Int;
@@ -13,7 +15,7 @@ export type Loophole_Int2 = {
 // Represents the position of an edge between two tiles.
 export type Loophole_EdgePosition = {
     cell: Loophole_Int2;
-    alignment: 'RIGHT' | 'TOP';
+    alignment: Loophole_EdgeAlignment;
 };
 
 // Represents a direction in the level.
