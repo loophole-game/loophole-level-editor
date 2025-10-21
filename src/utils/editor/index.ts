@@ -1,7 +1,6 @@
 import { Engine, type EngineOptions } from '../engine';
 import type { AvailableScenes } from '../engine/systems/scene';
 import type {
-    Loophole_Direction,
     Loophole_EdgeAlignment,
     Loophole_Entity,
     Loophole_ExtendedEntityType,
@@ -126,15 +125,15 @@ export class Editor extends Engine {
     placeTile(
         position: Loophole_Int2,
         entityType: Loophole_ExtendedEntityType,
-        edgeAlignment: Loophole_EdgeAlignment,
-        rotation: Loophole_Direction,
+        edgeAlignment: Loophole_EdgeAlignment | null,
     ) {
         const { createEntity, tileOwnership } = ENTITY_METADATA[entityType];
-        const entity = createEntity(position, edgeAlignment, rotation);
+        const entity = createEntity(position, edgeAlignment);
         const entityPosition = getLoopholeEntityPosition(entity);
         this.#level.entities = this.#level.entities.filter(
             (e) =>
                 !positionsEqual(position, getLoopholeEntityPosition(e)) ||
+                ('edgePosition' in e && e.edgePosition.alignment !== edgeAlignment) ||
                 (tileOwnership === 'ONLY_TYPE_IN_TILE' ? e.entityType !== entityType : false),
         );
 
@@ -155,14 +154,29 @@ export class Editor extends Engine {
             }
         });
 
-        if (cellEntities.length > 0) {
-            const cell = this.#getTile(position, 'CELL');
-            cell.entity.addEntities(cellEntities);
-        }
+        this.#reloadTile(position);
+    }
 
+    #reloadTile(position: Loophole_Int2) {
+        const cellEntities: Loophole_Entity[] = [];
+        const edgeEntities: Loophole_Entity[] = [];
+        Object.values(this.#level.entities).forEach((entity) => {
+            const entityPosition = getLoopholeEntityPosition(entity);
+            if (positionsEqual(position, entityPosition)) {
+                const type = getLoopholeEntityPositionType(entity);
+                if (type === 'CELL') {
+                    cellEntities.push(entity);
+                } else {
+                    edgeEntities.push(entity);
+                }
+            }
+        });
+
+        if (cellEntities.length > 0) {
+            this.#getTile(position, 'CELL').entity.addEntities(...cellEntities);
+        }
         if (edgeEntities.length > 0) {
-            const edge = this.#getTile(position, 'EDGE');
-            edge.entity.addEntities(edgeEntities);
+            this.#getTile(position, 'EDGE').entity.addEntities(...edgeEntities);
         }
     }
 
@@ -171,7 +185,9 @@ export class Editor extends Engine {
         const list: Record<string, TileData> = type === 'CELL' ? this.#cells : this.#edges;
         if (!list[positionKey]) {
             const enginePosition = loopholePositionToEnginePosition(position);
-            const entity = (type === 'CELL' ? new E_Cell(position) : new E_Edge(position))
+            const entity = (
+                type === 'CELL' ? new E_Cell(position) : new E_Edge(position).setZIndex(1)
+            )
                 .setPosition({
                     x: enginePosition.x * TILE_SIZE,
                     y: enginePosition.y * TILE_SIZE,

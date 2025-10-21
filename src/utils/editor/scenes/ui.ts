@@ -1,9 +1,4 @@
-import {
-    ENTITY_METADATA,
-    loopholePositionToEnginePosition,
-    TILE_CENTER_FRACTION,
-    TILE_SIZE,
-} from '@/utils/utils';
+import { ENTITY_METADATA, loopholePositionToEnginePosition, TILE_SIZE } from '@/utils/utils';
 import { Entity } from '../../engine/entities';
 import { Scene } from '../../engine/systems/scene';
 import { C_Image } from '@/utils/engine/components/Image';
@@ -27,17 +22,20 @@ class E_Cursor extends Entity {
 
         this.#editor = editor;
         this.setZIndex(50);
-        this.setScale({ x: TILE_SIZE * TILE_CENTER_FRACTION, y: TILE_SIZE * TILE_CENTER_FRACTION });
         this.#image = comp;
     }
 
     override update(deltaTime: number): boolean {
         let updated = super.update(deltaTime);
 
-        const { selectedEntityType, tileRotation } = getAppStore();
+        const { selectedEntityType } = getAppStore();
         let active = false;
         if (window.engine.pointerState.onScreen && selectedEntityType) {
-            const { positionType, name } = ENTITY_METADATA[selectedEntityType];
+            const {
+                positionType,
+                name,
+                tileScale: tileScaleOverride,
+            } = ENTITY_METADATA[selectedEntityType];
             this.#image.imageName = name;
 
             let tilePosition: Position = { x: 0, y: 0 },
@@ -69,7 +67,7 @@ class E_Cursor extends Entity {
                     };
                     edgeAlignment = 'TOP';
 
-                    this.setRotation(90);
+                    this.setRotation(270);
                 }
             }
 
@@ -83,14 +81,10 @@ class E_Cursor extends Entity {
                 x: cursorPosition.x * TILE_SIZE,
                 y: cursorPosition.y * TILE_SIZE,
             });
+            this.setScale({ x: TILE_SIZE * tileScaleOverride, y: TILE_SIZE * tileScaleOverride });
 
             if (window.engine.pointerState[MouseButton.LEFT].pressed) {
-                this.#editor.placeTile(
-                    tilePosition,
-                    selectedEntityType,
-                    edgeAlignment,
-                    tileRotation ?? 'RIGHT',
-                );
+                this.#editor.placeTile(tilePosition, selectedEntityType, edgeAlignment);
             }
             active = true;
             updated = true;
@@ -99,7 +93,10 @@ class E_Cursor extends Entity {
         const targetOpacity = active ? 1 : 0;
         const opacity = this.#image.style.globalAlpha ?? 1;
         if (opacity !== targetOpacity) {
-            this.#image.style.globalAlpha = Math.max(0, Math.min(1, opacity + deltaTime * 10));
+            this.#image.style.globalAlpha = Math.max(
+                0,
+                Math.min(1, opacity + deltaTime * (active ? 10 : -10)),
+            );
             updated = true;
         }
 

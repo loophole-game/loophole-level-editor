@@ -18,11 +18,14 @@ export default function TilePicker() {
                             'size-16 aspect-square pixelated-image border-2 border-transparent p-1 rounded-sm',
                             {
                                 'border-white': selectedEntityType === entityType,
-                                'hover:cursor-pointer': selectedEntityType !== entityType,
                             },
                         )}
                         onClick={() =>
-                            setSelectedEntityType(entityType as Loophole_ExtendedEntityType)
+                            setSelectedEntityType(
+                                selectedEntityType === entityType
+                                    ? null
+                                    : (entityType as Loophole_ExtendedEntityType),
+                            )
                         }
                     >
                         <img src={metadata.src} alt={metadata.name} width={64} height={64} />

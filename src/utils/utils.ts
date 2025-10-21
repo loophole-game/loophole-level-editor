@@ -21,8 +21,6 @@ import type {
 } from './editor/externalLevelSchema';
 import type { Position } from './engine/types';
 
-export const TILE_EDGE_HEIGHT_FRACTION = 0.3;
-export const TILE_EDGE_WIDTH_FRACTION = 1;
 export const TILE_CENTER_FRACTION = 0.7;
 export const TILE_SIZE = 100;
 
@@ -96,6 +94,10 @@ export type LevelWithMetadata = {
 
 export const getTimestamp = (): number => Date.now();
 
+const DEFAULT_EDGE_ALIGNMENT: Loophole_EdgeAlignment = 'RIGHT';
+const DEFAULT_EDGE_ROTATION: Loophole_Direction = 'RIGHT';
+const DEFAULT_WALL_SCALE = 0.85;
+
 type TileOwnership = 'ONLY_ENTITY_IN_TILE' | 'ONLY_TYPE_IN_TILE';
 
 interface EntityMetadata {
@@ -107,10 +109,10 @@ interface EntityMetadata {
     positionType: LoopholePositionType;
     createEntity: (
         position: Loophole_Int2,
-        edgeAlignment: Loophole_EdgeAlignment,
-        rotation: Loophole_Direction,
+        edgeAlignment: Loophole_EdgeAlignment | null,
     ) => Loophole_Entity;
     tileOwnership: TileOwnership;
+    tileScale: number;
 }
 
 export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata> = {
@@ -121,12 +123,13 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         type: 'TIME_MACHINE',
         extendedType: 'TIME_MACHINE',
         positionType: 'CELL',
-        createEntity: (position, _, rotation): Loophole_TimeMachine => ({
+        createEntity: (position): Loophole_TimeMachine => ({
             entityType: 'TIME_MACHINE',
             position,
-            rotation,
+            rotation: DEFAULT_EDGE_ROTATION,
         }),
         tileOwnership: 'ONLY_ENTITY_IN_TILE',
+        tileScale: TILE_CENTER_FRACTION,
     },
     WALL: {
         name: 'Wall',
@@ -137,9 +140,10 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         positionType: 'EDGE',
         createEntity: (position, edgeAlignment): Loophole_Wall => ({
             entityType: 'WALL',
-            edgePosition: { cell: position, alignment: edgeAlignment },
+            edgePosition: { cell: position, alignment: edgeAlignment || DEFAULT_EDGE_ALIGNMENT },
         }),
         tileOwnership: 'ONLY_ENTITY_IN_TILE',
+        tileScale: DEFAULT_WALL_SCALE,
     },
     CURTAIN: {
         name: 'Curtain',
@@ -150,9 +154,10 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         positionType: 'EDGE',
         createEntity: (position, edgeAlignment): Loophole_Curtain => ({
             entityType: 'CURTAIN',
-            edgePosition: { cell: position, alignment: edgeAlignment },
+            edgePosition: { cell: position, alignment: edgeAlignment || DEFAULT_EDGE_ALIGNMENT },
         }),
         tileOwnership: 'ONLY_ENTITY_IN_TILE',
+        tileScale: DEFAULT_WALL_SCALE,
     },
     ONE_WAY: {
         name: 'One Way',
@@ -163,10 +168,11 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         positionType: 'EDGE',
         createEntity: (position, edgeAlignment): Loophole_OneWay => ({
             entityType: 'ONE_WAY',
-            edgePosition: { cell: position, alignment: edgeAlignment },
+            edgePosition: { cell: position, alignment: edgeAlignment || DEFAULT_EDGE_ALIGNMENT },
             flipDirection: false,
         }),
         tileOwnership: 'ONLY_ENTITY_IN_TILE',
+        tileScale: DEFAULT_WALL_SCALE,
     },
     GLASS: {
         name: 'Glass',
@@ -177,9 +183,10 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         positionType: 'EDGE',
         createEntity: (position, edgeAlignment): Loophole_Glass => ({
             entityType: 'GLASS',
-            edgePosition: { cell: position, alignment: edgeAlignment },
+            edgePosition: { cell: position, alignment: edgeAlignment || DEFAULT_EDGE_ALIGNMENT },
         }),
         tileOwnership: 'ONLY_ENTITY_IN_TILE',
+        tileScale: DEFAULT_WALL_SCALE,
     },
     STAFF: {
         name: 'Staff',
@@ -193,6 +200,7 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             position,
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
+        tileScale: TILE_CENTER_FRACTION,
     },
     SAUCE: {
         name: 'Sauce',
@@ -206,6 +214,7 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             position,
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
+        tileScale: TILE_CENTER_FRACTION,
     },
     BUTTON: {
         name: 'Button',
@@ -220,6 +229,7 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             channel: 0,
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
+        tileScale: TILE_CENTER_FRACTION,
     },
     DOOR: {
         name: 'Door',
@@ -230,10 +240,11 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         positionType: 'EDGE',
         createEntity: (position, edgeAlignment): Loophole_Door => ({
             entityType: 'DOOR',
-            edgePosition: { cell: position, alignment: edgeAlignment },
+            edgePosition: { cell: position, alignment: edgeAlignment || DEFAULT_EDGE_ALIGNMENT },
             channel: 0,
         }),
         tileOwnership: 'ONLY_ENTITY_IN_TILE',
+        tileScale: DEFAULT_WALL_SCALE,
     },
     WIRE: {
         name: 'Wire',
@@ -242,14 +253,15 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         type: 'WIRE',
         extendedType: 'WIRE',
         positionType: 'CELL',
-        createEntity: (position, _, rotation): Loophole_Wire => ({
+        createEntity: (position): Loophole_Wire => ({
             entityType: 'WIRE',
             position,
             sprite: 'STRAIGHT',
             channel: 0,
-            rotation,
+            rotation: DEFAULT_EDGE_ROTATION,
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
+        tileScale: 1,
     },
     MUSHROOM_BLUE: {
         name: 'Invisibility Pickup',
@@ -264,6 +276,7 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             mushroomType: 'BLUE',
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
+        tileScale: TILE_CENTER_FRACTION,
     },
     MUSHROOM_GREEN: {
         name: 'Drugs Pickup',
@@ -278,6 +291,7 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             mushroomType: 'GREEN',
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
+        tileScale: TILE_CENTER_FRACTION,
     },
     MUSHROOM_RED: {
         name: 'Shield Pickup',
@@ -292,6 +306,7 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             mushroomType: 'RED',
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
+        tileScale: TILE_CENTER_FRACTION,
     },
 };
 

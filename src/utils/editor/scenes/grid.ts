@@ -5,8 +5,6 @@ import {
     ENTITY_METADATA,
     ENTITY_TYPE_DRAW_ORDER,
     TILE_CENTER_FRACTION,
-    TILE_EDGE_HEIGHT_FRACTION,
-    TILE_EDGE_WIDTH_FRACTION,
     TILE_SIZE,
 } from '../../utils';
 import type {
@@ -79,11 +77,14 @@ class E_Grid extends Entity {
     }
 }
 
+const MAX_OPACITY = 0.6;
+
 class C_PointerVisual extends Component {
     #pointerTarget: C_PointerTarget;
     #shape: C_Shape;
 
     #opacity: number = 0;
+    #prevZIndex: number | null = null;
 
     constructor(pointerTarget: C_PointerTarget, shape: C_Shape) {
         super('PointerVisual');
@@ -95,10 +96,25 @@ class C_PointerVisual extends Component {
     }
 
     override update(deltaTime: number): boolean {
-        const active = this.#pointerTarget.isPointerOver;
-        const targetOpacity = active ? 1 : 0;
+        const { selectedEntityType } = getAppStore();
+        const active = this.#pointerTarget.isPointerOver && selectedEntityType === null;
+
+        if (active) {
+            if (this.#prevZIndex === null) {
+                this.#prevZIndex = this.#shape.zIndex;
+            }
+
+            this.#shape.entity?.parent?.setZIndex(1000); // TODO: idk if this works
+        } else {
+            this.#shape.entity?.parent?.setZIndex(this.#prevZIndex ?? 0);
+        }
+
+        const targetOpacity = active ? MAX_OPACITY : 0;
         if (targetOpacity !== this.#opacity) {
-            this.#opacity = Math.max(0, Math.min(1, this.#opacity + deltaTime * (active ? 7 : -7)));
+            this.#opacity = Math.max(
+                0,
+                Math.min(MAX_OPACITY, this.#opacity + deltaTime * (active ? 7 : -7)),
+            );
             this.#shape.style.globalAlpha = this.#opacity;
             return true;
         } else {
@@ -117,6 +133,7 @@ export abstract class E_Tile extends Entity {
 
         this.setPosition(position);
         this._tilePosition = position;
+        this.setScale({ x: TILE_CENTER_FRACTION, y: TILE_CENTER_FRACTION });
     }
 
     get tilePosition(): Readonly<Loophole_Int2> {
@@ -131,7 +148,7 @@ export abstract class E_Tile extends Entity {
         return this._entities;
     }
 
-    addEntities(entities: Loophole_Entity[]) {
+    addEntities(...entities: Loophole_Entity[]) {
         this._entities.push(...entities);
         this._entities.sort(
             (a, b) => ENTITY_TYPE_DRAW_ORDER[a.entityType] - ENTITY_TYPE_DRAW_ORDER[b.entityType],
@@ -161,10 +178,7 @@ export class E_Cell extends E_Tile {
             this.#pointerTarget,
             pointerShape,
             new C_PointerVisual(this.#pointerTarget, pointerShape),
-        ).setScale({
-            x: TILE_CENTER_FRACTION,
-            y: TILE_CENTER_FRACTION,
-        });
+        );
         this.addChildren(this.#cell);
     }
 
@@ -176,6 +190,8 @@ export class E_Cell extends E_Tile {
         }
 
         if (this._entitiesDirty) {
+            this._entitiesDirty = false;
+
             while (this.#images.length < this._entities.length) {
                 const img = new C_Image('entityImage', '', {
                     imageSmoothingEnabled: false,
@@ -190,6 +206,7 @@ export class E_Cell extends E_Tile {
                     img.setEnabled(true);
 
                     const entity = this._entities[i];
+
                     if ('mushroomType' in entity) {
                         const { name } =
                             ENTITY_METADATA[
@@ -200,16 +217,20 @@ export class E_Cell extends E_Tile {
                                       : 'MUSHROOM_RED'
                             ];
                         img.imageName = name;
+
+                        const { tileScale } = ENTITY_METADATA['MUSHROOM_BLUE'];
+                        img.setScale({ x: tileScale, y: tileScale });
                     } else {
-                        const { name } = ENTITY_METADATA[entity.entityType];
+                        const { name, tileScale: tileScaleOverride } =
+                            ENTITY_METADATA[entity.entityType];
                         img.imageName = name;
+                        img.setScale({ x: tileScaleOverride, y: tileScaleOverride });
                     }
                 } else {
                     this.#images[i].setEnabled(false);
                 }
             }
 
-            this._entitiesDirty = false;
             return true;
         }
 
@@ -256,9 +277,17 @@ export class E_Edge extends E_Tile {
                 if ('edgePosition' in entity) {
                     const edge =
                         entity.edgePosition.alignment === 'RIGHT' ? this.#rightEdge : this.#topEdge;
-                    const { name } = ENTITY_METADATA[entity.entityType];
+                    const { name, tileScale } = ENTITY_METADATA[entity.entityType];
                     edge.image.imageName = name;
                     edge.image.enabled = true;
+
+                    let rotation = entity.edgePosition.alignment === 'RIGHT' ? 180 : 90;
+                    if (entity.entityType === 'ONE_WAY') {
+                        rotation += entity.flipDirection ? 0 : 180;
+                    }
+                    edge.imageEntity.setRotation(rotation);
+                    console.log('EDGE TILE SCALE', tileScale);
+                    edge.imageEntity.setScale({ x: tileScale, y: tileScale });
                 }
             }
 
@@ -272,32 +301,30 @@ export class E_Edge extends E_Tile {
         const edge: EdgeData = {
             imageEntity: new Entity('edgeImage')
                 .setZIndex(1)
-                .setRotation(edgeAlignment === 'RIGHT' ? 0 : 90)
-                .setScale({
-                    x: TILE_CENTER_FRACTION,
-                    y: TILE_CENTER_FRACTION,
-                }),
+                .setRotation(edgeAlignment === 'RIGHT' ? 0 : 90),
             image: new C_Image('edgeImage', '', { imageSmoothingEnabled: false }),
             shapeEntity: new Entity('edgeShape'),
             shape: new C_Shape('edgeShape', 'RECT'),
             pointerTarget: new C_PointerTarget(),
         };
         edge.imageEntity.addComponents(edge.image);
-        edge.shapeEntity.addComponents(
-            edge.pointerTarget,
-            edge.shape,
-            new C_PointerVisual(edge.pointerTarget, edge.shape),
-        );
+        edge.shapeEntity
+            .addComponents(
+                edge.pointerTarget,
+                edge.shape,
+                new C_PointerVisual(edge.pointerTarget, edge.shape),
+            )
+            .setScale(
+                edgeAlignment === 'RIGHT'
+                    ? { x: 1 - TILE_CENTER_FRACTION, y: 1 }
+                    : { x: 1, y: 1 - TILE_CENTER_FRACTION },
+            );
 
         if (edgeAlignment === 'RIGHT') {
-            edge.shapeEntity
-                .setPosition({ x: 0.5, y: 0 })
-                .setScale({ x: TILE_EDGE_HEIGHT_FRACTION, y: TILE_EDGE_WIDTH_FRACTION });
+            edge.shapeEntity.setPosition({ x: 0.5, y: 0 });
             edge.imageEntity.setPosition({ x: 0.5, y: 0 });
         } else {
-            edge.shapeEntity
-                .setPosition({ x: 0, y: -0.5 })
-                .setScale({ x: TILE_EDGE_WIDTH_FRACTION, y: TILE_EDGE_HEIGHT_FRACTION });
+            edge.shapeEntity.setPosition({ x: 0, y: -0.5 });
             edge.imageEntity.setPosition({ x: 0, y: -0.5 });
         }
 

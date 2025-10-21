@@ -41,10 +41,10 @@ export class C_Image extends C_Drawable {
         }
 
         const data: DrawDataImage = {
-            x: -0.5,
-            y: -0.5,
-            w: 1,
-            h: 1,
+            x: -0.5 * this.scale.x,
+            y: -0.5 * this.scale.y,
+            w: this.scale.x,
+            h: this.scale.y,
             img: this.#imageName,
         };
         if (this.#repeat) {
