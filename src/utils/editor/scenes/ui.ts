@@ -7,10 +7,19 @@ import type { Loophole_EdgeAlignment } from '../externalLevelSchema';
 import { MouseButton } from '@/utils/engine/systems/pointer';
 import type { Editor } from '..';
 import type { Position } from '@/utils/engine/types';
+import { lerpPosition } from '@/utils/engine/utils';
+
+const TARGET_OPACITY = 0.5;
+const POSITION_SPEED = 25;
+const ROTATION_SPEED = 1000;
 
 class E_Cursor extends Entity {
     #editor: Editor;
     #image: C_Image;
+
+    #targetPosition: Position | null = null;
+    #targetRotation: number | null = null;
+    #active: boolean = false;
 
     constructor(editor: Editor) {
         const comp = new C_Image('cursor', ENTITY_METADATA['MUSHROOM_BLUE'].name, {
@@ -29,7 +38,6 @@ class E_Cursor extends Entity {
         let updated = super.update(deltaTime);
 
         const { selectedEntityType } = getAppStore();
-        let active = false;
         if (window.engine.pointerState.onScreen && selectedEntityType) {
             const {
                 positionType,
@@ -41,11 +49,13 @@ class E_Cursor extends Entity {
             let tilePosition: Position = { x: 0, y: 0 },
                 cursorPosition: Position = { x: 0, y: 0 };
             let edgeAlignment: Loophole_EdgeAlignment = 'RIGHT';
+
             if (positionType === 'CELL') {
                 cursorPosition = {
                     x: Math.round(window.engine.pointerState.worldPosition.x / TILE_SIZE),
                     y: Math.round(window.engine.pointerState.worldPosition.y / TILE_SIZE),
                 };
+                this.#targetRotation = 0;
             } else {
                 const cellX = Math.round(window.engine.pointerState.worldPosition.x / TILE_SIZE);
                 const cellY = Math.round(window.engine.pointerState.worldPosition.y / TILE_SIZE);
@@ -58,16 +68,14 @@ class E_Cursor extends Entity {
                         y: cellY,
                     };
                     edgeAlignment = 'RIGHT';
-
-                    this.setRotation(0);
+                    this.#targetRotation = 0;
                 } else {
                     cursorPosition = {
                         x: cellX,
                         y: localY > 0 ? cellY + 0.5 : cellY - 0.5,
                     };
                     edgeAlignment = 'TOP';
-
-                    this.setRotation(270);
+                    this.#targetRotation = 270;
                 }
             }
 
@@ -77,26 +85,63 @@ class E_Cursor extends Entity {
                 y: Math.floor(tilePosition.y),
             };
 
-            this.setPosition({
+            this.#targetPosition = {
                 x: cursorPosition.x * TILE_SIZE,
                 y: cursorPosition.y * TILE_SIZE,
-            });
-            this.setScale({ x: TILE_SIZE * tileScaleOverride, y: TILE_SIZE * tileScaleOverride });
+            };
 
-            if (window.engine.pointerState[MouseButton.LEFT].pressed) {
-                this.#editor.placeTile(tilePosition, selectedEntityType, edgeAlignment);
+            this.setScale({ x: TILE_SIZE * tileScaleOverride, y: TILE_SIZE * tileScaleOverride });
+            if (!this.#active) {
+                this.setPosition(this.#targetPosition);
+                this.setRotation(this.#targetRotation ?? 0);
             }
-            active = true;
+
+            if (this.#editor.getPointerButton(MouseButton.LEFT).clicked) {
+                this.#editor.placeTile(tilePosition, selectedEntityType, edgeAlignment);
+            } else if (this.#editor.getPointerButton(MouseButton.RIGHT).clicked) {
+                this.#editor.removeTile(
+                    tilePosition,
+                    positionType,
+                    selectedEntityType,
+                    edgeAlignment,
+                );
+            }
+
+            this.#active = true;
             updated = true;
+        } else {
+            this.#targetPosition = null;
+            this.#active = false;
         }
 
-        const targetOpacity = active ? 1 : 0;
+        const targetOpacity = this.#active ? TARGET_OPACITY : 0;
         const opacity = this.#image.style.globalAlpha ?? 1;
         if (opacity !== targetOpacity) {
             this.#image.style.globalAlpha = Math.max(
                 0,
-                Math.min(1, opacity + deltaTime * (active ? 10 : -10)),
+                Math.min(TARGET_OPACITY, opacity + deltaTime * (this.#active ? 10 : -10)),
             );
+            updated = true;
+        }
+
+        if (this.#targetPosition) {
+            const lerpedPosition = lerpPosition(
+                this.position,
+                this.#targetPosition,
+                deltaTime * POSITION_SPEED,
+            );
+            this.setPosition(lerpedPosition);
+        }
+
+        if (this.#targetRotation !== null && this.rotation !== this.#targetRotation) {
+            const rotationDiff = (this.#targetRotation - this.rotation + 360) % 360;
+            let newRotation = this.rotation;
+            if (rotationDiff > 180) {
+                newRotation -= Math.min(360 - rotationDiff, deltaTime * ROTATION_SPEED);
+            } else {
+                newRotation += Math.min(rotationDiff, deltaTime * ROTATION_SPEED);
+            }
+            this.setRotation(newRotation);
             updated = true;
         }
 

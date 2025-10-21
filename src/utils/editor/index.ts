@@ -106,9 +106,9 @@ export class Editor extends Engine {
         });
 
         // add entities to cells and edges, creating new objects as needed
-        entitiesByPosition.forEach((entities, positionKey) => {
+        entitiesByPosition.forEach((_, positionKey) => {
             const position = this.#positionFromKey(positionKey);
-            this.#addTileEntitiesToGrid(position, ...entities);
+            this.#reloadTile(position);
         });
 
         // delete cells and edges that are no longer needed
@@ -127,37 +127,51 @@ export class Editor extends Engine {
         entityType: Loophole_ExtendedEntityType,
         edgeAlignment: Loophole_EdgeAlignment | null,
     ) {
-        const { createEntity, tileOwnership } = ENTITY_METADATA[entityType];
+        const { createEntity } = ENTITY_METADATA[entityType];
         const entity = createEntity(position, edgeAlignment);
         const entityPosition = getLoopholeEntityPosition(entity);
-        this.#level.entities = this.#level.entities.filter(
-            (e) =>
-                !positionsEqual(position, getLoopholeEntityPosition(e)) ||
-                ('edgePosition' in e && e.edgePosition.alignment !== edgeAlignment) ||
-                (tileOwnership === 'ONLY_TYPE_IN_TILE' ? e.entityType !== entityType : false),
-        );
+        const positionType = getLoopholeEntityPositionType(entity);
+        this.#removeOverlappingEntities(entityPosition, positionType, entityType, edgeAlignment);
 
         this.#level.entities.push(entity);
-        this.#addTileEntitiesToGrid(entityPosition, entity);
+        this.#reloadTile(entityPosition);
         this.#onLevelChanged(this.#level);
     }
 
-    #addTileEntitiesToGrid(position: Loophole_Int2, ...entities: Loophole_Entity[]) {
-        const cellEntities: Loophole_Entity[] = [];
-        const edgeEntities: Loophole_Entity[] = [];
-        entities.forEach((entity) => {
-            const type = getLoopholeEntityPositionType(entity);
-            if (type === 'CELL') {
-                cellEntities.push(entity);
-            } else {
-                edgeEntities.push(entity);
-            }
-        });
+    removeTile(
+        position: Loophole_Int2,
+        positionType: LoopholePositionType,
+        entityType: Loophole_ExtendedEntityType,
+        edgeAlignment: Loophole_EdgeAlignment,
+    ) {
+        const initialEntityCount = this.#level.entities.length;
+        this.#removeOverlappingEntities(position, positionType, entityType, edgeAlignment);
 
-        this.#reloadTile(position);
+        if (this.#level.entities.length < initialEntityCount) {
+            this.#reloadTile(position, false);
+            this.#deleteTilesIfEmpty(this.#cells);
+            this.#deleteTilesIfEmpty(this.#edges);
+            this.#onLevelChanged(this.#level);
+        }
     }
 
-    #reloadTile(position: Loophole_Int2) {
+    #removeOverlappingEntities(
+        position: Loophole_Int2,
+        positionType: LoopholePositionType,
+        entityType: Loophole_ExtendedEntityType,
+        edgeAlignment: Loophole_EdgeAlignment | null,
+    ): void {
+        const { tileOwnership } = ENTITY_METADATA[entityType];
+        this.#level.entities = this.#level.entities.filter(
+            (e) =>
+                !positionsEqual(position, getLoopholeEntityPosition(e)) ||
+                positionType != getLoopholeEntityPositionType(e) ||
+                ('edgePosition' in e && e.edgePosition.alignment !== edgeAlignment) ||
+                (tileOwnership === 'ONLY_TYPE_IN_TILE' ? e.entityType !== entityType : false),
+        );
+    }
+
+    #reloadTile(position: Loophole_Int2, createIfMissing: boolean = true): void {
         const cellEntities: Loophole_Entity[] = [];
         const edgeEntities: Loophole_Entity[] = [];
         Object.values(this.#level.entities).forEach((entity) => {
@@ -172,33 +186,41 @@ export class Editor extends Engine {
             }
         });
 
-        if (cellEntities.length > 0) {
-            this.#getTile(position, 'CELL').entity.addEntities(...cellEntities);
-        }
-        if (edgeEntities.length > 0) {
-            this.#getTile(position, 'EDGE').entity.addEntities(...edgeEntities);
-        }
+        const cell = this.#getTile(position, 'CELL', createIfMissing);
+        cell?.entity.clearEntities();
+        cell?.entity.addEntities(...cellEntities);
+        const edge = this.#getTile(position, 'EDGE', createIfMissing);
+        edge?.entity.clearEntities();
+        edge?.entity.addEntities(...edgeEntities);
     }
 
-    #getTile(position: Loophole_Int2, type: LoopholePositionType): TileData {
+    #getTile(
+        position: Loophole_Int2,
+        type: LoopholePositionType,
+        createIfMissing: boolean = true,
+    ): TileData | null {
         const positionKey = this.#positionKey(position);
         const list: Record<string, TileData> = type === 'CELL' ? this.#cells : this.#edges;
         if (!list[positionKey]) {
-            const enginePosition = loopholePositionToEnginePosition(position);
-            const entity = (
-                type === 'CELL' ? new E_Cell(position) : new E_Edge(position).setZIndex(1)
-            )
-                .setPosition({
-                    x: enginePosition.x * TILE_SIZE,
-                    y: enginePosition.y * TILE_SIZE,
-                })
-                .setScale({ x: TILE_SIZE, y: TILE_SIZE });
+            if (createIfMissing) {
+                const enginePosition = loopholePositionToEnginePosition(position);
+                const entity = (
+                    type === 'CELL' ? new E_Cell(position) : new E_Edge(position).setZIndex(1)
+                )
+                    .setPosition({
+                        x: enginePosition.x * TILE_SIZE,
+                        y: enginePosition.y * TILE_SIZE,
+                    })
+                    .setScale({ x: TILE_SIZE, y: TILE_SIZE });
 
-            this.addSceneEntities(GridScene.name, entity);
-            list[positionKey] = {
-                position: position,
-                entity,
-            };
+                this.addSceneEntities(GridScene.name, entity);
+                list[positionKey] = {
+                    position: position,
+                    entity,
+                };
+            } else {
+                return null;
+            }
         }
 
         return list[positionKey];

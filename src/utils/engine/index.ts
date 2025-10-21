@@ -3,7 +3,12 @@ import { RenderSystem } from './systems/render';
 import { type Position } from './types';
 import type { AvailableScenes, Scene, SceneIdentifier } from './systems/scene';
 import { SceneSystem } from './systems/scene';
-import { MouseButton, PointerSystem, type PointerState } from './systems/pointer';
+import {
+    MouseButton,
+    PointerSystem,
+    type MouseButtonState,
+    type PointerState,
+} from './systems/pointer';
 import { ImageSystem, type LoadedImage } from './systems/image';
 
 type BrowserEvent =
@@ -263,6 +268,10 @@ export class Engine {
         return this.worldToScreenMatrix.transformPoint(new DOMPoint(position.x, position.y));
     }
 
+    getPointerButton(button: MouseButton): MouseButtonState {
+        return this._pointerSystem.getPointerButton(button);
+    }
+
     setCameraPosition(position: Position): void {
         this._camera.position = position;
         this.#worldToScreenMatrixDirty = true;
@@ -382,7 +391,7 @@ export class Engine {
             this.#fpsTimeAccumulator = 0;
         }
 
-        this._pointerSystem.update();
+        this._pointerSystem.update(deltaTime);
         const sceneUpdated = this._sceneSystem.update(deltaTime);
 
         const entityUpdated = this.#update(deltaTime);
@@ -414,7 +423,7 @@ export class Engine {
     }
 
     #setPointerButtonDown(button: MouseButton, down: boolean): void {
-        this._pointerSystem.setPointerButton(button, { down });
+        this._pointerSystem.pointerButtonStateChange(button, down);
     }
 
     #applyOptions(newOptions: EngineOptions): void {

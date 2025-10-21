@@ -286,7 +286,6 @@ export class E_Edge extends E_Tile {
                         rotation += entity.flipDirection ? 0 : 180;
                     }
                     edge.imageEntity.setRotation(rotation);
-                    console.log('EDGE TILE SCALE', tileScale);
                     edge.imageEntity.setScale({ x: tileScale, y: tileScale });
                 }
             }

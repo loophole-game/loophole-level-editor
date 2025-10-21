@@ -2,10 +2,13 @@ import type { Engine } from '..';
 import { C_PointerTarget } from '../components/PointerTarget';
 import { type Position } from '../types';
 
+const MAX_DISTANCE_DURING_CLICK = 10;
+
 export interface MouseButtonState {
     down: boolean;
     pressed: boolean;
     released: boolean;
+    clicked: boolean;
 }
 
 export const MouseButton = {
@@ -22,6 +25,9 @@ export interface PointerState extends Position, Record<MouseButton, MouseButtonS
     justMovedOnScreen: boolean;
     justMovedOffScreen: boolean;
     worldPosition: Position;
+    clickTime: number;
+    clickStartPosition: Position | null;
+    clickEndPosition: Position | null;
 }
 
 export class PointerSystem {
@@ -33,12 +39,15 @@ export class PointerSystem {
         x: 0,
         y: 0,
         worldPosition: { x: 0, y: 0 },
+        clickTime: 0,
+        clickStartPosition: null,
+        clickEndPosition: null,
         onScreen: false,
         justMovedOnScreen: false,
         justMovedOffScreen: false,
-        [MouseButton.LEFT]: { down: false, pressed: false, released: false },
-        [MouseButton.MIDDLE]: { down: false, pressed: false, released: false },
-        [MouseButton.RIGHT]: { down: false, pressed: false, released: false },
+        [MouseButton.LEFT]: { down: false, pressed: false, released: false, clicked: false },
+        [MouseButton.MIDDLE]: { down: false, pressed: false, released: false, clicked: false },
+        [MouseButton.RIGHT]: { down: false, pressed: false, released: false, clicked: false },
     };
     #lastPointerState: PointerState = { ...this.#pointerState };
 
@@ -94,11 +103,19 @@ export class PointerSystem {
         return this.#pointerState[button];
     }
 
-    setPointerButton(button: MouseButton, state: Partial<MouseButtonState>) {
-        this.#pointerState[button] = { ...this.#pointerState[button], ...state };
+    pointerButtonStateChange(button: MouseButton, down: boolean) {
+        this.#pointerState[button] = { ...this.#pointerState[button], down };
+        const position = { x: this.#pointerState.x, y: this.#pointerState.y };
+        if (down) {
+            this.#pointerState.clickStartPosition = position;
+            this.#pointerState.clickEndPosition = null;
+            this.#pointerState.clickTime = 0;
+        } else {
+            this.#pointerState.clickEndPosition = position;
+        }
     }
 
-    update(): void {
+    update(deltaTime: number): void {
         this.#pointerState.justMoved =
             this.#pointerState.x !== this.#lastPointerState.x ||
             this.#pointerState.y !== this.#lastPointerState.y;
@@ -108,6 +125,23 @@ export class PointerSystem {
                 this.#pointerState[button].down && !this.#lastPointerState[button].down;
             this.#pointerState[button].released =
                 !this.#pointerState[button].down && this.#lastPointerState[button].down;
+            this.#pointerState[button].clicked = false;
+
+            if (
+                this.#pointerState[button].released &&
+                this.#pointerState.clickStartPosition &&
+                this.#pointerState.clickEndPosition
+            ) {
+                const distanceTravelled = Math.hypot(
+                    this.#pointerState.clickEndPosition.x - this.#pointerState.clickStartPosition.x,
+                    this.#pointerState.clickEndPosition.y - this.#pointerState.clickStartPosition.y,
+                );
+                if (distanceTravelled <= MAX_DISTANCE_DURING_CLICK) {
+                    this.#pointerState[button].clicked = true;
+                }
+            } else if (this.#pointerState[button].down) {
+                this.#pointerState.clickTime += deltaTime;
+            }
         });
 
         this.#lastPointerState = {
