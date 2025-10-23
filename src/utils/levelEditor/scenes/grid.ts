@@ -64,8 +64,8 @@ export class E_Tile extends Entity {
     #entitiesDirty: boolean = true;
 
     #centerTiles: TileData[] = [];
-    #topEdgeTile: TileData | null = null;
-    #rightEdgeTile: TileData | null = null;
+    #topEdgeTiles: TileData[] = [];
+    #rightEdgeTiles: TileData[] = [];
 
     constructor(name: string, position: Loophole_Int2, ...components: Component[]) {
         super(name, ...components);
@@ -98,20 +98,17 @@ export class E_Tile extends Entity {
     }
 
     override destroy() {
-        for (const { parentEntity } of this.#centerTiles) {
-            parentEntity.destroy();
-        }
-        this.#topEdgeTile?.parentEntity.destroy();
-        this.#rightEdgeTile?.parentEntity.destroy();
+        this.#destroyTiles(this.#centerTiles);
+        this.#destroyTiles(this.#topEdgeTiles);
+        this.#destroyTiles(this.#rightEdgeTiles);
 
         super.destroy();
     }
 
     updateEntities(entities: Loophole_Entity[]) {
-        this.#topEdgeTile?.entity.setEnabled(false);
-        this.#rightEdgeTile?.entity.setEnabled(false);
-
-        let nextAvailableCenterTileIdx = 0;
+        let nextAvailableCenterTileIdx = 0,
+            nextAvailableTopEdgeTileIdx = 0,
+            nextAvailableRightEdgeTileIdx = 0;
         for (const entity of entities) {
             const { name, tileScale } = ENTITY_METADATA[getLoopholeEntityExtendedType(entity)];
             let tileData: TileData;
@@ -121,19 +118,24 @@ export class E_Tile extends Entity {
                 const isTop = entity.edgePosition.alignment === 'TOP';
                 const dist = 0.5;
                 if (isTop) {
-                    tileData = this.#getOrCreateTileData(this.#topEdgeTile);
-                    if (!this.#topEdgeTile) {
-                        this.#topEdgeTile = tileData;
+                    const topEdgeTile = this.#topEdgeTiles[nextAvailableTopEdgeTileIdx];
+                    tileData = this.#getOrCreateTileData(topEdgeTile);
+                    if (!topEdgeTile) {
+                        this.#topEdgeTiles.push(tileData);
                     }
 
                     tileData.entity.setPosition({ x: 0, y: -dist });
+                    nextAvailableTopEdgeTileIdx++;
                 } else {
-                    tileData = this.#getOrCreateTileData(this.#rightEdgeTile);
-                    if (!this.#rightEdgeTile) {
-                        this.#rightEdgeTile = tileData;
+                    const rightEdgeTile = this.#rightEdgeTiles[nextAvailableRightEdgeTileIdx];
+                    tileData = this.#getOrCreateTileData(rightEdgeTile);
+                    if (!rightEdgeTile) {
+                        this.#rightEdgeTiles.push(tileData);
+                        nextAvailableRightEdgeTileIdx++;
                     }
 
                     tileData.entity.setPosition({ x: dist, y: 0 });
+                    nextAvailableRightEdgeTileIdx++;
                 }
 
                 rotation = loopholeRotationToDegrees(isTop ? 'UP' : 'RIGHT');
@@ -168,6 +170,12 @@ export class E_Tile extends Entity {
 
         for (let i = nextAvailableCenterTileIdx; i < this.#centerTiles.length; i++) {
             this.#centerTiles[i].entity.setEnabled(false);
+        }
+        for (let i = nextAvailableTopEdgeTileIdx; i < this.#topEdgeTiles.length; i++) {
+            this.#topEdgeTiles[i].entity.setEnabled(false);
+        }
+        for (let i = nextAvailableRightEdgeTileIdx; i < this.#rightEdgeTiles.length; i++) {
+            this.#rightEdgeTiles[i].entity.setEnabled(false);
         }
 
         this.#entities = [...entities];
@@ -206,6 +214,12 @@ export class E_Tile extends Entity {
             imageComp,
             entityType: 'BUTTON',
         };
+    }
+
+    #destroyTiles(tiles: TileData[]) {
+        for (const { parentEntity } of tiles) {
+            parentEntity.destroy();
+        }
     }
 }
 

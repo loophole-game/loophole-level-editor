@@ -38,8 +38,8 @@ const ENTITY_TYPE_DRAW_ORDER_LIST: Loophole_EntityType[] = [
     'WALL',
     'ONE_WAY',
     'GLASS',
-    'CURTAIN',
     'DOOR',
+    'CURTAIN',
     'TIME_MACHINE',
     'SAUCE',
 ] as const;
@@ -117,6 +117,8 @@ export const getTimestamp = (): number => Date.now();
 
 const DEFAULT_EDGE_ALIGNMENT: Loophole_EdgeAlignment = 'RIGHT';
 const DEFAULT_WALL_SCALE = 0.85;
+
+export const OVERLAPPABLE_ENTITY_TYPES: Loophole_EntityType[][] = [['CURTAIN', 'DOOR']];
 
 type TileOwnership = 'ONLY_ENTITY_IN_TILE' | 'ONLY_TYPE_IN_TILE';
 

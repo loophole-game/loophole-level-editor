@@ -17,6 +17,7 @@ import {
     getLoopholeEntityExtendedType,
     getLoopholeEntityPosition,
     loopholePositionToEnginePosition,
+    OVERLAPPABLE_ENTITY_TYPES,
     TILE_SIZE,
     type LoopholePositionType,
 } from '../utils';
@@ -114,7 +115,9 @@ export class LevelEditor extends Engine {
         rotation: Loophole_Rotation,
         flipDirection: boolean,
     ) {
-        const { createEntity } = ENTITY_METADATA[entityType];
+        const { createEntity, positionType, type } = ENTITY_METADATA[entityType];
+        this.#removeOverlappingTiles(position, positionType, type, edgeAlignment || 'RIGHT');
+
         const entity = createEntity(position, edgeAlignment, rotation, flipDirection);
         this.#level.entities.push(entity);
 
@@ -122,6 +125,16 @@ export class LevelEditor extends Engine {
     }
 
     removeTile(
+        position: Loophole_Int2,
+        positionType: LoopholePositionType,
+        entityType: Loophole_EntityType,
+        edgeAlignment: Loophole_EdgeAlignment,
+    ) {
+        this.#removeOverlappingTiles(position, positionType, entityType, edgeAlignment);
+        this.#saveTileChange(position);
+    }
+
+    #removeOverlappingTiles(
         position: Loophole_Int2,
         positionType: LoopholePositionType,
         entityType: Loophole_EntityType,
@@ -146,14 +159,22 @@ export class LevelEditor extends Engine {
                 return true;
             }
 
+            if (
+                OVERLAPPABLE_ENTITY_TYPES.some(
+                    ([type1, type2]) =>
+                        (type1 === entityType && type2 === type) ||
+                        (type2 === entityType && type1 === type),
+                )
+            ) {
+                return true;
+            }
+
             if ('edgePosition' in entity && entity.edgePosition.alignment !== edgeAlignment) {
                 return true;
             }
 
             return false;
         });
-
-        this.#saveTileChange(position);
     }
 
     #saveTileChange(position: Loophole_Int2) {
