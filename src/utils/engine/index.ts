@@ -11,6 +11,7 @@ import {
 } from './systems/pointer';
 import { ImageSystem, type LoadedImage } from './systems/image';
 import { KeyboardSystem, type KeyboardKeyState } from './systems/keyboard';
+import type { System } from './systems';
 
 type BrowserEvent =
     | 'mousemove'
@@ -103,6 +104,8 @@ export class Engine {
     protected _pointerSystem: PointerSystem;
     protected _imageSystem: ImageSystem;
 
+    protected _systems: System[] = [];
+
     #forceRender: boolean = true;
 
     #lastTime: number = performance.now();
@@ -118,12 +121,13 @@ export class Engine {
 
     constructor(options: EngineOptions = {}) {
         window.engine = this;
+
         this._rootEntity = new Entity('root');
         this._renderSystem = new RenderSystem(this);
         this._sceneSystem = new SceneSystem(this, this._rootEntity);
-        this._keyboardSystem = new KeyboardSystem();
+        this._keyboardSystem = new KeyboardSystem(this);
         this._pointerSystem = new PointerSystem(this);
-        this._imageSystem = new ImageSystem();
+        this._imageSystem = new ImageSystem(this);
 
         this.addBrowserEventHandler('mousedown', (_, data) =>
             this.#setPointerButtonDown(data.button, true),
@@ -166,7 +170,7 @@ export class Engine {
     set canvas(canvas: HTMLCanvasElement | null) {
         this._canvas = canvas;
         if (canvas) {
-            this.forceRender();
+            this.#forceRender = true;
         }
         this.#worldToScreenMatrixDirty = true;
     }
@@ -233,6 +237,10 @@ export class Engine {
         return this.#renderTime;
     }
 
+    addSystem(system: System): void {
+        this._systems.push(system);
+    }
+
     createScene(sceneID: string, name?: string): Scene | null {
         if (!this._options.scenes[sceneID]) {
             return null;
@@ -287,25 +295,35 @@ export class Engine {
     }
 
     setCameraPosition(position: Position): void {
-        this._camera.position = position;
-        this.#worldToScreenMatrixDirty = true;
+        if (this._camera.position.x !== position.x || this._camera.position.y !== position.y) {
+            this._camera.position = position;
+            this.#worldToScreenMatrixDirty = true;
+            this.#forceRender = true;
+        }
     }
 
     setCameraZoom(zoom: number): void {
-        this._camera.zoom = zoom;
-        this.#clampCameraZoom();
-        this.#worldToScreenMatrixDirty = true;
+        if (this._camera.zoom !== zoom) {
+            this._camera.zoom = zoom;
+            this.#clampCameraZoom();
+            this.#worldToScreenMatrixDirty = true;
+            this.#forceRender = true;
+        }
     }
 
     zoomCamera(delta: number): void {
         this._camera.zoom += delta * this._options.zoomSpeed;
         this.#clampCameraZoom();
         this.#worldToScreenMatrixDirty = true;
+        this.#forceRender = true;
     }
 
     setCameraRotation(rotation: number): void {
-        this._camera.rotation = rotation;
-        this.#worldToScreenMatrixDirty = true;
+        if (this._camera.rotation !== rotation) {
+            this._camera.rotation = rotation;
+            this.#worldToScreenMatrixDirty = true;
+            this.#forceRender = true;
+        }
     }
 
     getImage(name: string): Readonly<LoadedImage> | null {
@@ -345,22 +363,28 @@ export class Engine {
     onKeyDown: BrowserEventHandler<'keydown'> = (...args) => this.#handleBrowserEvent(...args);
     onKeyUp: BrowserEventHandler<'keyup'> = (...args) => this.#handleBrowserEvent(...args);
 
-    #update(deltaTime: number): boolean {
-        const startTime = performance.now();
+    destroy(): void {
+        this._rootEntity.destroy();
 
+        this._systems.forEach((system) => {
+            system.destroy();
+        });
+        this._systems = [];
+    }
+
+    #update(deltaTime: number): boolean {
         if (!this._rootEntity.enabled) {
             this.#updateTime = 0;
             return false;
         }
 
-        this.#updateCameraPosition();
-
+        const startTime = performance.now();
         let updated = this._update(deltaTime);
         updated = this._rootEntity.update(deltaTime) || updated;
 
         this.#updateCameraPosition();
-
         this.#updateTime = performance.now() - startTime;
+
         return updated;
     }
 
@@ -411,9 +435,9 @@ export class Engine {
         this._keyboardSystem.update(deltaTime);
         this._pointerSystem.update(deltaTime);
         const sceneUpdated = this._sceneSystem.update(deltaTime);
-
-        const entityUpdated = this.#update(deltaTime);
-        if (sceneUpdated || entityUpdated || this.#forceRender) {
+        const imagesUpdated = this._imageSystem.update();
+        const engineUpdated = this.#update(deltaTime);
+        if (sceneUpdated || engineUpdated || imagesUpdated || this.#forceRender) {
             this.#render();
             this.#forceRender = false;
         }

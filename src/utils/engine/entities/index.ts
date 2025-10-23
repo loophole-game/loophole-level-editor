@@ -115,10 +115,8 @@ export class Entity implements Renderable {
     }
 
     destroy(): void {
-        const parent = this._parent;
-        this.parent?.removeChild(this);
+        this._parent?.removeChild(this);
         this.#destroy();
-        parent?.removeChild(this);
     }
 
     addChildren(...entities: Entity[]): this {
@@ -127,17 +125,12 @@ export class Entity implements Renderable {
             entity.parent = this;
         }
         this.childrenZIndexDirty = true;
-        console.log(
-            this.name,
-            'added children:',
-            entities.map((e) => e.name),
-        );
 
         return this;
     }
 
     removeChild(entity: Entity): void {
-        this._children = this._children.filter((e) => e !== entity);
+        this._children = [...this._children.filter((e) => e !== entity)];
         entity.parent = null;
     }
 
@@ -186,6 +179,7 @@ export class Entity implements Renderable {
     setZIndex(zIndex: number): this {
         if (this._zIndex !== zIndex) {
             this._zIndex = zIndex;
+            if (zIndex === 0) console.trace('setZIndex', this.name, zIndex);
             if (this._parent) {
                 this._parent.childrenZIndexDirty = true;
             }
@@ -224,11 +218,6 @@ export class Entity implements Renderable {
         if (this.#childrenZIndexDirty) {
             this.#sortChildren();
             this.#childrenZIndexDirty = false;
-            console.log(
-                'Sorting children for',
-                this.name,
-                this._children.map((c) => `${c.name} - ${c.zIndex}`),
-            );
         }
         if (this.#componentsZIndexDirty) {
             this.#sortComponents();

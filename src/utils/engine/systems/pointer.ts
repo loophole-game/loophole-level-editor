@@ -1,4 +1,4 @@
-import type { Engine } from '..';
+import { System } from '.';
 import { C_PointerTarget } from '../components/PointerTarget';
 import { type ButtonState, type Position } from '../types';
 
@@ -26,9 +26,7 @@ export interface PointerState extends Position, Record<PointerButton, PointerBut
     clickEndPosition: Position | null;
 }
 
-export class PointerSystem {
-    #engine: Engine;
-
+export class PointerSystem extends System {
     #pointerState: PointerState = {
         scrollDelta: 0,
         justMoved: false,
@@ -66,10 +64,6 @@ export class PointerSystem {
 
     #dragStartMousePosition: Position | null = null;
     #dragStartCameraPosition: Position | null = null;
-
-    constructor(engine: Engine) {
-        this.#engine = engine;
-    }
 
     get pointerState(): Readonly<PointerState> {
         return this.#pointerState;
@@ -127,11 +121,11 @@ export class PointerSystem {
         }
     }
 
-    update(deltaTime: number): void {
+    update(deltaTime: number): boolean {
         this.#pointerState.justMoved =
             this.#pointerState.x !== this.#lastPointerState.x ||
             this.#pointerState.y !== this.#lastPointerState.y;
-        this.#pointerState.worldPosition = this.#engine.screenToWorld(this.#pointerState);
+        this.#pointerState.worldPosition = this._engine.screenToWorld(this.#pointerState);
         Object.values(PointerButton).forEach((button: PointerButton) => {
             this.#pointerState[button].pressed =
                 this.#pointerState[button].down && !this.#lastPointerState[button].down;
@@ -144,11 +138,11 @@ export class PointerSystem {
                 this.#pointerState.clickStartPosition &&
                 this.#pointerState.clickEndPosition
             ) {
-                const distanceTravelled = Math.hypot(
+                const distanceTraveled = Math.hypot(
                     this.#pointerState.clickEndPosition.x - this.#pointerState.clickStartPosition.x,
                     this.#pointerState.clickEndPosition.y - this.#pointerState.clickStartPosition.y,
                 );
-                if (distanceTravelled <= MAX_DISTANCE_DURING_CLICK) {
+                if (distanceTraveled <= MAX_DISTANCE_DURING_CLICK) {
                     this.#pointerState[button].clicked = true;
                 }
             } else if (this.#pointerState[button].down) {
@@ -182,26 +176,26 @@ export class PointerSystem {
             this.#pointerState.justMovedOnScreen = false;
         }
 
-        if (this.#engine.options.cameraDrag) {
-            const buttonStates = this.#engine.options.cameraDragButtons.map(
+        if (this._engine.options.cameraDrag) {
+            const buttonStates = this._engine.options.cameraDragButtons.map(
                 (btn) => this.#pointerState[btn],
             );
             if (buttonStates.some((state) => state.pressed) && !this.#dragStartMousePosition) {
-                this.#dragStartMousePosition = { ...window.engine.pointerState };
-                this.#dragStartCameraPosition = { ...window.engine.camera.position };
+                this.#dragStartMousePosition = { ...this._engine.pointerState };
+                this.#dragStartCameraPosition = { ...this._engine.camera.position };
             }
 
-            if (window.engine.pointerState.justMoved) {
+            if (this._engine.pointerState.justMoved) {
                 if (
                     buttonStates.some((state) => state.down) &&
                     this.#dragStartMousePosition &&
                     this.#dragStartCameraPosition
                 ) {
                     const screenDelta = {
-                        x: window.engine.pointerState.x - this.#dragStartMousePosition.x,
-                        y: window.engine.pointerState.y - this.#dragStartMousePosition.y,
+                        x: this._engine.pointerState.x - this.#dragStartMousePosition.x,
+                        y: this._engine.pointerState.y - this.#dragStartMousePosition.y,
                     };
-                    window.engine.setCameraPosition({
+                    this._engine.setCameraPosition({
                         x: this.#dragStartCameraPosition.x + screenDelta.x,
                         y: this.#dragStartCameraPosition.y + screenDelta.y,
                     });
@@ -214,14 +208,21 @@ export class PointerSystem {
             }
 
             if (this.#pointerState.scrollDelta !== 0) {
-                window.engine.zoomCamera(this.#pointerState.scrollDelta);
+                this._engine.zoomCamera(this.#pointerState.scrollDelta);
                 this.#pointerState.scrollDelta = 0;
             }
         }
+
+        return false;
+    }
+
+    destroy(): void {
+        this.#dragStartMousePosition = null;
+        this.#dragStartCameraPosition = null;
     }
 
     #resetAllPointerTargets(): C_PointerTarget[] {
-        const pointerTargets = this.#engine.rootEntity.getComponentsInTree<C_PointerTarget>(
+        const pointerTargets = this._engine.rootEntity.getComponentsInTree<C_PointerTarget>(
             C_PointerTarget.name,
         );
         for (let i = pointerTargets.length - 1; i >= 0; i--) {

@@ -1,4 +1,4 @@
-import type { Engine } from '..';
+import { System } from '.';
 import type { Entity } from '../entities';
 
 export interface RenderStyle {
@@ -111,14 +111,10 @@ export class RenderCommand {
 
 export type RenderCommandStream = RenderCommand[];
 
-export class RenderSystem {
-    #engine: Engine;
+export class RenderSystem extends System {
+    destroy(): void {}
 
-    constructor(engine: Engine) {
-        this.#engine = engine;
-    }
-
-    render = (ctx: CanvasRenderingContext2D, rootEntity: Entity) => {
+    render(ctx: CanvasRenderingContext2D, rootEntity: Entity) {
         const stream: RenderCommandStream = [];
         rootEntity.queueRenderCommands(stream);
 
@@ -204,7 +200,7 @@ export class RenderSystem {
                     if (style.globalAlpha > 0) {
                         const { x, y, w, h, img: imageName } = data;
                         this.#applyStyle(ctx, style);
-                        const image = this.#engine.getImage(imageName);
+                        const image = this._engine.getImage(imageName);
                         if (!image) {
                             continue;
                         }
@@ -213,7 +209,7 @@ export class RenderSystem {
                 }
             }
         }
-    };
+    }
 
     #applyStyle = (ctx: CanvasRenderingContext2D, style: RenderStyle) => {
         Object.entries(style).forEach(([key, value]) => {

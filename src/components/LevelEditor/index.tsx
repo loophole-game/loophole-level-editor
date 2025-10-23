@@ -11,6 +11,7 @@ export function LevelEditorComponent() {
     const levels = useAppStore((state) => state.levels);
     const activeLevelID = useAppStore((state) => state.activeLevelID);
     const updateLevel = useAppStore((state) => state.updateLevel);
+
     const level = levels[activeLevelID];
 
     useEffect(() => {

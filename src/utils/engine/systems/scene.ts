@@ -1,3 +1,4 @@
+import { System } from '.';
 import type { Engine } from '..';
 import { Entity } from '../entities';
 
@@ -53,9 +54,7 @@ export class Scene {
 
 export type SceneIdentifier = Scene | string | number | null;
 
-export class SceneSystem {
-    #engine: Engine;
-
+export class SceneSystem extends System {
     #queuedNewScenes: Scene[] = [];
     #activeScenesByID: Map<number, Scene> = new Map();
     #activeScenesByName: Map<string, Scene> = new Map();
@@ -67,7 +66,8 @@ export class SceneSystem {
     #sceneRootEntities: Map<number, Entity> = new Map();
 
     constructor(engine: Engine, worldRootEntity: Entity) {
-        this.#engine = engine;
+        super(engine);
+
         this.#worldRootEntity = worldRootEntity;
     }
 
@@ -83,6 +83,14 @@ export class SceneSystem {
         });
 
         return updated;
+    }
+
+    destroy(): void {
+        this.#queuedNewScenes = [];
+        this.#activeScenesByID.clear();
+        this.#activeScenesByName.clear();
+        this.#defaultScene = null;
+        this.#queuedDestroyedScenes = [];
     }
 
     createScene(scene: Scene): void {
@@ -148,7 +156,7 @@ export class SceneSystem {
         }
 
         scene.rootEntity = rootEntity;
-        scene.create(this.#engine);
+        scene.create(this._engine);
     }
 
     #performQueuedUpdate(): boolean {

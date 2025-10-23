@@ -5,9 +5,10 @@ import {
     ENTITY_METADATA,
     ENTITY_TYPE_DRAW_ORDER,
     getLoopholeEntityExtendedType,
+    loopholeRotationToDegrees,
     TILE_CENTER_FRACTION,
 } from '../../utils';
-import type { Loophole_Entity, Loophole_Int2 } from '../externalLevelSchema';
+import type { Loophole_Entity, Loophole_EntityType, Loophole_Int2 } from '../externalLevelSchema';
 import { C_PointerTarget } from '../../engine/components/PointerTarget';
 import { getAppStore } from '@/utils/store';
 import { Component } from '@/utils/engine/components';
@@ -20,7 +21,6 @@ class C_PointerVisual extends Component {
     #shape: C_Shape;
 
     #opacity: number = 0;
-    #prevZIndex: number | null = null;
 
     constructor(pointerTarget: C_PointerTarget, shape: C_Shape) {
         super('PointerVisual');
@@ -34,16 +34,6 @@ class C_PointerVisual extends Component {
     override update(deltaTime: number): boolean {
         const { selectedEntityType } = getAppStore();
         const active = this.#pointerTarget.isPointerOver && selectedEntityType === null;
-
-        if (active) {
-            if (this.#prevZIndex === null) {
-                this.#prevZIndex = this.#shape.zIndex;
-            }
-
-            this.#shape.entity?.parent?.setZIndex(1000); // TODO: idk if this works
-        } else {
-            this.#shape.entity?.parent?.setZIndex(this.#prevZIndex ?? 0);
-        }
 
         const targetOpacity = active ? MAX_OPACITY : 0;
         if (targetOpacity !== this.#opacity) {
@@ -65,6 +55,7 @@ type TileData = {
     shapeComp: C_Shape;
     shapePointerComp: C_PointerTarget;
     imageComp: C_Image;
+    entityType: Loophole_EntityType;
 };
 
 export class E_Tile extends Entity {
@@ -106,6 +97,16 @@ export class E_Tile extends Entity {
         return true;
     }
 
+    override destroy() {
+        for (const { parentEntity } of this.#centerTiles) {
+            parentEntity.destroy();
+        }
+        this.#topEdgeTile?.parentEntity.destroy();
+        this.#rightEdgeTile?.parentEntity.destroy();
+
+        super.destroy();
+    }
+
     updateEntities(entities: Loophole_Entity[]) {
         this.#topEdgeTile?.entity.setEnabled(false);
         this.#rightEdgeTile?.entity.setEnabled(false);
@@ -114,6 +115,7 @@ export class E_Tile extends Entity {
         for (const entity of entities) {
             const { name, tileScale } = ENTITY_METADATA[getLoopholeEntityExtendedType(entity)];
             let tileData: TileData;
+            let rotation = 0;
 
             if ('edgePosition' in entity) {
                 const isTop = entity.edgePosition.alignment === 'TOP';
@@ -133,6 +135,8 @@ export class E_Tile extends Entity {
 
                     tileData.entity.setPosition({ x: dist, y: 0 });
                 }
+
+                rotation = loopholeRotationToDegrees(isTop ? 'UP' : 'RIGHT');
             } else {
                 const existingTileData = this.#centerTiles[nextAvailableCenterTileIdx];
                 tileData = this.#getOrCreateTileData(existingTileData);
@@ -144,6 +148,13 @@ export class E_Tile extends Entity {
                 nextAvailableCenterTileIdx++;
             }
 
+            if ('rotation' in entity) {
+                rotation = loopholeRotationToDegrees(entity.rotation);
+            } else if ('flipDirection' in entity) {
+                rotation += loopholeRotationToDegrees(entity.flipDirection ? 'LEFT' : 'RIGHT');
+            }
+
+            tileData.entityType = entity.entityType;
             tileData.imageComp.imageName = name;
             tileData.entity
                 .setEnabled(true)
@@ -151,13 +162,15 @@ export class E_Tile extends Entity {
                     x: tileScale,
                     y: tileScale,
                 })
-                .setZIndex(ENTITY_TYPE_DRAW_ORDER[entity.entityType] + 1);
+                .setRotation(rotation);
+            tileData.parentEntity.setZIndex(ENTITY_TYPE_DRAW_ORDER[entity.entityType] + 1);
         }
 
         for (let i = nextAvailableCenterTileIdx; i < this.#centerTiles.length; i++) {
             this.#centerTiles[i].entity.setEnabled(false);
         }
 
+        this.#entities = [...entities];
         this.#entitiesDirty = true;
     }
 
@@ -183,13 +196,21 @@ export class E_Tile extends Entity {
             )
             .setScale(this.scale);
         parentEntity.addChildren(entity);
-        window.engine.addSceneEntities(GridScene.name, parentEntity);
+        window.engine?.addSceneEntities(GridScene.name, parentEntity);
 
-        return { parentEntity, entity, shapeComp, shapePointerComp, imageComp };
+        return {
+            parentEntity,
+            entity,
+            shapeComp,
+            shapePointerComp,
+            imageComp,
+            entityType: 'BUTTON',
+        };
     }
 }
 
 export class GridScene extends Scene {
+    #prevChildrenCount: number = 0;
     override create() {
         this.addEntities(
             new Entity('origin')
@@ -201,5 +222,13 @@ export class GridScene extends Scene {
                 .setScale({ x: 12, y: 12 })
                 .setZIndex(100),
         );
+    }
+
+    override update() {
+        if (this.#prevChildrenCount !== this.rootEntity?.children.length) {
+            this.#prevChildrenCount = this.rootEntity?.children.length ?? 0;
+        }
+
+        return false;
     }
 }

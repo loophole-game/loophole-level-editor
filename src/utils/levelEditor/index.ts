@@ -3,6 +3,7 @@ import type { AvailableScenes } from '../engine/systems/scene';
 import type {
     Loophole_EdgeAlignment,
     Loophole_Entity,
+    Loophole_EntityType,
     Loophole_ExtendedEntityType,
     Loophole_Int2,
     Loophole_Level,
@@ -13,6 +14,7 @@ import { TestScene } from './scenes/test';
 import { UIScene } from './scenes/ui';
 import {
     ENTITY_METADATA,
+    getLoopholeEntityExtendedType,
     getLoopholeEntityPosition,
     loopholePositionToEnginePosition,
     TILE_SIZE,
@@ -85,6 +87,7 @@ export class LevelEditor extends Engine {
     override _update() {
         getAppStore().setHighlightedEngineTile(null);
 
+        const updated = this.#dirtyPositions.size > 0;
         for (const positionKey of this.#dirtyPositions) {
             const position = this.#positionFromKey(positionKey);
             const entities = this.#level.entities.filter((entity) => {
@@ -101,7 +104,7 @@ export class LevelEditor extends Engine {
         }
         this.#dirtyPositions.clear();
 
-        return false;
+        return updated;
     }
 
     placeTile(
@@ -121,24 +124,30 @@ export class LevelEditor extends Engine {
     removeTile(
         position: Loophole_Int2,
         positionType: LoopholePositionType,
-        entityType: Loophole_ExtendedEntityType,
+        entityType: Loophole_EntityType,
         edgeAlignment: Loophole_EdgeAlignment,
     ) {
         this.#level.entities = this.#level.entities.filter((entity) => {
+            const {
+                tileOwnership,
+                positionType: entityPositionType,
+                type,
+            } = ENTITY_METADATA[getLoopholeEntityExtendedType(entity)];
+            if (entityPositionType !== positionType) {
+                return true;
+            }
+
+            if (tileOwnership === 'ONLY_TYPE_IN_TILE' && entityType !== type) {
+                return true;
+            }
+
             const entityPos = getLoopholeEntityPosition(entity);
             if (entityPos.x !== position.x || entityPos.y !== position.y) {
                 return true;
             }
 
-            const { positionType: entityPositionType } = ENTITY_METADATA[entityType];
-            if (entityPositionType !== positionType) {
+            if ('edgePosition' in entity && entity.edgePosition.alignment !== edgeAlignment) {
                 return true;
-            }
-
-            if ('edgeAlignment' in entity) {
-                if (entity.edgeAlignment !== edgeAlignment) {
-                    return true;
-                }
             }
 
             return false;

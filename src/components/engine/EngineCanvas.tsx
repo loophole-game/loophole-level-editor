@@ -51,9 +51,8 @@ export function EngineCanvas({ engineRef, aspectRatio, ...rest }: EngineCanvasPr
             localCanvas.addEventListener('mousemove', onMouseMove);
             const onMouseWheel = (event: WheelEvent) => {
                 engineRef.current?.onMouseWheel('mousewheel', { delta: event.deltaY });
-                event.preventDefault();
             };
-            localCanvas.addEventListener('wheel', onMouseWheel);
+            localCanvas.addEventListener('wheel', onMouseWheel, { passive: true });
             const onMouseDown = (event: MouseEvent) =>
                 engineRef.current?.onMouseDown('mousedown', {
                     button: event.button as PointerButton,

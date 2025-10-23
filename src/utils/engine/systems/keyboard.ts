@@ -1,3 +1,4 @@
+import { System } from '.';
 import type { ButtonState } from '../types';
 
 export interface KeyboardKeyState extends ButtonState {
@@ -9,10 +10,10 @@ interface KeyState {
     prevState: KeyboardKeyState;
 }
 
-export class KeyboardSystem {
+export class KeyboardSystem extends System {
     #keyStates: Record<string, KeyState> = {};
 
-    update(deltaTime: number): void {
+    update(deltaTime: number): boolean {
         for (const key in this.#keyStates) {
             const keyState = this.#keyStates[key];
             keyState.currState.pressed = !keyState.prevState.down && keyState.currState.down;
@@ -30,6 +31,12 @@ export class KeyboardSystem {
 
             keyState.prevState = { ...keyState.currState };
         }
+
+        return false;
+    }
+
+    destroy(): void {
+        this.#keyStates = {};
     }
 
     keyStateChange(key: string, isDown: boolean): void {

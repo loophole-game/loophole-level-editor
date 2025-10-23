@@ -50,13 +50,14 @@ class E_Cursor extends Entity {
             selectedEntityFlipDirection,
             setSelectedEntityFlipDirection,
         } = getAppStore();
-        if (window.engine.pointerState.onScreen && selectedEntityType) {
+        if (window.engine?.pointerState.onScreen && selectedEntityType) {
             const {
                 positionType,
                 name,
                 tileScale: tileScaleOverride,
                 hasRotation,
                 hasFlipDirection,
+                type,
             } = ENTITY_METADATA[selectedEntityType];
             this.#image.imageName = name;
 
@@ -141,12 +142,7 @@ class E_Cursor extends Entity {
                     selectedEntityFlipDirection,
                 );
             } else if (this.#editor.getPointerButton(PointerButton.RIGHT).clicked) {
-                this.#editor.removeTile(
-                    tilePosition,
-                    positionType,
-                    selectedEntityType,
-                    edgeAlignment,
-                );
+                this.#editor.removeTile(tilePosition, positionType, type, edgeAlignment);
             }
 
             this.#active = true;

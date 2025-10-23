@@ -32,7 +32,7 @@ export class C_PointerTarget extends Component {
         this.#isPointerOver = false;
 
         const transform = this.entity?.transform;
-        if (transform) {
+        if (transform && window.engine) {
             // Compute scene-space matrix by removing camera transform from the entity's world matrix
             const camera = window.engine.camera;
             const cameraMatrix = new DOMMatrix()

@@ -11,4 +11,11 @@ export default defineConfig({
             '@': path.resolve(__dirname, './src'),
         },
     },
+    server: {
+        watch: {
+            // Watch additional custom directories or file types
+            // e.g., game engine assets, data files, scripts, etc.
+            usePolling: true,
+        },
+    },
 });
