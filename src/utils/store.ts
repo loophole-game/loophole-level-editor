@@ -6,7 +6,7 @@ import type {
     Loophole_Rotation,
 } from './levelEditor/externalLevelSchema';
 import { useMemo } from 'react';
-import type { E_Tile } from './levelEditor/scenes/grid';
+import type { E_TileFacade } from './levelEditor/scenes/grid';
 
 interface AppStore {
     levels: Record<string, LevelWithMetadata>;
@@ -15,14 +15,18 @@ interface AppStore {
     setActiveLevelID: (levelID: string) => void;
     removeLevel: (levelID: string) => void;
     updateLevel: (level: Partial<LevelWithMetadata>) => void;
-    highlightedEngineTile: E_Tile | null;
-    setHighlightedEngineTile: (tile: E_Tile | null) => void;
-    selectedEntityType: Loophole_ExtendedEntityType | null;
-    setSelectedEntityType: (entityType: Loophole_ExtendedEntityType | null) => void;
-    selectedEntityRotation: Loophole_Rotation;
-    setSelectedEntityRotation: (rotation: Loophole_Rotation) => void;
-    selectedEntityFlipDirection: boolean;
-    setSelectedEntityFlipDirection: (direction: boolean) => void;
+
+    brushEntityType: Loophole_ExtendedEntityType | null;
+    setBrushEntityType: (entityType: Loophole_ExtendedEntityType | null) => void;
+    brushEntityRotation: Loophole_Rotation;
+    setBrushEntityRotation: (rotation: Loophole_Rotation) => void;
+    brushEntityFlipDirection: boolean;
+    setBrushEntityFlipDirection: (direction: boolean) => void;
+
+    selectedTileFacades: Record<string, E_TileFacade>;
+    setSelectedTileFacades: (tileFacades: Record<string, E_TileFacade>) => void;
+    multiselectHoveredTileFacades: Record<string, E_TileFacade>;
+    setMultiselectHoveredTileFacades: (tileFacades: Record<string, E_TileFacade>) => void;
 }
 
 export const useAppStore = create<AppStore>()(
@@ -53,15 +57,23 @@ export const useAppStore = create<AppStore>()(
                             ]),
                         ),
                     })),
-                highlightedEngineTile: null,
-                setHighlightedEngineTile: (tile) => set({ highlightedEngineTile: tile }),
-                selectedEntityType: null,
-                setSelectedEntityType: (entityType) => set({ selectedEntityType: entityType }),
-                selectedEntityRotation: 'RIGHT',
-                setSelectedEntityRotation: (rotation) => set({ selectedEntityRotation: rotation }),
-                selectedEntityFlipDirection: false,
-                setSelectedEntityFlipDirection: (direction) =>
-                    set({ selectedEntityFlipDirection: direction }),
+
+                brushEntityType: null,
+                setBrushEntityType: (entityType) => set({ brushEntityType: entityType }),
+                brushEntityRotation: 'RIGHT',
+                setBrushEntityRotation: (rotation) => set({ brushEntityRotation: rotation }),
+                brushEntityFlipDirection: false,
+                setBrushEntityFlipDirection: (direction) =>
+                    set({ brushEntityFlipDirection: direction }),
+
+                selectedTileFacades: {},
+                setSelectedTileFacades: (tileFacades) => {
+                    set({ selectedTileFacades: tileFacades });
+                },
+                multiselectHoveredTileFacades: {},
+                setMultiselectHoveredTileFacades: (tileFacades) => {
+                    set({ multiselectHoveredTileFacades: tileFacades });
+                },
             };
         },
         {
@@ -70,9 +82,9 @@ export const useAppStore = create<AppStore>()(
             partialize: (state) => ({
                 levels: state.levels,
                 activeLevelID: state.activeLevelID,
-                selectedEntityType: state.selectedEntityType,
-                //selectedEntityRotation: state.selectedEntityRotation,
-                //selectedEntityFlipDirection: state.selectedEntityFlipDirection,
+                brushEntityType: state.brushEntityType,
+                brushEntityRotation: state.brushEntityRotation,
+                brushEntityFlipDirection: state.brushEntityFlipDirection,
             }),
             version: 1,
             migrate: () => {},

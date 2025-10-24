@@ -157,20 +157,7 @@ export class PointerSystem extends System {
             [PointerButton.RIGHT]: { ...this.#pointerState[PointerButton.RIGHT] },
         };
 
-        if (this.#pointerState.onScreen) {
-            const pointerTargets = this.#resetAllPointerTargets();
-            for (let i = pointerTargets.length - 1; i >= 0; i--) {
-                const pointerTarget = pointerTargets[i];
-                const isPointerOver = pointerTarget.checkIfPointerOver(
-                    this.#pointerState.worldPosition,
-                );
-                if (isPointerOver) {
-                    break;
-                }
-            }
-        } else if (this.#pointerState.justMovedOffScreen) {
-            this.#resetAllPointerTargets();
-        }
+        this.#updateAllPointerTargets();
 
         if (this.#pointerState.justMovedOnScreen) {
             this.#pointerState.justMovedOnScreen = false;
@@ -221,15 +208,40 @@ export class PointerSystem extends System {
         this.#dragStartCameraPosition = null;
     }
 
+    getPointerTargetsWithinBox(topLeft: Position, bottomRight: Position): C_PointerTarget[] {
+        const pointerTargets = this.#getAllPointerTargets();
+
+        return pointerTargets.filter((target) => target.checkIfWithinBox(topLeft, bottomRight));
+    }
+
+    #getAllPointerTargets(): C_PointerTarget[] {
+        return this._engine.rootEntity.getComponentsInTree<C_PointerTarget>(C_PointerTarget.name);
+    }
+
     #resetAllPointerTargets(): C_PointerTarget[] {
-        const pointerTargets = this._engine.rootEntity.getComponentsInTree<C_PointerTarget>(
-            C_PointerTarget.name,
-        );
+        const pointerTargets = this.#getAllPointerTargets();
         for (let i = pointerTargets.length - 1; i >= 0; i--) {
             const pointerTarget = pointerTargets[i];
-            pointerTarget.isPointerOver = false;
+            pointerTarget.isPointerHovered = false;
         }
 
         return pointerTargets;
+    }
+
+    #updateAllPointerTargets(): void {
+        if (this.#pointerState.onScreen) {
+            const pointerTargets = this.#resetAllPointerTargets();
+            for (let i = pointerTargets.length - 1; i >= 0; i--) {
+                const pointerTarget = pointerTargets[i];
+                const isPointerOver = pointerTarget.checkIfPointerOver(
+                    this.#pointerState.worldPosition,
+                );
+                if (isPointerOver) {
+                    break;
+                }
+            }
+        } else if (this.#pointerState.justMovedOffScreen) {
+            this.#resetAllPointerTargets();
+        }
     }
 }

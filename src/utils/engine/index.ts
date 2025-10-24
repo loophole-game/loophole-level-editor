@@ -237,6 +237,10 @@ export class Engine {
         return this.#renderTime;
     }
 
+    get pointerSystem(): PointerSystem {
+        return this._pointerSystem;
+    }
+
     addSystem(system: System): void {
         this._systems.push(system);
     }

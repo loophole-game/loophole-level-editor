@@ -10,7 +10,7 @@ export class C_PointerTarget extends Component {
     #onPointerEnter?: PointerTargetOptions['onPointerEnter'];
     #onPointerLeave?: PointerTargetOptions['onPointerLeave'];
 
-    #isPointerOver: boolean = false;
+    #isPointerHovered: boolean = false;
 
     constructor({ onPointerEnter, onPointerLeave }: PointerTargetOptions = {}) {
         super(C_PointerTarget.name);
@@ -19,17 +19,17 @@ export class C_PointerTarget extends Component {
         this.#onPointerLeave = onPointerLeave;
     }
 
-    get isPointerOver(): boolean {
-        return this.#isPointerOver;
+    get isPointerHovered(): boolean {
+        return this.#isPointerHovered;
     }
 
-    set isPointerOver(isPointerOver: boolean) {
-        this.#isPointerOver = isPointerOver;
+    set isPointerHovered(isPointerHovered: boolean) {
+        this.#isPointerHovered = isPointerHovered;
     }
 
     checkIfPointerOver(position: Position): boolean {
-        const prevIsPointerOver = this.#isPointerOver;
-        this.#isPointerOver = false;
+        const prevIsPointerHovered = this.#isPointerHovered;
+        this.#isPointerHovered = false;
 
         const transform = this.entity?.transform;
         if (transform && window.engine) {
@@ -70,18 +70,60 @@ export class C_PointerTarget extends Component {
                 rotatedY >= -halfHeight &&
                 rotatedY <= halfHeight
             ) {
-                this.#isPointerOver = true;
+                this.#isPointerHovered = true;
             }
         }
 
-        if (prevIsPointerOver !== this.#isPointerOver) {
-            if (this.#isPointerOver) {
+        if (prevIsPointerHovered !== this.#isPointerHovered) {
+            if (this.#isPointerHovered) {
                 this.#onPointerEnter?.();
             } else {
                 this.#onPointerLeave?.();
             }
         }
 
-        return this.#isPointerOver;
+        return this.#isPointerHovered;
+    }
+
+    checkIfWithinBox(topLeft: Position, bottomRight: Position): boolean {
+        const transform = this.entity?.transform;
+        if (!transform || !window.engine) {
+            return false;
+        }
+
+        // Normalize the box coordinates to ensure correct top-left and bottom-right
+        const boxLeft = Math.min(topLeft.x, bottomRight.x);
+        const boxRight = Math.max(topLeft.x, bottomRight.x);
+        const boxTop = Math.min(topLeft.y, bottomRight.y);
+        const boxBottom = Math.max(topLeft.y, bottomRight.y);
+
+        // Compute scene-space matrix by removing camera transform from the entity's world matrix
+        const camera = window.engine.camera;
+        const cameraMatrix = new DOMMatrix()
+            .translate(camera.position.x, camera.position.y)
+            .rotate(camera.rotation)
+            .scale(camera.zoom, camera.zoom);
+        const sceneMatrix = cameraMatrix.inverse().multiply(transform.worldMatrix as DOMMatrix);
+
+        // Extract scene-space position and scale
+        const scenePosition = { x: sceneMatrix.e, y: sceneMatrix.f };
+        const sceneScale = {
+            x: Math.sqrt(sceneMatrix.a * sceneMatrix.a + sceneMatrix.b * sceneMatrix.b),
+            y: Math.sqrt(sceneMatrix.c * sceneMatrix.c + sceneMatrix.d * sceneMatrix.d),
+        };
+
+        // Get entity bounds
+        const entityLeft = scenePosition.x - sceneScale.x / 2;
+        const entityRight = scenePosition.x + sceneScale.x / 2;
+        const entityTop = scenePosition.y - sceneScale.y / 2;
+        const entityBottom = scenePosition.y + sceneScale.y / 2;
+
+        // Check if entity intersects with selection box
+        return !(
+            entityRight < boxLeft ||
+            entityLeft > boxRight ||
+            entityBottom < boxTop ||
+            entityTop > boxBottom
+        );
     }
 }

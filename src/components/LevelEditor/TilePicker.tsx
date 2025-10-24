@@ -5,8 +5,8 @@ import { ENTITY_METADATA } from '../../utils/utils';
 import Panel from './Panel';
 
 export default function TilePicker() {
-    const selectedEntityType = useAppStore((state) => state.selectedEntityType);
-    const setSelectedEntityType = useAppStore((state) => state.setSelectedEntityType);
+    const brushEntityType = useAppStore((state) => state.brushEntityType);
+    const setBrushEntityType = useAppStore((state) => state.setBrushEntityType);
 
     return (
         <Panel className="flex h-min w-fit">
@@ -17,12 +17,12 @@ export default function TilePicker() {
                         className={cn(
                             'size-16 aspect-square pixelated-image border-2 border-transparent p-1 rounded-sm',
                             {
-                                'border-white': selectedEntityType === entityType,
+                                'border-white': brushEntityType === entityType,
                             },
                         )}
                         onClick={() =>
-                            setSelectedEntityType(
-                                selectedEntityType === entityType
+                            setBrushEntityType(
+                                brushEntityType === entityType
                                     ? null
                                     : (entityType as Loophole_ExtendedEntityType),
                             )

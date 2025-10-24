@@ -13,18 +13,29 @@ import { C_PointerTarget } from '../../engine/components/PointerTarget';
 import { getAppStore } from '@/utils/store';
 import { Component } from '@/utils/engine/components';
 import { C_Image } from '@/utils/engine/components/Image';
+import type { LevelEditor } from '..';
+import { PointerButton } from '@/utils/engine/systems/pointer';
 
 const MAX_OPACITY = 0.6;
 
 class C_PointerVisual extends Component {
+    #editor: LevelEditor;
+    #facade: E_TileFacade;
     #pointerTarget: C_PointerTarget;
     #shape: C_Shape;
 
     #opacity: number = 0;
 
-    constructor(pointerTarget: C_PointerTarget, shape: C_Shape) {
+    constructor(
+        editor: LevelEditor,
+        facade: E_TileFacade,
+        pointerTarget: C_PointerTarget,
+        shape: C_Shape,
+    ) {
         super('PointerVisual');
 
+        this.#editor = editor;
+        this.#facade = facade;
         this.#pointerTarget = pointerTarget;
         this.#shape = shape;
         this.#shape.style.globalAlpha = 0;
@@ -32,8 +43,23 @@ class C_PointerVisual extends Component {
     }
 
     override update(deltaTime: number): boolean {
-        const { selectedEntityType } = getAppStore();
-        const active = this.#pointerTarget.isPointerOver && selectedEntityType === null;
+        const {
+            brushEntityType,
+            multiselectHoveredTileFacades,
+            selectedTileFacades,
+            setSelectedTileFacades,
+        } = getAppStore();
+        const hoveredByPointer = this.#pointerTarget.isPointerHovered && brushEntityType === null;
+        const active =
+            hoveredByPointer ||
+            multiselectHoveredTileFacades[this.entity?.parent?.id.toString() ?? ''] !== undefined ||
+            selectedTileFacades[this.entity?.parent?.id.toString() ?? ''] !== undefined;
+
+        if (hoveredByPointer && this.#editor.pointerState[PointerButton.LEFT].clicked) {
+            setSelectedTileFacades({
+                [this.#facade.id.toString()]: this.#facade,
+            });
+        }
 
         const targetOpacity = active ? MAX_OPACITY : 0;
         if (targetOpacity !== this.#opacity) {
@@ -49,8 +75,21 @@ class C_PointerVisual extends Component {
     }
 }
 
+export class E_TileFacade extends Entity {
+    #pointerTarget: C_PointerTarget;
+
+    get pointerTarget(): C_PointerTarget {
+        return this.#pointerTarget;
+    }
+
+    constructor(pointerTarget: C_PointerTarget) {
+        super('TileFacade');
+        this.#pointerTarget = pointerTarget;
+    }
+}
+
 type TileData = {
-    parentEntity: Entity;
+    parentFacade: E_TileFacade;
     entity: Entity;
     shapeComp: C_Shape;
     shapePointerComp: C_PointerTarget;
@@ -59,6 +98,7 @@ type TileData = {
 };
 
 export class E_Tile extends Entity {
+    #editor: LevelEditor;
     #tilePosition: Loophole_Int2;
     #entities: Loophole_Entity[] = [];
     #entitiesDirty: boolean = true;
@@ -67,9 +107,15 @@ export class E_Tile extends Entity {
     #topEdgeTiles: TileData[] = [];
     #rightEdgeTiles: TileData[] = [];
 
-    constructor(name: string, position: Loophole_Int2, ...components: Component[]) {
+    constructor(
+        editor: LevelEditor,
+        name: string,
+        position: Loophole_Int2,
+        ...components: Component[]
+    ) {
         super(name, ...components);
 
+        this.#editor = editor;
         this.setPosition(position);
         this.#tilePosition = position;
         this.setScale({ x: TILE_CENTER_FRACTION, y: TILE_CENTER_FRACTION });
@@ -131,7 +177,6 @@ export class E_Tile extends Entity {
                     tileData = this.#getOrCreateTileData(rightEdgeTile);
                     if (!rightEdgeTile) {
                         this.#rightEdgeTiles.push(tileData);
-                        nextAvailableRightEdgeTileIdx++;
                     }
 
                     tileData.entity.setPosition({ x: dist, y: 0 });
@@ -165,7 +210,7 @@ export class E_Tile extends Entity {
                     y: tileScale,
                 })
                 .setRotation(rotation);
-            tileData.parentEntity.setZIndex(ENTITY_TYPE_DRAW_ORDER[entity.entityType] + 1);
+            tileData.parentFacade.setZIndex(ENTITY_TYPE_DRAW_ORDER[entity.entityType] + 1);
         }
 
         for (let i = nextAvailableCenterTileIdx; i < this.#centerTiles.length; i++) {
@@ -192,7 +237,7 @@ export class E_Tile extends Entity {
         });
         const shapePointerComp = new C_PointerTarget();
         const imageComp = new C_Image('gridTileImage', '', { imageSmoothingEnabled: false });
-        const parentEntity = new Entity('gridTileParent')
+        const parentFacade = new E_TileFacade(shapePointerComp)
             .setPosition(this.position)
             .setScale(this.scale);
         const entity = new Entity('gridTileEntity')
@@ -200,14 +245,14 @@ export class E_Tile extends Entity {
                 shapeComp,
                 shapePointerComp,
                 imageComp,
-                new C_PointerVisual(shapePointerComp, shapeComp),
+                new C_PointerVisual(this.#editor, parentFacade, shapePointerComp, shapeComp),
             )
             .setScale(this.scale);
-        parentEntity.addChildren(entity);
-        window.engine?.addSceneEntities(GridScene.name, parentEntity);
+        parentFacade.addChildren(entity);
+        window.engine?.addSceneEntities(GridScene.name, parentFacade);
 
         return {
-            parentEntity,
+            parentFacade,
             entity,
             shapeComp,
             shapePointerComp,
@@ -217,8 +262,8 @@ export class E_Tile extends Entity {
     }
 
     #destroyTiles(tiles: TileData[]) {
-        for (const { parentEntity } of tiles) {
-            parentEntity.destroy();
+        for (const { parentFacade } of tiles) {
+            parentFacade.destroy();
         }
     }
 }

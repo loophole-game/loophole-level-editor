@@ -1,5 +1,6 @@
 import { Component } from '.';
 import type { Position } from '../types';
+import { positionsEqual } from '../utils';
 
 type LerpValueType = number | Position;
 
@@ -8,6 +9,7 @@ interface LerpOptions<T extends LerpValueType> {
     set: (value: T) => void;
     speed: number;
     variant?: 'normal' | 'degrees';
+    type?: 'linear' | 'fractional';
 }
 
 export class C_Lerp<T extends LerpValueType> extends Component {
@@ -22,7 +24,7 @@ export class C_Lerp<T extends LerpValueType> extends Component {
         this.#options = options;
 
         this.#currentValue = this.#options.get();
-        this.#targetValue = this.#options.get();
+        this.#targetValue = this.#currentValue;
     }
 
     get target(): T {
@@ -34,17 +36,20 @@ export class C_Lerp<T extends LerpValueType> extends Component {
     }
 
     override update(deltaTime: number): boolean {
-        this.#currentValue = this.#options.get();
-        if (this.#currentValue === this.#targetValue) {
-            return false;
-        }
-
         if (typeof this.#currentValue === 'number' && typeof this.#targetValue === 'number') {
+            if (this.#currentValue === this.#targetValue) {
+                return false;
+            }
+
             this.#currentValue = this.#lerp(this.#currentValue, this.#targetValue, deltaTime) as T;
         } else if (
             typeof this.#currentValue === 'object' &&
             typeof this.#targetValue === 'object'
         ) {
+            if (positionsEqual(this.#currentValue, this.#targetValue)) {
+                return false;
+            }
+
             this.#currentValue = {
                 x: this.#lerp(this.#currentValue.x, this.#targetValue.x, deltaTime),
                 y: this.#lerp(this.#currentValue.y, this.#targetValue.y, deltaTime),
@@ -57,8 +62,37 @@ export class C_Lerp<T extends LerpValueType> extends Component {
     }
 
     #lerp(current: number, target: number, deltaTime: number): number {
+        return this.#options.type === 'fractional'
+            ? this.#lerpFractional(current, target, deltaTime)
+            : this.#lerpLinear(current, target, deltaTime);
+    }
+
+    #lerpLinear(current: number, target: number, deltaTime: number): number {
         if (this.#options.variant === 'degrees') {
-            return (current + (target - current) * deltaTime * this.#options.speed) % 360;
+            // Normalize angles to be within 0-360 degrees
+            const startAngle = ((current % 360) + 360) % 360;
+            const endAngle = ((target % 360) + 360) % 360;
+
+            let delta = endAngle - startAngle;
+
+            // Adjust delta to take the shortest path
+            if (delta > 180) {
+                delta -= 360;
+            } else if (delta < -180) {
+                delta += 360;
+            }
+
+            const step = deltaTime * this.#options.speed;
+
+            // If the step would overshoot (or exactly reach) the target, snap to target
+            if (step >= Math.abs(delta)) {
+                return target;
+            }
+
+            // Perform linear interpolation toward the shortest direction
+            const interpolatedAngle = startAngle + step * Math.sign(delta);
+
+            return ((interpolatedAngle % 360) + 360) % 360;
         }
 
         const prevSign = current > target ? 1 : -1;
@@ -69,5 +103,14 @@ export class C_Lerp<T extends LerpValueType> extends Component {
         }
 
         return newValue;
+    }
+
+    #lerpFractional(current: number, target: number, deltaTime: number): number {
+        const mult = deltaTime * this.#options.speed;
+        if (mult >= 1) {
+            return target;
+        }
+
+        return current + (target - current) * deltaTime * this.#options.speed;
     }
 }

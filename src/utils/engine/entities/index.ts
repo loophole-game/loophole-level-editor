@@ -35,6 +35,10 @@ export class Entity implements Renderable {
         return this._id;
     }
 
+    get typeString(): string {
+        return this.constructor.name;
+    }
+
     get name(): string {
         return this._name;
     }

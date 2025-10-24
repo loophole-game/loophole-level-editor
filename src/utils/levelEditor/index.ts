@@ -21,7 +21,6 @@ import {
     TILE_SIZE,
     type LoopholePositionType,
 } from '../utils';
-import { getAppStore } from '../store';
 
 const SCENES: AvailableScenes = {
     [TestScene.name]: (name) => new TestScene(name),
@@ -86,8 +85,6 @@ export class LevelEditor extends Engine {
     }
 
     override _update() {
-        getAppStore().setHighlightedEngineTile(null);
-
         const updated = this.#dirtyPositions.size > 0;
         for (const positionKey of this.#dirtyPositions) {
             const position = this.#positionFromKey(positionKey);
@@ -188,7 +185,7 @@ export class LevelEditor extends Engine {
         const positionKey = this.#positionKey(position);
         if (!this.#tiles[positionKey]) {
             const enginePosition = loopholePositionToEnginePosition(position);
-            const entity = new E_Tile('gridTile', {
+            const entity = new E_Tile(this, 'gridTile', {
                 x: enginePosition.x * TILE_SIZE,
                 y: enginePosition.y * TILE_SIZE,
             }).setScale({ x: TILE_SIZE, y: TILE_SIZE });
