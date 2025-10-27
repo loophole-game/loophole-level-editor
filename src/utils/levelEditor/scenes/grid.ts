@@ -59,6 +59,7 @@ class C_PointerVisual extends Component {
             setSelectedTileFacades({
                 [this.#facade.id.toString()]: this.#facade,
             });
+            this.#editor.capturePointerButtonClick(PointerButton.LEFT);
         }
 
         const targetOpacity = active ? MAX_OPACITY : 0;
@@ -76,14 +77,25 @@ class C_PointerVisual extends Component {
 }
 
 export class E_TileFacade extends Entity {
+    #entity: Loophole_Entity;
     #pointerTarget: C_PointerTarget;
 
     get pointerTarget(): C_PointerTarget {
         return this.#pointerTarget;
     }
 
-    constructor(pointerTarget: C_PointerTarget) {
+    get entity(): Loophole_Entity {
+        return this.#entity;
+    }
+
+    set entity(entity: Loophole_Entity) {
+        this.#entity = entity;
+    }
+
+    constructor(entity: Loophole_Entity, pointerTarget: C_PointerTarget) {
         super('TileFacade');
+
+        this.#entity = entity;
         this.#pointerTarget = pointerTarget;
     }
 }
@@ -165,7 +177,7 @@ export class E_Tile extends Entity {
                 const dist = 0.5;
                 if (isTop) {
                     const topEdgeTile = this.#topEdgeTiles[nextAvailableTopEdgeTileIdx];
-                    tileData = this.#getOrCreateTileData(topEdgeTile);
+                    tileData = this.#getOrCreateTileData(entity, topEdgeTile);
                     if (!topEdgeTile) {
                         this.#topEdgeTiles.push(tileData);
                     }
@@ -174,7 +186,7 @@ export class E_Tile extends Entity {
                     nextAvailableTopEdgeTileIdx++;
                 } else {
                     const rightEdgeTile = this.#rightEdgeTiles[nextAvailableRightEdgeTileIdx];
-                    tileData = this.#getOrCreateTileData(rightEdgeTile);
+                    tileData = this.#getOrCreateTileData(entity, rightEdgeTile);
                     if (!rightEdgeTile) {
                         this.#rightEdgeTiles.push(tileData);
                     }
@@ -186,7 +198,7 @@ export class E_Tile extends Entity {
                 rotation = loopholeRotationToDegrees(isTop ? 'UP' : 'RIGHT');
             } else {
                 const existingTileData = this.#centerTiles[nextAvailableCenterTileIdx];
-                tileData = this.#getOrCreateTileData(existingTileData);
+                tileData = this.#getOrCreateTileData(entity, existingTileData);
                 if (!existingTileData) {
                     this.#centerTiles.push(tileData);
                 }
@@ -227,7 +239,10 @@ export class E_Tile extends Entity {
         this.#entitiesDirty = true;
     }
 
-    #getOrCreateTileData(existingTileData: TileData | null | undefined): TileData {
+    #getOrCreateTileData(
+        entity: Loophole_Entity,
+        existingTileData: TileData | null | undefined,
+    ): TileData {
         if (existingTileData) {
             return existingTileData;
         }
@@ -237,10 +252,10 @@ export class E_Tile extends Entity {
         });
         const shapePointerComp = new C_PointerTarget();
         const imageComp = new C_Image('gridTileImage', '', { imageSmoothingEnabled: false });
-        const parentFacade = new E_TileFacade(shapePointerComp)
+        const parentFacade = new E_TileFacade(entity, shapePointerComp)
             .setPosition(this.position)
             .setScale(this.scale);
-        const entity = new Entity('gridTileEntity')
+        const gridEntity = new Entity('gridTileEntity')
             .addComponents(
                 shapeComp,
                 shapePointerComp,
@@ -248,12 +263,12 @@ export class E_Tile extends Entity {
                 new C_PointerVisual(this.#editor, parentFacade, shapePointerComp, shapeComp),
             )
             .setScale(this.scale);
-        parentFacade.addChildren(entity);
+        parentFacade.addChildren(gridEntity);
         window.engine?.addSceneEntities(GridScene.name, parentFacade);
 
         return {
             parentFacade,
-            entity,
+            entity: gridEntity,
             shapeComp,
             shapePointerComp,
             imageComp,

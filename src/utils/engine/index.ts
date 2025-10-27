@@ -298,6 +298,10 @@ export class Engine {
         return this._pointerSystem.getPointerButton(button);
     }
 
+    capturePointerButtonClick(button: PointerButton): void {
+        return this._pointerSystem.capturePointerButtonClick(button);
+    }
+
     setCameraPosition(position: Position): void {
         if (this._camera.position.x !== position.x || this._camera.position.y !== position.y) {
             this._camera.position = position;

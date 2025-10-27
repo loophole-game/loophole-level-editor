@@ -42,7 +42,11 @@ export class KeyboardSystem extends System {
     keyStateChange(key: string, isDown: boolean): void {
         this.#setIfNonExistent(key);
 
-        this.#keyStates[key].currState.down = isDown;
+        this.#keyStates[key].currState = {
+            ...this.#keyStates[key].currState,
+            down: isDown,
+            downAsNum: isDown ? 1 : 0,
+        };
     }
 
     getKey(key: string): KeyboardKeyState {
@@ -55,6 +59,7 @@ export class KeyboardSystem extends System {
         if (!(key in this.#keyStates)) {
             const state: KeyboardKeyState = {
                 down: false,
+                downAsNum: 0,
                 pressed: false,
                 released: false,
                 downTime: 0,

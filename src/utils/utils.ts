@@ -94,6 +94,14 @@ export const loopholePositionToEnginePosition = (position: Loophole_Int2): Posit
     };
 };
 
+export const getLoopholeEntityEdgeAlignment = (entity: Loophole_Entity): Loophole_EdgeAlignment => {
+    if ('edgePosition' in entity) {
+        return entity.edgePosition.alignment;
+    }
+
+    return 'RIGHT';
+};
+
 export const ColorPalette = {
     ORANGE: 0,
     BLUE: 1,

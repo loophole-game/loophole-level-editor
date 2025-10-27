@@ -183,8 +183,10 @@ class E_TileCursor extends Entity {
                     brushEntityRotation,
                     brushEntityFlipDirection,
                 );
+                this.#editor.capturePointerButtonClick(PointerButton.LEFT);
             } else if (this.#editor.getPointerButton(PointerButton.RIGHT).clicked) {
                 this.#editor.removeTile(tilePosition, positionType, type, edgeAlignment);
+                this.#editor.capturePointerButtonClick(PointerButton.RIGHT);
             }
 
             this.#active = true;
@@ -248,7 +250,10 @@ class E_SelectionCursor extends Entity {
                 !leftButtonState.clicked
             ) {
                 setSelectedTileFacades(multiselectHoveredTileFacades);
+            } else if (leftButtonState.clicked) {
+                setSelectedTileFacades({});
             }
+
             this.#selectAllClickPosition = null;
         }
 
@@ -311,18 +316,61 @@ class E_SelectionCursor extends Entity {
 }
 
 export class UIScene extends Scene {
+    #editor: LevelEditor | null = null;
+
     override create(editor: LevelEditor) {
+        this.#editor = editor;
         this.rootEntity?.setZIndex(100);
 
-        this.addEntities(new E_SelectionCursor(editor), new E_TileCursor(editor));
+        this.addEntities(
+            new E_SelectionCursor(editor).setZIndex(-1),
+            new E_TileCursor(editor).setZIndex(-1),
+        );
     }
 
-    override update(): boolean {
-        const { brushEntityType, setBrushEntityType } = getAppStore();
-        if (brushEntityType && window.engine?.getKey('Escape').pressed) {
+    override update(deltaTime: number): boolean {
+        if (!this.#editor) return false;
+
+        let updated = false;
+        const { brushEntityType, setBrushEntityType, selectedTileFacades } = getAppStore();
+
+        if (brushEntityType && this.#editor.getKey('Escape').pressed) {
             setBrushEntityType(null);
+            updated = true;
         }
 
-        return false;
+        if (this.#editor.getKey('Backspace').pressed) {
+            for (const facadeId in selectedTileFacades) {
+                const facade = selectedTileFacades[facadeId];
+                this.#editor.removeEntity(facade.entity);
+            }
+            updated = true;
+        }
+
+        if (!cameraDragIsActive(this.#editor)) {
+            const cameraOffset = {
+                x:
+                    (this.#editor.getKey('ArrowRight').downAsNum ||
+                        this.#editor.getKey('d').downAsNum) -
+                    (this.#editor.getKey('ArrowLeft').downAsNum ||
+                        this.#editor.getKey('a').downAsNum),
+                y:
+                    (this.#editor.getKey('ArrowDown').downAsNum ||
+                        this.#editor.getKey('s').downAsNum) -
+                    (this.#editor.getKey('ArrowUp').downAsNum ||
+                        this.#editor.getKey('w').downAsNum),
+            };
+            if (cameraOffset.x !== 0 || cameraOffset.y !== 0) {
+                const camera = this.#editor.camera;
+                const offsetMagnitude = 500 * this.#editor.camera.zoom;
+                this.#editor.setCameraPosition({
+                    x: camera.position.x - cameraOffset.x * offsetMagnitude * deltaTime,
+                    y: camera.position.y - cameraOffset.y * offsetMagnitude * deltaTime,
+                });
+                updated = true;
+            }
+        }
+
+        return updated;
     }
 }

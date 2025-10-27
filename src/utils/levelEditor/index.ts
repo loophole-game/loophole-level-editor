@@ -14,6 +14,7 @@ import { TestScene } from './scenes/test';
 import { UIScene } from './scenes/ui';
 import {
     ENTITY_METADATA,
+    getLoopholeEntityEdgeAlignment,
     getLoopholeEntityExtendedType,
     getLoopholeEntityPosition,
     loopholePositionToEnginePosition,
@@ -119,6 +120,15 @@ export class LevelEditor extends Engine {
         this.#level.entities.push(entity);
 
         this.#saveTileChange(position);
+    }
+
+    removeEntity(entity: Loophole_Entity) {
+        const position = getLoopholeEntityPosition(entity);
+        const extendedType = getLoopholeEntityExtendedType(entity);
+        const { type, positionType } = ENTITY_METADATA[extendedType];
+        const edgeAlignment = getLoopholeEntityEdgeAlignment(entity);
+
+        return this.removeTile(position, positionType, type, edgeAlignment);
     }
 
     removeTile(

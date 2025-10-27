@@ -40,6 +40,7 @@ export class PointerSystem extends System {
         justMovedOffScreen: false,
         [PointerButton.LEFT]: {
             down: false,
+            downAsNum: 0,
             pressed: false,
             released: false,
             clicked: false,
@@ -47,6 +48,7 @@ export class PointerSystem extends System {
         },
         [PointerButton.MIDDLE]: {
             down: false,
+            downAsNum: 0,
             pressed: false,
             released: false,
             clicked: false,
@@ -54,6 +56,7 @@ export class PointerSystem extends System {
         },
         [PointerButton.RIGHT]: {
             down: false,
+            downAsNum: 0,
             pressed: false,
             released: false,
             clicked: false,
@@ -111,7 +114,12 @@ export class PointerSystem extends System {
     }
 
     pointerButtonStateChange(button: PointerButton, down: boolean) {
-        this.#pointerState[button] = { ...this.#pointerState[button], down, downTime: 0 };
+        this.#pointerState[button] = {
+            ...this.#pointerState[button],
+            down,
+            downAsNum: down ? 1 : 0,
+            downTime: 0,
+        };
         const position = { x: this.#pointerState.x, y: this.#pointerState.y };
         if (down) {
             this.#pointerState.clickStartPosition = position;
@@ -212,6 +220,15 @@ export class PointerSystem extends System {
         const pointerTargets = this.#getAllPointerTargets();
 
         return pointerTargets.filter((target) => target.checkIfWithinBox(topLeft, bottomRight));
+    }
+
+    capturePointerButtonClick(button: PointerButton): void {
+        this.#pointerState[button] = {
+            ...this.#pointerState[button],
+            clicked: false,
+            released: false,
+            pressed: false,
+        };
     }
 
     #getAllPointerTargets(): C_PointerTarget[] {
