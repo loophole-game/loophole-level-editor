@@ -16,7 +16,7 @@ import type { LevelEditor } from '..';
 import { C_Lerp } from '@/utils/engine/components/Lerp';
 import { positionsEqual } from '@/utils/engine/utils';
 import { C_Shape } from '@/utils/engine/components/Shape';
-import { E_TileFacade } from './grid';
+import { E_Tile } from './grid';
 
 const POSITION_SPEED = 20;
 const ROTATION_SPEED = 1000;
@@ -236,9 +236,9 @@ class E_SelectionCursor extends Entity {
 
         const {
             brushEntityType,
-            multiselectHoveredTileFacades,
-            setMultiselectHoveredTileFacades,
-            setSelectedTileFacades,
+            multiselectHoveredTiles,
+            setMultiselectHoveredTiles,
+            setSelectedTiles,
         } = getAppStore();
         const leftButtonState = this.#editor.getPointerButton(PointerButton.LEFT);
         if (leftButtonState.pressed) {
@@ -249,9 +249,9 @@ class E_SelectionCursor extends Entity {
                 leftButtonState.released &&
                 !leftButtonState.clicked
             ) {
-                setSelectedTileFacades(multiselectHoveredTileFacades);
+                setSelectedTiles(multiselectHoveredTiles);
             } else if (leftButtonState.clicked) {
-                setSelectedTileFacades({});
+                setSelectedTiles({});
             }
 
             this.#selectAllClickPosition = null;
@@ -267,7 +267,7 @@ class E_SelectionCursor extends Entity {
                 !positionsEqual(pointerPosition, this.#selectAllClickPosition)
             ) {
                 if (!this.#active) {
-                    setSelectedTileFacades({});
+                    setSelectedTiles({});
                 }
 
                 let topLeft: Position, bottomRight: Position;
@@ -287,14 +287,14 @@ class E_SelectionCursor extends Entity {
                     y: bottomRight.y - topLeft.y,
                 });
 
-                const hoveredFacades = this.#editor.pointerSystem
+                const hoveredTiles = this.#editor.pointerSystem
                     .getPointerTargetsWithinBox(topLeft, bottomRight)
                     .map((t) => t.entity?.parent)
-                    .filter((e) => e?.typeString === E_TileFacade.name) as E_TileFacade[];
-                const hoveredFacadeMap = Object.fromEntries(
-                    hoveredFacades.map((f) => [f.id.toString(), f]),
+                    .filter((e) => e?.typeString === E_Tile.name) as E_Tile[];
+                const hoveredTileMap = Object.fromEntries(
+                    hoveredTiles.map((t) => [t.id.toString(), t]),
                 );
-                setMultiselectHoveredTileFacades(hoveredFacadeMap);
+                setMultiselectHoveredTiles(hoveredTileMap);
 
                 updated = true;
                 this.#active = true;
@@ -306,7 +306,7 @@ class E_SelectionCursor extends Entity {
         }
 
         if (!this.#active && prevActive) {
-            setMultiselectHoveredTileFacades({});
+            setMultiselectHoveredTiles({});
         }
 
         this.#opacityLerp.target = this.#active ? 0.25 : 0;
@@ -332,7 +332,7 @@ export class UIScene extends Scene {
         if (!this.#editor) return false;
 
         let updated = false;
-        const { brushEntityType, setBrushEntityType, selectedTileFacades } = getAppStore();
+        const { brushEntityType, setBrushEntityType, selectedTiles } = getAppStore();
 
         if (brushEntityType && this.#editor.getKey('Escape').pressed) {
             setBrushEntityType(null);
@@ -340,9 +340,9 @@ export class UIScene extends Scene {
         }
 
         if (this.#editor.getKey('Backspace').pressed) {
-            for (const facadeId in selectedTileFacades) {
-                const facade = selectedTileFacades[facadeId];
-                this.#editor.removeEntity(facade.entity);
+            for (const tileID in selectedTiles) {
+                const tile = selectedTiles[tileID];
+                this.#editor.removeEntity(tile.entity);
             }
             updated = true;
         }

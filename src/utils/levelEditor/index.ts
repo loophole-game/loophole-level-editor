@@ -4,9 +4,11 @@ import type {
     Loophole_EdgeAlignment,
     Loophole_Entity,
     Loophole_EntityType,
+    Loophole_EntityWithID,
     Loophole_ExtendedEntityType,
     Loophole_Int2,
     Loophole_Level,
+    Loophole_LevelWithIDs,
     Loophole_Rotation,
 } from './externalLevelSchema';
 import { E_Tile, GridScene } from './scenes/grid';
@@ -17,11 +19,11 @@ import {
     getLoopholeEntityEdgeAlignment,
     getLoopholeEntityExtendedType,
     getLoopholeEntityPosition,
-    loopholePositionToEnginePosition,
     OVERLAPPABLE_ENTITY_TYPES,
     TILE_SIZE,
     type LoopholePositionType,
 } from '../utils';
+import { v4 } from 'uuid';
 
 const SCENES: AvailableScenes = {
     [TestScene.name]: (name) => new TestScene(name),
@@ -32,12 +34,11 @@ const SCENES: AvailableScenes = {
 export type OnLevelChangedCallback = (level: Loophole_Level) => void;
 
 export class LevelEditor extends Engine {
-    #level: Loophole_Level;
+    #level: Loophole_LevelWithIDs;
     #onLevelChanged: OnLevelChangedCallback;
 
-    #entitiesByPosition: Record<string, Loophole_Entity[]> = {};
     #tiles: Record<string, E_Tile> = {};
-    #dirtyPositions: Set<string> = new Set();
+    #stashedTiles: Record<string, E_Tile> = {};
 
     constructor(
         level: Loophole_Level,
@@ -64,44 +65,34 @@ export class LevelEditor extends Engine {
             },
         });
 
-        this.level = level;
-        this.#level = level;
+        this.#level = this.#addIDsToLevel(level);
         this.#onLevelChanged = onLevelChanged;
     }
 
     get level(): Readonly<Loophole_Level> {
-        return this.#level;
+        return {
+            ...this.#level,
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            entities: this.#level.entities.map(({ id, ...rest }) => ({ ...rest })),
+        };
     }
 
     set level(level: Loophole_Level) {
-        this.#level = level;
+        this.#level = this.#addIDsToLevel(level);
 
-        for (const entity of level.entities) {
-            const position = this.#positionKey(getLoopholeEntityPosition(entity));
-            this.#dirtyPositions.add(position);
+        for (const tile of Object.values(this.#tiles)) {
+            this.#stashTile(tile);
         }
-        Object.keys(this.#entitiesByPosition).forEach((positionKey) => {
-            this.#dirtyPositions.add(positionKey);
-        });
+
+        for (const entity of this.#level.entities) {
+            const tile = this.#claimOrCreateTile(entity);
+            tile.setEnabled(true);
+            tile.entity = entity;
+        }
     }
 
     override _update() {
-        const updated = this.#dirtyPositions.size > 0;
-        for (const positionKey of this.#dirtyPositions) {
-            const position = this.#positionFromKey(positionKey);
-            const entities = this.#level.entities.filter((entity) => {
-                const entityPos = getLoopholeEntityPosition(entity);
-                return entityPos.x === position.x && entityPos.y === position.y;
-            });
-            this.#entitiesByPosition[positionKey] = entities;
-            if (entities.length > 0) {
-                const tile = this.#getOrCreateTileEngineEntity(position);
-                tile?.updateEntities(entities);
-            } else {
-                this.#removeTileEngineEntity(position);
-            }
-        }
-        this.#dirtyPositions.clear();
+        const updated = true;
 
         return updated;
     }
@@ -116,10 +107,13 @@ export class LevelEditor extends Engine {
         const { createEntity, positionType, type } = ENTITY_METADATA[entityType];
         this.#removeOverlappingTiles(position, positionType, type, edgeAlignment || 'RIGHT');
 
-        const entity = createEntity(position, edgeAlignment, rotation, flipDirection);
+        const entity = {
+            ...createEntity(position, edgeAlignment, rotation, flipDirection),
+            id: v4(),
+        };
         this.#level.entities.push(entity);
 
-        this.#saveTileChange(position);
+        this.#saveTileChange();
     }
 
     removeEntity(entity: Loophole_Entity) {
@@ -138,7 +132,34 @@ export class LevelEditor extends Engine {
         edgeAlignment: Loophole_EdgeAlignment,
     ) {
         this.#removeOverlappingTiles(position, positionType, entityType, edgeAlignment);
-        this.#saveTileChange(position);
+        this.#saveTileChange();
+    }
+
+    #stashTile(tile: E_Tile) {
+        this.#stashedTiles[tile.id] = tile;
+        delete this.#tiles[tile.id];
+    }
+
+    #addIDsToLevel(level: Loophole_Level): Loophole_LevelWithIDs {
+        return {
+            ...level,
+            entities: level.entities.map((entity) => ({
+                ...entity,
+                id: v4(),
+            })),
+        };
+    }
+
+    #claimOrCreateTile(entity: Loophole_EntityWithID): E_Tile {
+        const tile = this.#tiles[entity.id] ?? this.#stashedTiles[entity.id] ?? null;
+        if (tile) {
+            return tile;
+        }
+
+        const newTile = new E_Tile(this, entity).setScale({ x: TILE_SIZE, y: TILE_SIZE });
+        this.addSceneEntities(GridScene.name, newTile);
+
+        return newTile;
     }
 
     #removeOverlappingTiles(
@@ -184,45 +205,7 @@ export class LevelEditor extends Engine {
         });
     }
 
-    #saveTileChange(position: Loophole_Int2) {
+    #saveTileChange() {
         this.#onLevelChanged(this.#level);
-
-        const positionKey = this.#positionKey(position);
-        this.#dirtyPositions.add(positionKey);
-    }
-
-    #getOrCreateTileEngineEntity(position: Loophole_Int2): E_Tile {
-        const positionKey = this.#positionKey(position);
-        if (!this.#tiles[positionKey]) {
-            const enginePosition = loopholePositionToEnginePosition(position);
-            const entity = new E_Tile(this, 'gridTile', {
-                x: enginePosition.x * TILE_SIZE,
-                y: enginePosition.y * TILE_SIZE,
-            }).setScale({ x: TILE_SIZE, y: TILE_SIZE });
-
-            this.addSceneEntities(GridScene.name, entity);
-            this.#tiles[positionKey] = entity;
-        }
-
-        return this.#tiles[positionKey];
-    }
-
-    #removeTileEngineEntity(position: Loophole_Int2) {
-        const positionKey = this.#positionKey(position);
-        const tile = this.#tiles[positionKey];
-        if (tile) {
-            tile.destroy();
-            delete this.#tiles[positionKey];
-        }
-    }
-
-    #positionKey(position: Loophole_Int2): string {
-        return `${position.x},${position.y}`;
-    }
-
-    #positionFromKey(key: string): Loophole_Int2 {
-        const [x, y] = key.split(',').map(Number);
-
-        return { x, y };
     }
 }

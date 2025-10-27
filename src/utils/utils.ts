@@ -87,10 +87,13 @@ export const getLoopholeEntityPosition = (entity: Loophole_Entity): Loophole_Int
     return entity.position;
 };
 
-export const loopholePositionToEnginePosition = (position: Loophole_Int2): Position => {
+export const loopholePositionToEnginePosition = (
+    position: Loophole_Int2,
+    edgeAlignment?: Loophole_EdgeAlignment,
+): Position => {
     return {
-        x: position.x,
-        y: -position.y,
+        x: position.x + (edgeAlignment === 'RIGHT' ? 0.5 : 0),
+        y: position.y + (edgeAlignment === 'TOP' ? 0.5 : 0),
     };
 };
 

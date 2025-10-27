@@ -212,3 +212,11 @@ export type Loophole_Wire = {
 //  Glass       |   -  |    -    |    -   |   N   |   N
 //  Door        |   -  |    -    |    -   |   -   |   N
 //
+
+export type Loophole_EntityWithID = Loophole_Entity & {
+    id: string;
+};
+
+export type Loophole_LevelWithIDs = Omit<Loophole_Level, 'entities'> & {
+    entities: Loophole_EntityWithID[];
+};

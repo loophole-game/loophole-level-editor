@@ -6,7 +6,7 @@ import type {
     Loophole_Rotation,
 } from './levelEditor/externalLevelSchema';
 import { useMemo } from 'react';
-import type { E_TileFacade } from './levelEditor/scenes/grid';
+import type { E_Tile } from './levelEditor/scenes/grid';
 
 interface AppStore {
     levels: Record<string, LevelWithMetadata>;
@@ -23,10 +23,10 @@ interface AppStore {
     brushEntityFlipDirection: boolean;
     setBrushEntityFlipDirection: (direction: boolean) => void;
 
-    selectedTileFacades: Record<string, E_TileFacade>;
-    setSelectedTileFacades: (tileFacades: Record<string, E_TileFacade>) => void;
-    multiselectHoveredTileFacades: Record<string, E_TileFacade>;
-    setMultiselectHoveredTileFacades: (tileFacades: Record<string, E_TileFacade>) => void;
+    selectedTiles: Record<string, E_Tile>;
+    setSelectedTiles: (tiles: Record<string, E_Tile>) => void;
+    multiselectHoveredTiles: Record<string, E_Tile>;
+    setMultiselectHoveredTiles: (tiles: Record<string, E_Tile>) => void;
 }
 
 export const useAppStore = create<AppStore>()(
@@ -66,13 +66,13 @@ export const useAppStore = create<AppStore>()(
                 setBrushEntityFlipDirection: (direction) =>
                     set({ brushEntityFlipDirection: direction }),
 
-                selectedTileFacades: {},
-                setSelectedTileFacades: (tileFacades) => {
-                    set({ selectedTileFacades: tileFacades });
+                selectedTiles: {},
+                setSelectedTiles: (tiles) => {
+                    set({ selectedTiles: tiles });
                 },
-                multiselectHoveredTileFacades: {},
-                setMultiselectHoveredTileFacades: (tileFacades) => {
-                    set({ multiselectHoveredTileFacades: tileFacades });
+                multiselectHoveredTiles: {},
+                setMultiselectHoveredTiles: (tiles) => {
+                    set({ multiselectHoveredTiles: tiles });
                 },
             };
         },

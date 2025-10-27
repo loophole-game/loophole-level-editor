@@ -36,6 +36,7 @@ export class C_Lerp<T extends LerpValueType> extends Component {
     }
 
     override update(deltaTime: number): boolean {
+        this.#currentValue = this.#options.get();
         if (typeof this.#currentValue === 'number' && typeof this.#targetValue === 'number') {
             if (this.#currentValue === this.#targetValue) {
                 return false;
