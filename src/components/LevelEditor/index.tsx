@@ -16,11 +16,7 @@ export function LevelEditorComponent() {
 
     useEffect(() => {
         if (!window.engine) {
-            levelEditorRef.current = new LevelEditor(
-                level.level,
-                (level) => updateLevel({ level }),
-                {},
-            );
+            levelEditorRef.current = new LevelEditor((level) => updateLevel({ level }), {});
         } else {
             levelEditorRef.current = window.engine as LevelEditor;
             levelEditorRef.current.level = level.level;

@@ -48,7 +48,7 @@ export const useAppStore = create<AppStore>()(
                             Object.entries(state.levels).filter(([id]) => id !== levelID),
                         ),
                     })),
-                updateLevel: (level) =>
+                updateLevel: (level) => {
                     set((state) => ({
                         levels: Object.fromEntries(
                             Object.entries(state.levels).map(([id, l]) => [
@@ -56,7 +56,8 @@ export const useAppStore = create<AppStore>()(
                                 l.id === level.id ? { ...l, ...level } : l,
                             ]),
                         ),
-                    })),
+                    }));
+                },
 
                 brushEntityType: null,
                 setBrushEntityType: (entityType) => set({ brushEntityType: entityType }),

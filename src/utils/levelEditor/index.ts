@@ -34,17 +34,13 @@ const SCENES: AvailableScenes = {
 export type OnLevelChangedCallback = (level: Loophole_Level) => void;
 
 export class LevelEditor extends Engine {
-    #level: Loophole_LevelWithIDs;
     #onLevelChanged: OnLevelChangedCallback;
 
+    #level: Loophole_LevelWithIDs | null = null;
     #tiles: Record<string, E_Tile> = {};
     #stashedTiles: Record<string, E_Tile> = {};
 
-    constructor(
-        level: Loophole_Level,
-        onLevelChanged: OnLevelChangedCallback,
-        options: EngineOptions = {},
-    ) {
+    constructor(onLevelChanged: OnLevelChangedCallback, options: EngineOptions = {}) {
         super({
             scenes: SCENES,
             startScenes: [GridScene.name, UIScene.name],
@@ -65,11 +61,14 @@ export class LevelEditor extends Engine {
             },
         });
 
-        this.#level = this.#addIDsToLevel(level);
         this.#onLevelChanged = onLevelChanged;
     }
 
-    get level(): Readonly<Loophole_Level> {
+    get level(): Readonly<Loophole_Level | null> {
+        if (!this.#level) {
+            return null;
+        }
+
         return {
             ...this.#level,
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -104,6 +103,10 @@ export class LevelEditor extends Engine {
         rotation: Loophole_Rotation,
         flipDirection: boolean,
     ) {
+        if (!this.#level) {
+            return;
+        }
+
         const { createEntity, positionType, type } = ENTITY_METADATA[entityType];
         this.#removeOverlappingTiles(position, positionType, type, edgeAlignment || 'RIGHT');
 
@@ -111,6 +114,7 @@ export class LevelEditor extends Engine {
             ...createEntity(position, edgeAlignment, rotation, flipDirection),
             id: v4(),
         };
+        console.log(entity);
         this.#level.entities.push(entity);
 
         this.#saveTileChange();
@@ -168,6 +172,10 @@ export class LevelEditor extends Engine {
         entityType: Loophole_EntityType,
         edgeAlignment: Loophole_EdgeAlignment,
     ) {
+        if (!this.#level) {
+            return;
+        }
+
         this.#level.entities = this.#level.entities.filter((entity) => {
             const {
                 tileOwnership,
@@ -206,6 +214,9 @@ export class LevelEditor extends Engine {
     }
 
     #saveTileChange() {
-        this.#onLevelChanged(this.#level);
+        const level = this.level;
+        if (level) {
+            this.#onLevelChanged(level);
+        }
     }
 }
