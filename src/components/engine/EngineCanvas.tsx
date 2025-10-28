@@ -83,11 +83,33 @@ export function EngineCanvas({ engineRef, aspectRatio, ...rest }: EngineCanvasPr
                 });
             localCanvas.addEventListener('mouseover', onMouseOver);
 
-            const onKeyDown = (event: KeyboardEvent) =>
-                engineRef.current?.onKeyDown('keydown', { key: event.key });
+            const onKeyDown = (event: KeyboardEvent) => {
+                if (
+                    engineRef.current?.onKeyDown('keydown', {
+                        key: event.key,
+                        ctrl: event.ctrlKey,
+                        meta: event.metaKey,
+                        shift: event.shiftKey,
+                        alt: event.altKey,
+                    })
+                ) {
+                    event.preventDefault();
+                }
+            };
             window.addEventListener('keydown', onKeyDown);
-            const onKeyUp = (event: KeyboardEvent) =>
-                engineRef.current?.onKeyUp('keyup', { key: event.key });
+            const onKeyUp = (event: KeyboardEvent) => {
+                if (
+                    engineRef.current?.onKeyUp('keyup', {
+                        key: event.key,
+                        ctrl: event.ctrlKey,
+                        meta: event.metaKey,
+                        shift: event.shiftKey,
+                        alt: event.altKey,
+                    })
+                ) {
+                    event.preventDefault();
+                }
+            };
             window.addEventListener('keyup', onKeyUp);
 
             localCanvas.addEventListener('contextmenu', (event) => event.preventDefault());

@@ -377,10 +377,12 @@ export class UIScene extends Scene {
             updated = true;
         }
 
-        if (this.#editor.getKey('z').pressed) {
+        const zKeyState = this.#editor.getKey('z');
+        const yKeyState = this.#editor.getKey('y');
+        if (zKeyState.pressed && zKeyState.mod) {
             this.#editor.undo();
             updated = true;
-        } else if (this.#editor.getKey('y').pressed) {
+        } else if (yKeyState.pressed && yKeyState.mod) {
             this.#editor.redo();
             updated = true;
         }

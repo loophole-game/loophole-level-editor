@@ -3,6 +3,11 @@ import type { ButtonState } from '../types';
 
 export interface KeyboardKeyState extends ButtonState {
     numHeldPresses: number;
+    ctrl: boolean;
+    meta: boolean;
+    shift: boolean;
+    alt: boolean;
+    mod: boolean;
 }
 
 interface KeyState {
@@ -39,14 +44,40 @@ export class KeyboardSystem extends System {
         this.#keyStates = {};
     }
 
-    keyStateChange(key: string, isDown: boolean): void {
+    keyStateChange(
+        key: string,
+        isDown: boolean,
+        ctrl: boolean,
+        meta: boolean,
+        shift: boolean,
+        alt: boolean,
+    ): boolean {
         this.#setIfNonExistent(key);
 
+        const mod = ctrl || meta;
         this.#keyStates[key].currState = {
             ...this.#keyStates[key].currState,
             down: isDown,
             downAsNum: isDown ? 1 : 0,
+            ctrl,
+            meta,
+            shift,
+            alt,
+            mod: ctrl || meta,
         };
+        if (mod) {
+            this.#keyStates[key].prevState.down = false;
+        }
+
+        const keyCaptured = this._engine.options.keysToCapture?.some(
+            (keyCapture) =>
+                keyCapture.key === key &&
+                (keyCapture.ctrl === undefined || keyCapture.ctrl === ctrl) &&
+                (keyCapture.meta === undefined || keyCapture.meta === meta) &&
+                (keyCapture.shift === undefined || keyCapture.shift === shift) &&
+                (keyCapture.alt === undefined || keyCapture.alt === alt),
+        );
+        return keyCaptured;
     }
 
     getKey(key: string): KeyboardKeyState {
@@ -64,6 +95,11 @@ export class KeyboardSystem extends System {
                 released: false,
                 downTime: 0,
                 numHeldPresses: 0,
+                ctrl: false,
+                meta: false,
+                shift: false,
+                alt: false,
+                mod: false,
             };
             this.#keyStates[key] = {
                 currState: { ...state },

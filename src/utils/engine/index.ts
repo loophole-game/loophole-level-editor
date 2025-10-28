@@ -35,11 +35,14 @@ interface BrowserEventMap {
     mouseover: { from: EventTarget | null; to: EventTarget | null };
     mouseout: { from: EventTarget | null; to: EventTarget | null };
 
-    keydown: { key: string };
-    keyup: { key: string };
+    keydown: { key: string; ctrl: boolean; meta: boolean; shift: boolean; alt: boolean };
+    keyup: { key: string; ctrl: boolean; meta: boolean; shift: boolean; alt: boolean };
 }
 
-type BrowserEventHandler<T extends BrowserEvent> = (event: T, data: BrowserEventMap[T]) => void;
+type BrowserEventHandler<T extends BrowserEvent> = (
+    event: T,
+    data: BrowserEventMap[T],
+) => void | boolean;
 
 interface CameraState {
     zoom?: number;
@@ -52,6 +55,14 @@ const DEFAULT_CAMERA_OPTIONS: Required<CameraState> = {
     rotation: 0,
     position: { x: 0, y: 0 },
 };
+
+interface KeyCapture {
+    key: string;
+    ctrl?: boolean;
+    meta?: boolean;
+    shift?: boolean;
+    alt?: boolean;
+}
 
 export interface EngineOptions {
     zoomSpeed?: number;
@@ -67,6 +78,8 @@ export interface EngineOptions {
     cameraDragButtons?: PointerButton[];
 
     images?: Record<string, string | HTMLImageElement>;
+
+    keysToCapture?: KeyCapture[];
 }
 
 const DEFAULT_ENGINE_OPTIONS: Required<EngineOptions> = {
@@ -83,6 +96,8 @@ const DEFAULT_ENGINE_OPTIONS: Required<EngineOptions> = {
     cameraDragButtons: [PointerButton.MIDDLE, PointerButton.RIGHT],
 
     images: {},
+
+    keysToCapture: [],
 };
 
 export class Engine {
@@ -145,8 +160,12 @@ export class Engine {
         this.addBrowserEventHandler('mousewheel', (_, { delta }) =>
             this.#setPointerScrollDelta(delta),
         );
-        this.addBrowserEventHandler('keydown', (_, data) => this.#setKeyDown(data.key, true));
-        this.addBrowserEventHandler('keyup', (_, data) => this.#setKeyDown(data.key, false));
+        this.addBrowserEventHandler('keydown', (_, data) =>
+            this.#setKeyDown(data.key, true, data.ctrl, data.meta, data.shift, data.alt),
+        );
+        this.addBrowserEventHandler('keyup', (_, data) =>
+            this.#setKeyDown(data.key, false, data.ctrl, data.meta, data.shift, data.alt),
+        );
 
         this._options = { ...DEFAULT_ENGINE_OPTIONS, ...options };
         this._camera = { ...DEFAULT_CAMERA_OPTIONS, ...this._options.cameraStart };
@@ -459,14 +478,27 @@ export class Engine {
         this._rootEntity.setPosition(this._camera.position);
     }
 
-    #handleBrowserEvent(event: BrowserEvent, data: BrowserEventMap[BrowserEvent]) {
+    #handleBrowserEvent(event: BrowserEvent, data: BrowserEventMap[BrowserEvent]): boolean {
+        let preventDefault = false;
         this.#browserEventHandlers[event]?.forEach((handler) => {
-            handler(event, data);
+            const result = handler(event, data);
+            if (result === true) {
+                preventDefault = true;
+            }
         });
+
+        return preventDefault;
     }
 
-    #setKeyDown(key: string, down: boolean): void {
-        this._keyboardSystem.keyStateChange(key, down);
+    #setKeyDown(
+        key: string,
+        down: boolean,
+        ctrl: boolean,
+        meta: boolean,
+        shift: boolean,
+        alt: boolean,
+    ): boolean {
+        return this._keyboardSystem.keyStateChange(key, down, ctrl, meta, shift, alt);
     }
 
     #setPointerPosition(position: Position): void {

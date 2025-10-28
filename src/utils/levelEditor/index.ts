@@ -63,6 +63,12 @@ export class LevelEditor extends Engine {
             maxZoom: 2,
             cameraDrag: true,
             clearColor: '#1e2124',
+            keysToCapture: [
+                { key: 'z', ctrl: true },
+                { key: 'z', meta: true },
+                { key: 'y', ctrl: true },
+                { key: 'y', meta: true },
+            ],
             ...options,
             images: {
                 ...Object.values(ENTITY_METADATA).reduce(
