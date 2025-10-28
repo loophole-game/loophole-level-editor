@@ -348,27 +348,41 @@ export class UIScene extends Scene {
         }
 
         if (!cameraDragIsActive(this.#editor)) {
-            const cameraOffset = {
-                x:
-                    (this.#editor.getKey('ArrowRight').downAsNum ||
-                        this.#editor.getKey('d').downAsNum) -
-                    (this.#editor.getKey('ArrowLeft').downAsNum ||
-                        this.#editor.getKey('a').downAsNum),
-                y:
-                    (this.#editor.getKey('ArrowDown').downAsNum ||
-                        this.#editor.getKey('s').downAsNum) -
-                    (this.#editor.getKey('ArrowUp').downAsNum ||
-                        this.#editor.getKey('w').downAsNum),
-            };
-            if (cameraOffset.x !== 0 || cameraOffset.y !== 0) {
-                const camera = this.#editor.camera;
-                const offsetMagnitude = 500 * this.#editor.camera.zoom;
-                this.#editor.setCameraPosition({
-                    x: camera.position.x - cameraOffset.x * offsetMagnitude * deltaTime,
-                    y: camera.position.y - cameraOffset.y * offsetMagnitude * deltaTime,
-                });
-                updated = true;
-            }
+            updated = this.#updateKeyboardControls(deltaTime) || updated;
+        }
+
+        return updated;
+    }
+
+    #updateKeyboardControls(deltaTime: number): boolean {
+        if (!this.#editor) return false;
+
+        let updated = false;
+        const cameraOffset = {
+            x:
+                (this.#editor.getKey('ArrowRight').downAsNum ||
+                    this.#editor.getKey('d').downAsNum) -
+                (this.#editor.getKey('ArrowLeft').downAsNum || this.#editor.getKey('a').downAsNum),
+            y:
+                (this.#editor.getKey('ArrowDown').downAsNum || this.#editor.getKey('s').downAsNum) -
+                (this.#editor.getKey('ArrowUp').downAsNum || this.#editor.getKey('w').downAsNum),
+        };
+        if (cameraOffset.x !== 0 || cameraOffset.y !== 0) {
+            const camera = this.#editor.camera;
+            const offsetMagnitude = 500 * this.#editor.camera.zoom;
+            this.#editor.setCameraPosition({
+                x: camera.position.x - cameraOffset.x * offsetMagnitude * deltaTime,
+                y: camera.position.y - cameraOffset.y * offsetMagnitude * deltaTime,
+            });
+            updated = true;
+        }
+
+        if (this.#editor.getKey('z').pressed) {
+            this.#editor.undo();
+            updated = true;
+        } else if (this.#editor.getKey('y').pressed) {
+            this.#editor.redo();
+            updated = true;
         }
 
         return updated;

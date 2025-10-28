@@ -162,20 +162,31 @@ export class LevelEditor extends Engine {
     }
 
     undo() {
-        const actions = this.#undoStack.pop();
-        if (actions) {
-            this.#performEditActions(actions);
+        if (this.#undoStack.length === 0) {
+            return;
         }
+
+        const actions = this.#undoStack.pop()!;
+        const reversedActions = this.#reverseActions(actions);
+        this.#performEditActions(reversedActions, false);
+        this.#redoStack.push(actions);
     }
 
     redo() {
-        const actions = this.#redoStack.pop();
-        if (actions) {
-            this.#performEditActions(actions);
+        if (this.#redoStack.length === 0) {
+            return;
         }
+
+        const actions = this.#redoStack.pop()!;
+        this.#performEditActions(actions, false);
+        this.#undoStack.push(actions);
     }
 
-    #performEditActions(actions: EditAction[]) {
+    #performEditActions(actions: EditAction[], updateStacks: boolean = true) {
+        if (actions.length === 0) {
+            return;
+        }
+
         for (const action of actions) {
             switch (action.type) {
                 case 'place': {
@@ -189,7 +200,25 @@ export class LevelEditor extends Engine {
             }
         }
 
+        if (updateStacks) {
+            this.#undoStack.push(actions);
+            this.#redoStack = [];
+        }
+
         this.#saveTileChange();
+    }
+
+    #reverseActions(actions: EditAction[]): EditAction[] {
+        return actions
+            .map((action): EditAction => {
+                switch (action.type) {
+                    case 'place':
+                        return { type: 'remove', entity: { ...action.entity } };
+                    case 'remove':
+                        return { type: 'place', entity: { ...action.entity } };
+                }
+            })
+            .reverse();
     }
 
     #placeEntity(entity: Loophole_EntityWithID, updateLevel: boolean = true) {
