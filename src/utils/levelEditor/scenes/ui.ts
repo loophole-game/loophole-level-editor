@@ -18,9 +18,6 @@ import { positionsEqual } from '@/utils/engine/utils';
 import { C_Shape } from '@/utils/engine/components/Shape';
 import { E_Tile } from './grid';
 
-const POSITION_SPEED = 20;
-const ROTATION_SPEED = 1000;
-
 const multiSelectIsActive = (editor: LevelEditor) => editor.getKey('Shift').down;
 const cameraDragIsActive = (editor: LevelEditor) =>
     editor.getPointerButton(PointerButton.RIGHT).down;
@@ -53,7 +50,7 @@ class E_TileCursor extends Entity {
             set: ((value: number) => {
                 this.#tileImage.style.globalAlpha = value;
             }).bind(this),
-            speed: 5,
+            speed: 4,
         });
         this.addComponents(this.#tileOpacityLerp);
 
@@ -62,7 +59,7 @@ class E_TileCursor extends Entity {
             set: ((value: Position) => {
                 this.setPosition(value);
             }).bind(this),
-            speed: POSITION_SPEED,
+            speed: 20,
             type: 'fractional',
         });
         this.addComponents(this.#positionLerp);
@@ -72,7 +69,7 @@ class E_TileCursor extends Entity {
             set: ((value: number) => {
                 this.setRotation(value);
             }).bind(this),
-            speed: ROTATION_SPEED,
+            speed: 1000,
             variant: 'degrees',
         });
         this.addComponents(this.#tileRotationLerp);
@@ -90,6 +87,7 @@ class E_TileCursor extends Entity {
             setBrushEntityFlipDirection,
         } = getAppStore();
         if (
+            this.#editor.pointerState.onScreen &&
             !multiSelectIsActive(this.#editor) &&
             !cameraDragIsActive(this.#editor) &&
             brushEntityType
@@ -185,7 +183,12 @@ class E_TileCursor extends Entity {
                 );
                 this.#editor.capturePointerButtonClick(PointerButton.LEFT);
             } else if (this.#editor.getPointerButton(PointerButton.RIGHT).clicked) {
-                this.#editor.removeTile(tilePosition, positionType, type, edgeAlignment);
+                this.#editor.removeTiles({
+                    position: tilePosition,
+                    positionType,
+                    entityType: type,
+                    edgeAlignment,
+                });
                 this.#editor.capturePointerButtonClick(PointerButton.RIGHT);
             }
 
@@ -232,28 +235,12 @@ class E_SelectionCursor extends Entity {
     override update(deltaTime: number): boolean {
         let updated = super.update(deltaTime);
         const pointerPosition = { ...this.#editor.pointerState.worldPosition };
-        const prevActive = this.#active;
 
-        const {
-            brushEntityType,
-            multiselectHoveredTiles,
-            setMultiselectHoveredTiles,
-            setSelectedTiles,
-        } = getAppStore();
+        const { brushEntityType, setSelectedTiles } = getAppStore();
         const leftButtonState = this.#editor.getPointerButton(PointerButton.LEFT);
         if (leftButtonState.pressed) {
             this.#selectAllClickPosition = pointerPosition;
         } else if (leftButtonState.released || !this.#editor.pointerState.onScreen) {
-            if (
-                this.#selectAllClickPosition &&
-                leftButtonState.released &&
-                !leftButtonState.clicked
-            ) {
-                setSelectedTiles(multiselectHoveredTiles);
-            } else if (leftButtonState.clicked) {
-                setSelectedTiles({});
-            }
-
             this.#selectAllClickPosition = null;
         }
 
@@ -261,15 +248,13 @@ class E_SelectionCursor extends Entity {
             (multiSelectIsActive(this.#editor) || !brushEntityType) &&
             !cameraDragIsActive(this.#editor)
         ) {
-            if (
+            if (leftButtonState.clicked) {
+                setSelectedTiles({});
+            } else if (
                 leftButtonState.down &&
                 this.#selectAllClickPosition &&
                 !positionsEqual(pointerPosition, this.#selectAllClickPosition)
             ) {
-                if (!this.#active) {
-                    setSelectedTiles({});
-                }
-
                 let topLeft: Position, bottomRight: Position;
                 if (
                     pointerPosition.x < this.#selectAllClickPosition.x ||
@@ -292,9 +277,9 @@ class E_SelectionCursor extends Entity {
                     .map((t) => t.entity?.parent)
                     .filter((e) => e?.typeString === E_Tile.name) as E_Tile[];
                 const hoveredTileMap = Object.fromEntries(
-                    hoveredTiles.map((t) => [t.id.toString(), t]),
+                    hoveredTiles.map((t) => [t.entity.id, t]),
                 );
-                setMultiselectHoveredTiles(hoveredTileMap);
+                setSelectedTiles(hoveredTileMap);
 
                 updated = true;
                 this.#active = true;
@@ -303,10 +288,6 @@ class E_SelectionCursor extends Entity {
             }
         } else {
             this.#active = false;
-        }
-
-        if (!this.#active && prevActive) {
-            setMultiselectHoveredTiles({});
         }
 
         this.#opacityLerp.target = this.#active ? 0.25 : 0;
@@ -332,18 +313,10 @@ export class UIScene extends Scene {
         if (!this.#editor) return false;
 
         let updated = false;
-        const { brushEntityType, setBrushEntityType, selectedTiles } = getAppStore();
+        const { brushEntityType, setBrushEntityType } = getAppStore();
 
         if (brushEntityType && this.#editor.getKey('Escape').pressed) {
             setBrushEntityType(null);
-            updated = true;
-        }
-
-        if (this.#editor.getKey('Backspace').pressed) {
-            for (const tileID in selectedTiles) {
-                const tile = selectedTiles[tileID];
-                this.#editor.removeEntity(tile.entity);
-            }
             updated = true;
         }
 
@@ -357,6 +330,7 @@ export class UIScene extends Scene {
     #updateKeyboardControls(deltaTime: number): boolean {
         if (!this.#editor) return false;
 
+        const { setBrushEntityType, selectedTiles, setSelectedTiles } = getAppStore();
         let updated = false;
         const cameraOffset = {
             x:
@@ -377,6 +351,12 @@ export class UIScene extends Scene {
             updated = true;
         }
 
+        if (this.#editor.getKey('Backspace').pressed) {
+            this.#editor.removeEntities(...Object.values(selectedTiles).map((t) => t.entity));
+            setSelectedTiles({});
+            updated = true;
+        }
+
         const zKeyState = this.#editor.getKey('z');
         const yKeyState = this.#editor.getKey('y');
         if (zKeyState.pressed && zKeyState.mod) {
@@ -387,7 +367,6 @@ export class UIScene extends Scene {
             updated = true;
         }
 
-        const { setBrushEntityType } = getAppStore();
         const keys = Object.keys(ENTITY_METADATA) as Loophole_ExtendedEntityType[];
         for (let i = 0; i < Object.keys(ENTITY_METADATA).length; i++) {
             if (this.#editor.getKey((i === 9 ? 0 : i + 1).toString()).pressed) {

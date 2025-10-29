@@ -26,8 +26,6 @@ interface AppStore {
 
     selectedTiles: Record<string, E_Tile>;
     setSelectedTiles: (tiles: Record<string, E_Tile>) => void;
-    multiselectHoveredTiles: Record<string, E_Tile>;
-    setMultiselectHoveredTiles: (tiles: Record<string, E_Tile>) => void;
 }
 
 export const useAppStore = create<AppStore>()(
@@ -81,10 +79,6 @@ export const useAppStore = create<AppStore>()(
                 selectedTiles: {},
                 setSelectedTiles: (tiles) => {
                     set({ selectedTiles: tiles });
-                },
-                multiselectHoveredTiles: {},
-                setMultiselectHoveredTiles: (tiles) => {
-                    set({ multiselectHoveredTiles: tiles });
                 },
             };
         },

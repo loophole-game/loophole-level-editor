@@ -19,12 +19,15 @@ import {
 } from '@/utils/utils';
 import { C_Lerp } from '@/utils/engine/components/Lerp';
 
+const ACTIVE_TILE_OPACITY = 0.6;
+
 export class E_Tile extends Entity {
     #editor: LevelEditor;
     #entity: Loophole_EntityWithID;
 
     #tileImage: C_Image;
     #pointerTarget: C_PointerTarget;
+    #shape: C_Shape;
     #opacityLerp: C_Lerp<number>;
 
     constructor(editor: LevelEditor, entity: Loophole_EntityWithID) {
@@ -37,23 +40,22 @@ export class E_Tile extends Entity {
         });
         this.addComponents(this.#tileImage);
 
-        const targetEntity = new Entity('target');
+        const targetEntity = new Entity('target').setScale({ x: 1.1, y: 1.1 });
         this.#pointerTarget = new C_PointerTarget();
-        const shapeComp = new C_Shape('shape', 'RECT', {
+        this.#shape = new C_Shape('shape', 'RECT', {
             fillStyle: 'white',
             globalAlpha: 0,
         });
         this.#opacityLerp = new C_Lerp({
             get: (() => {
-                console.log('value', shapeComp.style.globalAlpha, this.name);
-                return shapeComp.style.globalAlpha ?? 0;
+                return this.#shape.style.globalAlpha ?? 0;
             }).bind(this),
             set: ((value: number) => {
-                shapeComp.style.globalAlpha = value;
+                this.#shape.style.globalAlpha = value;
             }).bind(this),
             speed: 5,
         });
-        targetEntity.addComponents(this.#pointerTarget, shapeComp, this.#opacityLerp);
+        targetEntity.addComponents(this.#pointerTarget, this.#shape, this.#opacityLerp);
 
         this.addChildren(targetEntity);
     }
@@ -67,22 +69,35 @@ export class E_Tile extends Entity {
         this.#onEntityChanged();
     }
 
-    override update() {
-        const { brushEntityType, selectedTiles, multiselectHoveredTiles } = getAppStore();
+    override update(deltaTime: number) {
+        const { brushEntityType, selectedTiles, setSelectedTiles } = getAppStore();
         const hoveredByPointer = this.#pointerTarget.isPointerHovered && brushEntityType === null;
-        const active =
-            hoveredByPointer ||
-            multiselectHoveredTiles[this.entity.id.toString()] !== undefined ||
-            selectedTiles[this.entity.id.toString()] !== undefined;
+        const active = hoveredByPointer || selectedTiles[this.entity.id] !== undefined;
 
         if (hoveredByPointer && this.#editor.pointerState[PointerButton.LEFT].clicked) {
-            // TODO: Handle left click on tile
+            if (this.#editor.getKey('Meta').down || this.#editor.getKey('Control').down) {
+                const newSelectedTiles = { ...selectedTiles };
+                if (this.entity.id in newSelectedTiles) {
+                    delete newSelectedTiles[this.entity.id];
+                } else {
+                    newSelectedTiles[this.entity.id] = this;
+                }
+                setSelectedTiles(newSelectedTiles);
+            } else {
+                setSelectedTiles({ [this.entity.id]: this });
+            }
+
             this.#editor.capturePointerButtonClick(PointerButton.LEFT);
         }
 
-        this.#opacityLerp.target = active ? 0.6 : 0;
+        this.#opacityLerp.target = active ? ACTIVE_TILE_OPACITY : 0;
 
-        return false;
+        return super.update(deltaTime);
+    }
+
+    syncVisualState() {
+        const { selectedTiles } = getAppStore();
+        this.#shape.style.globalAlpha = this.entity.id in selectedTiles ? ACTIVE_TILE_OPACITY : 0;
     }
 
     #onEntityChanged() {

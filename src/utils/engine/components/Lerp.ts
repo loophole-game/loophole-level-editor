@@ -15,7 +15,6 @@ interface LerpOptions<T extends LerpValueType> {
 export class C_Lerp<T extends LerpValueType> extends Component {
     #options: LerpOptions<T>;
 
-    #currentValue: T;
     #targetValue: T;
 
     constructor(options: LerpOptions<T>) {
@@ -23,8 +22,7 @@ export class C_Lerp<T extends LerpValueType> extends Component {
 
         this.#options = options;
 
-        this.#currentValue = this.#options.get();
-        this.#targetValue = this.#currentValue;
+        this.#targetValue = this.#options.get();
     }
 
     get target(): T {
@@ -36,28 +34,25 @@ export class C_Lerp<T extends LerpValueType> extends Component {
     }
 
     override update(deltaTime: number): boolean {
-        this.#currentValue = this.#options.get();
-        if (typeof this.#currentValue === 'number' && typeof this.#targetValue === 'number') {
-            if (this.#currentValue === this.#targetValue) {
+        let currentValue = this.#options.get();
+        if (typeof currentValue === 'number' && typeof this.#targetValue === 'number') {
+            if (currentValue === this.#targetValue) {
                 return false;
             }
 
-            this.#currentValue = this.#lerp(this.#currentValue, this.#targetValue, deltaTime) as T;
-        } else if (
-            typeof this.#currentValue === 'object' &&
-            typeof this.#targetValue === 'object'
-        ) {
-            if (positionsEqual(this.#currentValue, this.#targetValue)) {
+            currentValue = this.#lerp(currentValue, this.#targetValue, deltaTime) as T;
+        } else if (typeof currentValue === 'object' && typeof this.#targetValue === 'object') {
+            if (positionsEqual(currentValue, this.#targetValue)) {
                 return false;
             }
 
-            this.#currentValue = {
-                x: this.#lerp(this.#currentValue.x, this.#targetValue.x, deltaTime),
-                y: this.#lerp(this.#currentValue.y, this.#targetValue.y, deltaTime),
+            currentValue = {
+                x: this.#lerp(currentValue.x, this.#targetValue.x, deltaTime),
+                y: this.#lerp(currentValue.y, this.#targetValue.y, deltaTime),
             } as T;
         }
 
-        this.#options.set(this.#currentValue);
+        this.#options.set(currentValue);
 
         return true;
     }
