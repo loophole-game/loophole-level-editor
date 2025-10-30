@@ -71,6 +71,17 @@ export const getLoopholeEntityExtendedType = (
     }
 };
 
+export const convertLoopholeTypeToExtendedType = (
+    type: Loophole_EntityType,
+): Loophole_ExtendedEntityType => {
+    switch (type) {
+        case 'MUSHROOM':
+            return 'MUSHROOM_RED';
+        default:
+            return type as Loophole_ExtendedEntityType;
+    }
+}
+
 export const getLoopholeEntityPositionType = (entity: Loophole_Entity): LoopholePositionType => {
     if ('edgePosition' in entity) {
         return 'EDGE';

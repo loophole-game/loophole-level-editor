@@ -10,6 +10,7 @@ export class C_PointerTarget extends Component {
     #onPointerEnter?: PointerTargetOptions['onPointerEnter'];
     #onPointerLeave?: PointerTargetOptions['onPointerLeave'];
 
+    #canInteract: boolean = true;
     #isPointerHovered: boolean = false;
 
     constructor({ onPointerEnter, onPointerLeave }: PointerTargetOptions = {}) {
@@ -27,8 +28,16 @@ export class C_PointerTarget extends Component {
         this.#isPointerHovered = isPointerHovered;
     }
 
+    get canInteract(): boolean {
+        return this.#canInteract;
+    }
+
+    set canInteract(canInteract: boolean) {
+        this.#canInteract = canInteract;
+    }
+
     checkIfPointerOver(position: Position): boolean {
-        if (!this.enabled || !this.entity?.enabled) {
+        if (!this.enabled || !this.entity?.enabled || !this.#canInteract) {
             return false;
         }
 
@@ -90,7 +99,7 @@ export class C_PointerTarget extends Component {
     }
 
     checkIfWithinBox(topLeft: Position, bottomRight: Position): boolean {
-        if (!this.enabled || !this.entity?.enabled) {
+        if (!this.enabled || !this.entity?.enabled || !this.#canInteract) {
             return false;
         }
 

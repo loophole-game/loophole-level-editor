@@ -54,6 +54,7 @@ export class E_Tile extends Entity {
 
         this.#highlightEntity = new Entity('target');
         this.#pointerTarget = new C_PointerTarget();
+        this.#pointerTarget.canInteract = false;
         this.#highlightShape = new C_Shape('shape', 'RECT', {
             fillStyle: 'white',
             globalAlpha: 0,
@@ -95,7 +96,7 @@ export class E_Tile extends Entity {
 
     override update(deltaTime: number) {
         const { brushEntityType, selectedTiles, setSelectedTiles, lockedLayers } = getAppStore();
-        this.#pointerTarget.setEnabled(Boolean(!lockedLayers[this.#type]));
+        this.#pointerTarget.canInteract = Boolean(!lockedLayers[this.#type]);
         const hoveredByPointer = this.#pointerTarget.isPointerHovered && brushEntityType === null;
         const active = hoveredByPointer || selectedTiles[this.entity.tID] !== undefined;
 

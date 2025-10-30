@@ -57,7 +57,7 @@ export function LayerButtons() {
                         <Plus />
                     </DropdownMenuTrigger>
                     <DropdownMenuContent className="w-48 text-white">
-                        <DropdownMenuLabel>Select Editable Layers</DropdownMenuLabel>
+                        <DropdownMenuLabel>Select Lockable Layers</DropdownMenuLabel>
                         {ALL_ENTITY_TYPES.map((layer) => {
                             const { name } = ENTITY_METADATA[layer];
                             const isEditable = editableLayers.includes(layer);

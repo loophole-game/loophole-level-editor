@@ -30,6 +30,7 @@ interface AppStore {
 
     selectedTiles: Record<string, E_Tile>;
     setSelectedTiles: (tiles: E_Tile[]) => void;
+    deselectEntities: (tileIDs: string[]) => void;
 
     isDraggingTiles: boolean;
     setIsDraggingTiles: (isDragging: boolean) => void;
@@ -104,6 +105,14 @@ export const useAppStore = create<AppStore>()(
                         };
                     });
                 },
+                deselectEntities: (tileIDs) =>
+                    set((state) => {
+                        const newSelectedTiles = { ...state.selectedTiles };
+                        for (const tID of tileIDs) {
+                            delete newSelectedTiles[tID];
+                        }
+                        return { selectedTiles: newSelectedTiles };
+                    }),
 
                 isDraggingTiles: false,
                 setIsDraggingTiles: (isDragging) => set({ isDraggingTiles: isDragging }),

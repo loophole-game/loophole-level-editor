@@ -1,7 +1,7 @@
-import type { Engine } from './utils/engine';
+import type { LevelEditor } from './utils/levelEditor';
 
 declare global {
     interface Window {
-        engine?: Engine | null;
+        engine?: LevelEditor | null;
     }
 }

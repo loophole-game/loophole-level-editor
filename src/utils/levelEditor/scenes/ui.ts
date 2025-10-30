@@ -716,7 +716,6 @@ export class UIScene extends Scene {
 
         if (this.#editor.getKey('Backspace').pressed || this.#editor.getKey('Delete').pressed) {
             this.#editor.removeEntities(Object.values(selectedTiles).map((t) => t.entity));
-            setSelectedTiles([]);
             updated = true;
         }
 
