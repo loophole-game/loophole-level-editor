@@ -82,7 +82,7 @@ export const useAppStore = create<AppStore>()(
                 selectedTiles: {},
                 setSelectedTiles: (tiles) => {
                     set({
-                        selectedTiles: Object.fromEntries(tiles.map((t) => [t.entity.id, t])),
+                        selectedTiles: Object.fromEntries(tiles.map((t) => [t.entity.tID, t])),
                     });
                 },
 

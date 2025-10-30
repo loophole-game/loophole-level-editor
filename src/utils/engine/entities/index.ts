@@ -150,8 +150,10 @@ export class Entity implements Renderable {
         return this;
     }
 
-    setScale(newScale: Position): this {
-        this._transform.setScale(newScale);
+    setScale(newScale: number | Position): this {
+        this._transform.setScale(
+            typeof newScale === 'number' ? { x: newScale, y: newScale } : newScale,
+        );
 
         return this;
     }

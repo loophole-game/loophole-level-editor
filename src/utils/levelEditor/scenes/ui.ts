@@ -173,7 +173,7 @@ class E_TileCursor extends Entity {
                 this.#targetRotation += 180;
             }
 
-            this.setScale({ x: TILE_SIZE * tileScaleOverride, y: TILE_SIZE * tileScaleOverride });
+            this.setScale(TILE_SIZE * tileScaleOverride);
             if (!this.#active) {
                 this.setPosition(this.#targetPosition);
                 this.setRotation(this.#targetRotation ?? 0);
@@ -492,7 +492,7 @@ class E_DragCursor extends Entity {
                 this.#dragOffset = { x: 0, y: 0 };
                 this.#originalEntities.clear();
                 selectedTileArray.forEach((tile) => {
-                    this.#originalEntities.set(tile.entity.id, { ...tile.entity });
+                    this.#originalEntities.set(tile.entity.tID, { ...tile.entity });
                 });
                 setIsDraggingTiles(true);
                 this.#editor.capturePointerButtonClick(PointerButton.LEFT);
@@ -550,11 +550,7 @@ class E_DragCursor extends Entity {
             this.#pointerTarget.isPointerHovered || this.#isDragging
                 ? HANDLE_HOVER_COLOR
                 : HANDLE_COLOR;
-        const scale = HANDLE_SIZE / this.#editor.camera.zoom;
-        this.setScale({
-            x: scale,
-            y: scale,
-        });
+        this.setScale(HANDLE_SIZE / this.#editor.camera.zoom);
 
         return updated;
     }
@@ -595,7 +591,7 @@ class E_DragCursor extends Entity {
 
     #updateTilePositions(tiles: E_Tile[]) {
         tiles.forEach((tile) => {
-            const originalEntity = this.#originalEntities.get(tile.entity.id);
+            const originalEntity = this.#originalEntities.get(tile.entity.tID);
             if (!originalEntity) return;
 
             const newEntity = { ...originalEntity };
@@ -638,7 +634,7 @@ class E_DragCursor extends Entity {
     #cancelDrag(tiles: E_Tile[]) {
         // Restore original positions
         tiles.forEach((tile) => {
-            const originalEntity = this.#originalEntities.get(tile.entity.id);
+            const originalEntity = this.#originalEntities.get(tile.entity.tID);
             if (originalEntity) {
                 tile.entity = originalEntity;
             }
@@ -673,8 +669,7 @@ export class UIScene extends Scene {
             if (brushEntityType) {
                 setBrushEntityType(null);
                 updated = true;
-            }
-            if (Object.keys(selectedTiles).length > 0) {
+            } else if (Object.keys(selectedTiles).length > 0) {
                 setSelectedTiles([]);
                 updated = true;
             }

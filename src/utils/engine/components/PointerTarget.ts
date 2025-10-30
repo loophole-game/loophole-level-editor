@@ -28,6 +28,10 @@ export class C_PointerTarget extends Component {
     }
 
     checkIfPointerOver(position: Position): boolean {
+        if (!this.enabled || !this.entity?.enabled) {
+            return false;
+        }
+
         const prevIsPointerHovered = this.#isPointerHovered;
         this.#isPointerHovered = false;
 
@@ -86,6 +90,10 @@ export class C_PointerTarget extends Component {
     }
 
     checkIfWithinBox(topLeft: Position, bottomRight: Position): boolean {
+        if (!this.enabled || !this.entity?.enabled) {
+            return false;
+        }
+
         const transform = this.entity?.transform;
         if (!transform || !window.engine) {
             return false;

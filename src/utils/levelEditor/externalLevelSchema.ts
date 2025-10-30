@@ -213,10 +213,13 @@ export type Loophole_Wire = {
 //  Door        |   -  |    -    |    -   |   -   |   N
 //
 
-export type Loophole_EntityWithID = Loophole_Entity & {
-    id: string;
-};
+interface EntityWithID {
+    tID: string;
+}
+
+export type Loophole_EntityWithID = Loophole_Entity & EntityWithID;
 
 export type Loophole_LevelWithIDs = Omit<Loophole_Level, 'entities'> & {
     entities: Loophole_EntityWithID[];
+    entrance: Loophole_Level['entrance'] & EntityWithID;
 };

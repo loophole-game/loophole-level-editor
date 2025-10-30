@@ -477,7 +477,7 @@ export class Engine {
     }
 
     #updateCameraPosition() {
-        this._rootEntity.setScale({ x: this._camera.zoom, y: this._camera.zoom });
+        this._rootEntity.setScale(this._camera.zoom);
         this._rootEntity.setRotation(this._camera.rotation);
         this._rootEntity.setPosition(this._camera.position);
     }

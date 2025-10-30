@@ -99,7 +99,12 @@ export class LevelEditor extends Engine {
         return {
             ...this.#level,
             // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            entities: this.#level.entities.map(({ id, ...rest }) => ({ ...rest })),
+            entities: this.#level.entities.map(({ tID: id, ...rest }) => ({ ...rest })),
+            entrance: {
+                entityType: this.#level.entrance.entityType,
+                position: this.#level.entrance.position,
+                rotation: this.#level.entrance.rotation,
+            },
         };
     }
 
@@ -115,6 +120,8 @@ export class LevelEditor extends Engine {
         for (const entity of this.#level.entities) {
             this.#placeEntity(entity, false);
         }
+        const entranceTile = this.#placeEntity(this.#level.entrance, false);
+        entranceTile.isEntrance = true;
     }
 
     get tiles(): Readonly<Record<string, E_Tile>> {
@@ -149,7 +156,7 @@ export class LevelEditor extends Engine {
                     type: 'place',
                     entity: {
                         ...createEntity(position, edgeAlignment, rotation, flipDirection),
-                        id: v4(),
+                        tID: v4(),
                     },
                 },
                 ...overlappingEntities.map((entity) => ({ type: 'remove', entity }) as EditAction),
@@ -159,12 +166,14 @@ export class LevelEditor extends Engine {
     }
 
     removeEntities(entities: Loophole_EntityWithID[], hash?: string | null): E_Tile[] {
-        const tiles = entities.map((entity) => ({
-            position: getLoopholeEntityPosition(entity),
-            positionType: getLoopholeEntityPositionType(entity),
-            entityType: entity.entityType,
-            edgeAlignment: getLoopholeEntityEdgeAlignment(entity),
-        }));
+        const tiles = entities
+            .filter((entity) => entity.tID !== this.#level?.entrance.tID)
+            .map((entity) => ({
+                position: getLoopholeEntityPosition(entity),
+                positionType: getLoopholeEntityPositionType(entity),
+                entityType: entity.entityType,
+                edgeAlignment: getLoopholeEntityEdgeAlignment(entity),
+            }));
 
         return this.removeTiles(tiles, hash);
     }
@@ -259,19 +268,22 @@ export class LevelEditor extends Engine {
             group.actions.push({ type: 'remove', entity });
 
             const newEntity = { ...entity };
+            let newPosition: Loophole_Int2;
             if ('edgePosition' in newEntity) {
+                newPosition = {
+                    x: newEntity.edgePosition.cell.x + offset.x,
+                    y: newEntity.edgePosition.cell.y + offset.y,
+                };
                 newEntity.edgePosition = {
                     ...newEntity.edgePosition,
-                    cell: {
-                        x: newEntity.edgePosition.cell.x + offset.x,
-                        y: newEntity.edgePosition.cell.y + offset.y,
-                    },
+                    cell: newPosition,
                 };
-            } else if ('position' in newEntity) {
-                newEntity.position = {
+            } else {
+                newPosition = {
                     x: newEntity.position.x + offset.x,
                     y: newEntity.position.y + offset.y,
                 };
+                newEntity.position = newPosition;
             }
 
             const overlappingEntities = this.#getOverlappingEntities(
@@ -350,20 +362,23 @@ export class LevelEditor extends Engine {
         tile.entity = entity;
         tile.setEnabled(true);
         if (this.#level && updateLevel) {
-            this.#level.entities.push(entity);
+            if (entity.tID === this.#level.entrance.tID && entity.entityType === 'TIME_MACHINE') {
+                this.#level.entrance = entity;
+            } else {
+                this.#level.entities.push(entity);
+            }
         }
 
         return tile;
     }
 
     #removeEntity(entity: Loophole_EntityWithID, updateLevel: boolean = true) {
-        const tile = this.#tiles[entity.id];
+        const tile = this.#tiles[entity.tID];
         if (tile) {
             this.#stashTile(tile);
-            tile.setEnabled(false);
         }
         if (this.#level && updateLevel) {
-            this.#level.entities = this.#level.entities.filter((e) => e.id !== entity.id);
+            this.#level.entities = this.#level.entities.filter((e) => e.tID !== entity.tID);
         }
 
         return tile;
@@ -374,30 +389,38 @@ export class LevelEditor extends Engine {
             ...level,
             entities: level.entities.map((entity) => ({
                 ...entity,
-                id: v4(),
+                tID: v4(),
             })),
+            entrance: {
+                ...level.entrance,
+                tID: v4(),
+            },
         };
     }
 
     #claimOrCreateTile(entity: Loophole_EntityWithID): E_Tile {
-        const tile = this.#tiles[entity.id] ?? this.#stashedTiles[entity.id] ?? null;
+        const tile = this.#tiles[entity.tID] ?? this.#stashedTiles[entity.tID] ?? null;
         if (tile) {
+            if (this.#stashedTiles[entity.tID]) {
+                delete this.#stashedTiles[entity.tID];
+                this.#tiles[entity.tID] = tile;
+            }
+
             return tile;
         }
 
-        const newTile = new E_Tile(this, entity).setScale({ x: TILE_SIZE, y: TILE_SIZE });
-        this.#tiles[entity.id] = newTile;
+        const newTile = new E_Tile(this, entity).setScale(TILE_SIZE);
+        this.#tiles[entity.tID] = newTile;
         this.addSceneEntities(GridScene.name, newTile);
 
         return newTile;
     }
 
     #stashTile(tile: E_Tile) {
-        const id = tile.id;
-        if (Object.keys(this.#stashedTiles).length < MAX_STASHED_TILES) {
+        const id = tile.entity.tID;
+        if (Object.keys(this.#stashedTiles).length < MAX_STASHED_TILES && !this.#stashedTiles[id]) {
             this.#stashedTiles[id] = tile;
-            tile.setEnabled(false);
-            tile.initialized = false;
+            tile.stashTile();
         } else {
             tile.destroy();
         }

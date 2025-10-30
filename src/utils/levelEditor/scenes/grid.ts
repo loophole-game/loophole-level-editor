@@ -27,6 +27,8 @@ const TILE_HIGHLIGHT_SCALE_MULT = 1.1;
 export class E_Tile extends Entity {
     #editor: LevelEditor;
     #entity: Loophole_EntityWithID;
+    #isEntrance: boolean = false;
+
     #initialized: boolean = false;
 
     #tileImage: C_Image;
@@ -73,6 +75,14 @@ export class E_Tile extends Entity {
         this.#onEntityChanged();
     }
 
+    get isEntrance(): boolean {
+        return this.#isEntrance;
+    }
+
+    set isEntrance(isEntrance: boolean) {
+        this.#isEntrance = isEntrance;
+    }
+
     get initialized(): boolean {
         return this.#initialized;
     }
@@ -84,15 +94,15 @@ export class E_Tile extends Entity {
     override update(deltaTime: number) {
         const { brushEntityType, selectedTiles, setSelectedTiles } = getAppStore();
         const hoveredByPointer = this.#pointerTarget.isPointerHovered && brushEntityType === null;
-        const active = hoveredByPointer || selectedTiles[this.entity.id] !== undefined;
+        const active = hoveredByPointer || selectedTiles[this.entity.tID] !== undefined;
 
         if (hoveredByPointer && this.#editor.pointerState[PointerButton.LEFT].clicked) {
             if (this.#editor.getKey('Meta').down || this.#editor.getKey('Control').down) {
                 const newSelectedTiles = { ...selectedTiles };
-                if (this.entity.id in newSelectedTiles) {
-                    delete newSelectedTiles[this.entity.id];
+                if (this.entity.tID in newSelectedTiles) {
+                    delete newSelectedTiles[this.entity.tID];
                 } else {
-                    newSelectedTiles[this.entity.id] = this;
+                    newSelectedTiles[this.entity.tID] = this;
                 }
                 setSelectedTiles(Object.values(newSelectedTiles));
             } else {
@@ -110,7 +120,13 @@ export class E_Tile extends Entity {
     syncVisualState() {
         const { selectedTiles } = getAppStore();
         this.#highlightShape.style.globalAlpha =
-            this.entity.id in selectedTiles ? ACTIVE_TILE_OPACITY : 0;
+            this.entity.tID in selectedTiles ? ACTIVE_TILE_OPACITY : 0;
+    }
+
+    stashTile() {
+        this.initialized = false;
+        this.setEnabled(false);
+        this.#highlightEntity.setEnabled(false);
     }
 
     #onEntityChanged() {
@@ -121,10 +137,7 @@ export class E_Tile extends Entity {
         const positionType = getLoopholeEntityPositionType(this.#entity);
         const { name, tileScale: tileScaleOverride = 1 } = ENTITY_METADATA[extendedType];
 
-        this.setScale({
-            x: tileScaleOverride * TILE_SIZE,
-            y: tileScaleOverride * TILE_SIZE,
-        });
+        this.setScale(tileScaleOverride * TILE_SIZE);
         this.setRotation(getLoopholeEntityDegreeRotation(this.#entity));
 
         const newPosition = {
@@ -139,12 +152,9 @@ export class E_Tile extends Entity {
 
         this.setZIndex(ENTITY_TYPE_DRAW_ORDER[this.#entity.entityType] + 1);
         this.#tileImage.imageName = name;
-        this.#highlightEntity.setScale(
+        this.#highlightEntity.setEnabled(true).setScale(
             positionType === 'CELL'
-                ? {
-                      x: TILE_HIGHLIGHT_SCALE_MULT,
-                      y: TILE_HIGHLIGHT_SCALE_MULT,
-                  }
+                ? TILE_HIGHLIGHT_SCALE_MULT
                 : {
                       x: 0.3 * TILE_HIGHLIGHT_SCALE_MULT,
                       y: TILE_HIGHLIGHT_SCALE_MULT,
@@ -164,7 +174,7 @@ export class GridScene extends Scene {
                         fillStyle: 'white',
                     }),
                 )
-                .setScale({ x: 12, y: 12 })
+                .setScale(12)
                 .setZIndex(100),
         );
     }
