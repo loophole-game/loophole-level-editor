@@ -26,7 +26,7 @@ import {
 import { v4 } from 'uuid';
 import { getAppStore } from '../store';
 
-const MAX_STASHED_TILES = 50;
+const MAX_STASHED_TILES = 10_000;
 
 const SCENES: AvailableScenes = {
     [TestScene.name]: (name) => new TestScene(name),
@@ -45,6 +45,10 @@ type EditAction =
           type: 'remove';
           entity: Loophole_EntityWithID;
       };
+type EditActionGroup = {
+    actions: EditAction[];
+    hash: string;
+};
 
 export class LevelEditor extends Engine {
     #onLevelChanged: OnLevelChangedCallback;
@@ -53,8 +57,8 @@ export class LevelEditor extends Engine {
     #tiles: Record<string, E_Tile> = {};
     #stashedTiles: Record<string, E_Tile> = {};
 
-    #undoStack: EditAction[][] = [];
-    #redoStack: EditAction[][] = [];
+    #undoStack: EditActionGroup[] = [];
+    #redoStack: EditActionGroup[] = [];
 
     constructor(onLevelChanged: OnLevelChangedCallback, options: EngineOptions = {}) {
         super({
@@ -124,6 +128,7 @@ export class LevelEditor extends Engine {
         edgeAlignment: Loophole_EdgeAlignment | null,
         rotation: Loophole_Rotation,
         flipDirection: boolean,
+        hash?: string | null,
     ): E_Tile[] {
         const { createEntity, positionType, type } = ENTITY_METADATA[entityType];
         const overlappingEntities = this.#getOverlappingEntities(
@@ -133,19 +138,22 @@ export class LevelEditor extends Engine {
             edgeAlignment || 'RIGHT',
         );
 
-        return this.#performEditActions([
-            {
-                type: 'place',
-                entity: {
-                    ...createEntity(position, edgeAlignment, rotation, flipDirection),
-                    id: v4(),
+        return this.#performEditActions({
+            actions: [
+                {
+                    type: 'place',
+                    entity: {
+                        ...createEntity(position, edgeAlignment, rotation, flipDirection),
+                        id: v4(),
+                    },
                 },
-            },
-            ...overlappingEntities.map((entity) => ({ type: 'remove', entity }) as EditAction),
-        ]);
+                ...overlappingEntities.map((entity) => ({ type: 'remove', entity }) as EditAction),
+            ],
+            hash: hash || v4(),
+        });
     }
 
-    removeEntities(...entities: Loophole_EntityWithID[]): E_Tile[] {
+    removeEntities(entities: Loophole_EntityWithID[], hash?: string | null): E_Tile[] {
         const tiles = entities.map((entity) => ({
             position: getLoopholeEntityPosition(entity),
             positionType: getLoopholeEntityPositionType(entity),
@@ -153,16 +161,17 @@ export class LevelEditor extends Engine {
             edgeAlignment: getLoopholeEntityEdgeAlignment(entity),
         }));
 
-        return this.removeTiles(...tiles);
+        return this.removeTiles(tiles, hash);
     }
 
     removeTiles(
-        ...tiles: {
+        tiles: {
             position: Loophole_Int2;
             positionType: LoopholePositionType;
             entityType: Loophole_EntityType;
             edgeAlignment: Loophole_EdgeAlignment | null;
-        }[]
+        }[],
+        hash?: string | null,
     ): E_Tile[] {
         const overlappingEntities: Loophole_EntityWithID[] = [];
         tiles.forEach((tile) => {
@@ -176,9 +185,10 @@ export class LevelEditor extends Engine {
             );
         });
 
-        return this.#performEditActions(
-            overlappingEntities.map((entity) => ({ type: 'remove', entity })),
-        );
+        return this.#performEditActions({
+            actions: overlappingEntities.map((entity) => ({ type: 'remove', entity })),
+            hash: hash || v4(),
+        });
     }
 
     undo() {
@@ -186,13 +196,25 @@ export class LevelEditor extends Engine {
             return;
         }
 
-        const actions = this.#undoStack.pop()!;
-        const reversedActions = this.#reverseActions(actions);
-        const affectedTiles = this.#performEditActions(reversedActions, false);
-        getAppStore().setSelectedTiles(affectedTiles);
-        affectedTiles.forEach((t) => t.syncVisualState());
+        let hash = '';
+        while (this.#undoStack.length > 0) {
+            const group = this.#undoStack[this.#undoStack.length - 1];
+            if (hash && group.hash !== hash) {
+                break;
+            }
 
-        this.#redoStack.push(actions);
+            const reversedActions = this.#reverseActions(group.actions);
+            const affectedTiles = this.#performEditActions(
+                { ...group, actions: reversedActions },
+                false,
+            );
+            getAppStore().setSelectedTiles(affectedTiles);
+            affectedTiles.forEach((t) => t.syncVisualState());
+
+            this.#undoStack.pop();
+            this.#redoStack.push(group);
+            hash = group.hash;
+        }
     }
 
     redo() {
@@ -200,20 +222,36 @@ export class LevelEditor extends Engine {
             return;
         }
 
-        const actions = this.#redoStack.pop()!;
-        const affectedTiles = this.#performEditActions(actions, false);
-        getAppStore().setSelectedTiles(affectedTiles);
-        affectedTiles.forEach((t) => t.syncVisualState());
+        let hash = '';
+        while (this.#redoStack.length > 0) {
+            const group = this.#redoStack[this.#redoStack.length - 1];
+            if (hash && group.hash !== hash) {
+                break;
+            }
 
-        this.#undoStack.push(actions);
+            const affectedTiles = this.#performEditActions(group, false);
+            getAppStore().setSelectedTiles(affectedTiles);
+            affectedTiles.forEach((t) => t.syncVisualState());
+
+            this.#redoStack.pop();
+            this.#undoStack.push(group);
+            hash = group.hash;
+        }
     }
 
-    moveEntities(entities: Loophole_EntityWithID[], offset: { x: number; y: number }): E_Tile[] {
-        const actions: EditAction[] = [];
+    moveEntities(
+        entities: Loophole_EntityWithID[],
+        offset: { x: number; y: number },
+        hash?: string | null,
+    ): E_Tile[] {
+        const group: EditActionGroup = {
+            actions: [],
+            hash: hash || v4(),
+        };
 
         // Remove old entities and create new ones at offset positions
         for (const entity of entities) {
-            actions.push({ type: 'remove', entity });
+            group.actions.push({ type: 'remove', entity });
 
             const newEntity = { ...entity };
             if ('edgePosition' in newEntity) {
@@ -237,32 +275,36 @@ export class LevelEditor extends Engine {
                 newEntity.entityType,
                 getLoopholeEntityEdgeAlignment(newEntity) || 'RIGHT',
             );
-            actions.push(
+            group.actions.push(
                 ...overlappingEntities.map((entity) => ({ type: 'remove', entity }) as EditAction),
             );
 
-            actions.push({ type: 'place', entity: newEntity });
+            group.actions.push({ type: 'place', entity: newEntity });
         }
 
-        return this.#performEditActions(actions);
+        return this.#performEditActions(group);
     }
 
     rotateEntities(
         entities: Loophole_EntityWithID[],
         centerPosition: Loophole_Int2,
         rotation: 90 | -90,
+        hash?: string | null,
     ): E_Tile[] {
-        const actions: EditAction[] = [];
-        return this.#performEditActions(actions);
+        const group: EditActionGroup = {
+            actions: [],
+            hash: hash || v4(),
+        };
+        return this.#performEditActions(group);
     }
 
-    #performEditActions(actions: EditAction[], updateStacks: boolean = true): E_Tile[] {
-        if (actions.length === 0) {
+    #performEditActions(actions: EditActionGroup, updateStacks: boolean = true): E_Tile[] {
+        if (actions.actions.length === 0) {
             return [];
         }
 
         const affectedTiles: E_Tile[] = [];
-        for (const action of actions) {
+        for (const action of actions.actions) {
             switch (action.type) {
                 case 'place': {
                     const tile = this.#placeEntity(action.entity);

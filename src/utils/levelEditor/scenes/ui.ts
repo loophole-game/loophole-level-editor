@@ -16,6 +16,7 @@ import type {
     Loophole_EntityWithID,
     Loophole_ExtendedEntityType,
     Loophole_Int2,
+    Loophole_Rotation,
 } from '../externalLevelSchema';
 import { PointerButton } from '@/utils/engine/systems/pointer';
 import type { Position } from '@/utils/engine/types';
@@ -30,6 +31,7 @@ import { positionsEqual } from '@/utils/engine/utils';
 import { C_Shape } from '@/utils/engine/components/Shape';
 import { E_Tile } from './grid';
 import { C_PointerTarget } from '@/utils/engine/components/PointerTarget';
+import { v4 } from 'uuid';
 
 const HANDLE_SIZE = 20;
 const HANDLE_COLOR = 'yellow';
@@ -50,6 +52,14 @@ class E_TileCursor extends Entity {
     #targetPosition: Position | null = null;
     #targetRotation: number | null = null;
     #active: boolean = false;
+
+    // Drag-to-place state
+    #isDragging: boolean = false;
+    #dragStartTilePosition: Position | null = null;
+    #placedTileDuringDrag: Set<string> = new Set();
+    #dragPositionType: 'CELL' | 'EDGE' | null = null;
+    #dragEdgeAlignment: Loophole_EdgeAlignment | null = null;
+    #dragHash: string | null = null;
 
     constructor(editor: LevelEditor) {
         const tileImageComp = new C_Image('cursor', ENTITY_METADATA['MUSHROOM_BLUE'].name, {
@@ -169,7 +179,47 @@ class E_TileCursor extends Entity {
                 this.setRotation(this.#targetRotation ?? 0);
             }
 
-            if (this.#editor.getPointerButton(PointerButton.LEFT).clicked) {
+            const leftButton = this.#editor.getPointerButton(PointerButton.LEFT);
+            const rightButton = this.#editor.getPointerButton(PointerButton.RIGHT);
+
+            // Handle left click/drag for placing tiles
+            if (leftButton.pressed && !this.#isDragging) {
+                // Start dragging
+                this.#isDragging = true;
+                this.#dragStartTilePosition = { ...tilePosition };
+                this.#placedTileDuringDrag.clear();
+                this.#dragPositionType = positionType;
+                this.#dragEdgeAlignment = edgeAlignment;
+                this.#dragHash = v4();
+
+                // Place the first tile
+                const tiles = this.#editor.placeTile(
+                    tilePosition,
+                    brushEntityType,
+                    edgeAlignment,
+                    brushEntityRotation,
+                    brushEntityFlipDirection,
+                    this.#dragHash,
+                );
+                setSelectedTiles(tiles);
+                this.#placedTileDuringDrag.add(this.#getTileKey(tilePosition, edgeAlignment));
+            } else if (leftButton.down && this.#isDragging && this.#dragStartTilePosition) {
+                // Continue dragging - place tiles along the line
+                this.#handleDragPlacement(
+                    tilePosition,
+                    brushEntityType,
+                    brushEntityRotation,
+                    brushEntityFlipDirection,
+                );
+            } else if (leftButton.released && this.#isDragging) {
+                // End dragging
+                this.#isDragging = false;
+                this.#dragStartTilePosition = null;
+                this.#placedTileDuringDrag.clear();
+                this.#dragPositionType = null;
+                this.#dragEdgeAlignment = null;
+            } else if (leftButton.clicked && !this.#isDragging) {
+                // Single click (short click with minimal movement)
                 const tiles = this.#editor.placeTile(
                     tilePosition,
                     brushEntityType,
@@ -178,15 +228,19 @@ class E_TileCursor extends Entity {
                     brushEntityFlipDirection,
                 );
                 setSelectedTiles(tiles);
-
                 this.#editor.capturePointerButtonClick(PointerButton.LEFT);
-            } else if (this.#editor.getPointerButton(PointerButton.RIGHT).clicked) {
-                this.#editor.removeTiles({
-                    position: tilePosition,
-                    positionType,
-                    entityType: type,
-                    edgeAlignment,
-                });
+            }
+
+            // Handle right click for removing tiles
+            if (rightButton.clicked) {
+                this.#editor.removeTiles([
+                    {
+                        position: tilePosition,
+                        positionType,
+                        entityType: type,
+                        edgeAlignment,
+                    },
+                ]);
                 this.#editor.capturePointerButtonClick(PointerButton.RIGHT);
             }
 
@@ -201,6 +255,82 @@ class E_TileCursor extends Entity {
         this.#tileRotationLerp.target = this.#targetRotation ?? this.rotation;
 
         return updated;
+    }
+
+    #handleDragPlacement(
+        currentTilePosition: Position,
+        brushEntityType: Loophole_ExtendedEntityType,
+        brushEntityRotation: Loophole_Rotation,
+        brushEntityFlipDirection: boolean,
+    ) {
+        if (!this.#dragStartTilePosition || !this.#dragPositionType) return;
+
+        // Calculate the tiles to place based on positionType
+        const tilesToPlace: Position[] = [];
+
+        if (this.#dragPositionType === 'CELL') {
+            // CELL types: fill a rectangle (no directional constraint)
+            const startX = Math.min(this.#dragStartTilePosition.x, currentTilePosition.x);
+            const endX = Math.max(this.#dragStartTilePosition.x, currentTilePosition.x);
+            const startY = Math.min(this.#dragStartTilePosition.y, currentTilePosition.y);
+            const endY = Math.max(this.#dragStartTilePosition.y, currentTilePosition.y);
+
+            for (let x = startX; x <= endX; x++) {
+                for (let y = startY; y <= endY; y++) {
+                    tilesToPlace.push({ x, y });
+                }
+            }
+        } else {
+            // EDGE types: drag along the axis that aligns with the edge
+            // RIGHT edges (vertical) drag vertically, TOP edges (horizontal) drag horizontally
+            if (this.#dragEdgeAlignment === 'RIGHT') {
+                // RIGHT edges are vertical, so drag vertically
+                const startY = Math.min(this.#dragStartTilePosition.y, currentTilePosition.y);
+                const endY = Math.max(this.#dragStartTilePosition.y, currentTilePosition.y);
+                const x = this.#dragStartTilePosition.x;
+                for (let y = startY; y <= endY; y++) {
+                    tilesToPlace.push({ x, y });
+                }
+            } else if (this.#dragEdgeAlignment === 'TOP') {
+                // TOP edges are horizontal, so drag horizontally
+                const startX = Math.min(this.#dragStartTilePosition.x, currentTilePosition.x);
+                const endX = Math.max(this.#dragStartTilePosition.x, currentTilePosition.x);
+                const y = this.#dragStartTilePosition.y;
+                for (let x = startX; x <= endX; x++) {
+                    tilesToPlace.push({ x, y });
+                }
+            }
+        }
+
+        // Place tiles that haven't been placed yet
+        const allPlacedTiles: E_Tile[] = [];
+        const edgeAlignment = this.#dragEdgeAlignment ?? 'RIGHT';
+
+        for (const pos of tilesToPlace) {
+            const key = this.#getTileKey(pos, edgeAlignment);
+            if (!this.#placedTileDuringDrag.has(key)) {
+                const tiles = this.#editor.placeTile(
+                    pos,
+                    brushEntityType,
+                    edgeAlignment,
+                    brushEntityRotation,
+                    brushEntityFlipDirection,
+                    this.#dragHash,
+                );
+                allPlacedTiles.push(...tiles);
+                this.#placedTileDuringDrag.add(key);
+            }
+        }
+
+        // Update selection if we placed any new tiles
+        if (allPlacedTiles.length > 0) {
+            const { selectedTiles, setSelectedTiles } = getAppStore();
+            setSelectedTiles([...Object.values(selectedTiles), ...allPlacedTiles]);
+        }
+    }
+
+    #getTileKey(position: Position, edgeAlignment: Loophole_EdgeAlignment): string {
+        return `${position.x},${position.y},${edgeAlignment}`;
     }
 }
 
@@ -361,7 +491,6 @@ class E_DragCursor extends Entity {
                 selectedTileArray.forEach((tile) => {
                     this.#originalEntities.set(tile.entity.id, { ...tile.entity });
                 });
-                this.#handleShape.style.fillStyle = HANDLE_HOVER_COLOR;
                 setIsDraggingTiles(true);
                 this.#editor.capturePointerButtonClick(PointerButton.LEFT);
             }
@@ -384,9 +513,6 @@ class E_DragCursor extends Entity {
                     this.#commitDrag();
                     this.#isDragging = false;
                     this.#dragStartPosition = null;
-                    this.#handleShape.style.fillStyle = this.#pointerTarget.isPointerHovered
-                        ? HANDLE_HOVER_COLOR
-                        : HANDLE_COLOR;
                     setIsDraggingTiles(false);
                 }
 
@@ -394,7 +520,6 @@ class E_DragCursor extends Entity {
                     this.#cancelDrag(selectedTileArray);
                     this.#isDragging = false;
                     this.#dragStartPosition = null;
-                    this.#handleShape.style.fillStyle = HANDLE_COLOR;
                     setIsDraggingTiles(false);
                 }
             }
@@ -418,6 +543,10 @@ class E_DragCursor extends Entity {
 
         this.#opacityLerp.target = active ? 0.8 : 0;
         this.#pointerTarget.setEnabled(active);
+        this.#handleShape.style.fillStyle =
+            this.#pointerTarget.isPointerHovered || this.#isDragging
+                ? HANDLE_HOVER_COLOR
+                : HANDLE_COLOR;
         const scale = HANDLE_SIZE / this.#editor.camera.zoom;
         this.setScale({
             x: scale,
@@ -580,7 +709,7 @@ export class UIScene extends Scene {
         }
 
         if (this.#editor.getKey('Backspace').pressed || this.#editor.getKey('Delete').pressed) {
-            this.#editor.removeEntities(...Object.values(selectedTiles).map((t) => t.entity));
+            this.#editor.removeEntities(Object.values(selectedTiles).map((t) => t.entity));
             setSelectedTiles([]);
             updated = true;
         }
