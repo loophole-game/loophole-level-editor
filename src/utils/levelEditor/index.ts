@@ -73,6 +73,7 @@ export class LevelEditor extends Engine {
                 { key: 'z', meta: true },
                 { key: 'y', ctrl: true },
                 { key: 'y', meta: true },
+                { key: 'a', meta: true },
             ],
             ...options,
             images: {
@@ -114,6 +115,10 @@ export class LevelEditor extends Engine {
         for (const entity of this.#level.entities) {
             this.#placeEntity(entity, false);
         }
+    }
+
+    get tiles(): Readonly<Record<string, E_Tile>> {
+        return this.#tiles;
     }
 
     override _update() {

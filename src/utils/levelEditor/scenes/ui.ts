@@ -478,6 +478,9 @@ class E_DragCursor extends Entity {
                 x: center.x * TILE_SIZE,
                 y: center.y * TILE_SIZE,
             };
+            if (this.#opacityLerp.target === 0) {
+                this.setPosition(this.#positionLerp.target);
+            }
 
             if (
                 this.#pointerTarget.isPointerHovered &&
@@ -689,14 +692,22 @@ export class UIScene extends Scene {
 
         const { setBrushEntityType, selectedTiles, setSelectedTiles } = getAppStore();
         let updated = false;
+
+        if (this.#editor.getKey('a').pressed && this.#editor.getKey('a').mod) {
+            setSelectedTiles(Object.values(this.#editor.tiles));
+        }
+
         const cameraOffset = {
             x:
-                (this.#editor.getKey('ArrowRight').downAsNum ||
-                    this.#editor.getKey('d').downAsNum) -
-                (this.#editor.getKey('ArrowLeft').downAsNum || this.#editor.getKey('a').downAsNum),
+                (this.#editor.getKey('ArrowRight').downWithoutModAsNum ||
+                    this.#editor.getKey('d').downWithoutModAsNum) -
+                (this.#editor.getKey('ArrowLeft').downWithoutModAsNum ||
+                    this.#editor.getKey('a').downWithoutModAsNum),
             y:
-                (this.#editor.getKey('ArrowDown').downAsNum || this.#editor.getKey('s').downAsNum) -
-                (this.#editor.getKey('ArrowUp').downAsNum || this.#editor.getKey('w').downAsNum),
+                (this.#editor.getKey('ArrowDown').downWithoutModAsNum ||
+                    this.#editor.getKey('s').downWithoutModAsNum) -
+                (this.#editor.getKey('ArrowUp').downWithoutModAsNum ||
+                    this.#editor.getKey('w').downWithoutModAsNum),
         };
         if (cameraOffset.x !== 0 || cameraOffset.y !== 0) {
             const camera = this.#editor.camera;

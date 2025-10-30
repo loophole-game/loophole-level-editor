@@ -112,6 +112,18 @@ export function EngineCanvas({ engineRef, aspectRatio, ...rest }: EngineCanvasPr
             };
             window.addEventListener('keyup', onKeyUp);
 
+            const onBlur = () => {
+                engineRef.current?.resetAllKeyboardKeys?.();
+            };
+            window.addEventListener('blur', onBlur);
+
+            const onVisibilityChange = () => {
+                if (document.visibilityState !== 'visible') {
+                    engineRef.current?.resetAllKeyboardKeys?.();
+                }
+            };
+            document.addEventListener('visibilitychange', onVisibilityChange);
+
             localCanvas.addEventListener('contextmenu', (event) => event.preventDefault());
 
             return () => {
@@ -126,6 +138,10 @@ export function EngineCanvas({ engineRef, aspectRatio, ...rest }: EngineCanvasPr
                 localCanvas.removeEventListener('mouseenter', onMouseEnter);
                 localCanvas.removeEventListener('mouseleave', onMouseLeave);
                 localCanvas.removeEventListener('mouseover', onMouseOver);
+                window.removeEventListener('keydown', onKeyDown);
+                window.removeEventListener('keyup', onKeyUp);
+                window.removeEventListener('blur', onBlur);
+                document.removeEventListener('visibilitychange', onVisibilityChange);
             };
         }
     }, [canvasSize, engineRef]);

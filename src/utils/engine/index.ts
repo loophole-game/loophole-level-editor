@@ -313,6 +313,10 @@ export class Engine {
         return this._keyboardSystem.getKey(keyCode);
     }
 
+    resetAllKeyboardKeys(): void {
+        this._keyboardSystem.releaseAllKeys();
+    }
+
     getPointerButton(button: PointerButton): Readonly<PointerButtonState> {
         return this._pointerSystem.getPointerButton(button);
     }
