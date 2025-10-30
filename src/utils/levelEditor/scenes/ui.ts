@@ -1,6 +1,8 @@
 import {
     degreesToLoopholeRotation,
     ENTITY_METADATA,
+    getLoopholeEntityEdgeAlignment,
+    getLoopholeEntityPosition,
     loopholePositionToEnginePosition,
     loopholeRotationToDegrees,
     TILE_SIZE,
@@ -9,14 +11,29 @@ import { Entity } from '../../engine/entities';
 import { Scene } from '../../engine/systems/scene';
 import { C_Image } from '@/utils/engine/components/Image';
 import { getAppStore } from '@/utils/store';
-import type { Loophole_EdgeAlignment, Loophole_ExtendedEntityType } from '../externalLevelSchema';
+import type {
+    Loophole_EdgeAlignment,
+    Loophole_EntityWithID,
+    Loophole_ExtendedEntityType,
+    Loophole_Int2,
+} from '../externalLevelSchema';
 import { PointerButton } from '@/utils/engine/systems/pointer';
 import type { Position } from '@/utils/engine/types';
 import type { LevelEditor } from '..';
-import { C_Lerp } from '@/utils/engine/components/Lerp';
+import {
+    C_Lerp,
+    C_LerpOpacity,
+    C_LerpPosition,
+    C_LerpRotation,
+} from '@/utils/engine/components/Lerp';
 import { positionsEqual } from '@/utils/engine/utils';
 import { C_Shape } from '@/utils/engine/components/Shape';
 import { E_Tile } from './grid';
+import { C_PointerTarget } from '@/utils/engine/components/PointerTarget';
+
+const HANDLE_SIZE = 20;
+const HANDLE_COLOR = 'yellow';
+const HANDLE_HOVER_COLOR = 'red';
 
 const multiSelectIsActive = (editor: LevelEditor) => editor.getKey('Shift').down;
 const cameraDragIsActive = (editor: LevelEditor) =>
@@ -45,34 +62,10 @@ class E_TileCursor extends Entity {
         this.#editor = editor;
         this.setZIndex(50);
         this.#tileImage = tileImageComp;
-        this.#tileOpacityLerp = new C_Lerp<number>({
-            get: (() => this.#tileImage.style.globalAlpha ?? 0).bind(this),
-            set: ((value: number) => {
-                this.#tileImage.style.globalAlpha = value;
-            }).bind(this),
-            speed: 4,
-        });
-        this.addComponents(this.#tileOpacityLerp);
-
-        this.#positionLerp = new C_Lerp<Position>({
-            get: (() => this.position).bind(this),
-            set: ((value: Position) => {
-                this.setPosition(value);
-            }).bind(this),
-            speed: 20,
-            type: 'fractional',
-        });
-        this.addComponents(this.#positionLerp);
-
-        this.#tileRotationLerp = new C_Lerp<number>({
-            get: (() => this.rotation).bind(this),
-            set: ((value: number) => {
-                this.setRotation(value);
-            }).bind(this),
-            speed: 1000,
-            variant: 'degrees',
-        });
-        this.addComponents(this.#tileRotationLerp);
+        this.#tileOpacityLerp = new C_LerpOpacity(this.#tileImage, 4);
+        this.#positionLerp = new C_LerpPosition(this, 20);
+        this.#tileRotationLerp = new C_LerpRotation(this, 1000);
+        this.addComponents(this.#tileOpacityLerp, this.#positionLerp, this.#tileRotationLerp);
     }
 
     override update(deltaTime: number): boolean {
@@ -220,13 +213,12 @@ class E_SelectionCursor extends Entity {
     #active: boolean = false;
 
     constructor(editor: LevelEditor) {
-        const shapeComp = new C_Shape('rect', 'RECT', {
-            fillStyle: 'blue',
-        }).setOrigin({ x: 0, y: 0 });
-        super('ms_cursor', shapeComp);
+        super('ms_cursor');
 
         this.#editor = editor;
-        this.#shapeComp = shapeComp;
+        this.#shapeComp = new C_Shape('rect', 'RECT', {
+            fillStyle: 'blue',
+        }).setOrigin({ x: 0, y: 0 });
         this.#opacityLerp = new C_Lerp<number>({
             get: (() => this.#shapeComp.style.globalAlpha ?? 0).bind(this),
             set: ((value: number) => {
@@ -234,7 +226,7 @@ class E_SelectionCursor extends Entity {
             }).bind(this),
             speed: 5,
         });
-        this.addComponents(this.#opacityLerp);
+        this.addComponents(this.#shapeComp, this.#opacityLerp);
     }
 
     override update(deltaTime: number): boolean {
@@ -245,7 +237,11 @@ class E_SelectionCursor extends Entity {
         const leftButtonState = this.#editor.getPointerButton(PointerButton.LEFT);
         if (leftButtonState.pressed && !isDraggingTiles) {
             this.#selectAllClickPosition = pointerPosition;
-        } else if (leftButtonState.released || !this.#editor.pointerState.onScreen) {
+        } else if (
+            leftButtonState.released ||
+            !this.#editor.pointerState.onScreen ||
+            isDraggingTiles
+        ) {
             this.#selectAllClickPosition = null;
         }
 
@@ -299,16 +295,238 @@ class E_SelectionCursor extends Entity {
     }
 }
 
+class E_DragCursor extends Entity {
+    #editor: LevelEditor;
+    #handleShape: C_Shape;
+    #pointerTarget: C_PointerTarget;
+    #opacityLerp: C_Lerp<number>;
+    #positionLerp: C_LerpPosition;
+
+    #isDragging: boolean = false;
+    #dragStartPosition: Position | null = null;
+    #originalEntities: Map<string, Loophole_EntityWithID> = new Map();
+    #dragOffset: Loophole_Int2 = { x: 0, y: 0 };
+
+    constructor(editor: LevelEditor) {
+        super('drag_handle');
+
+        this.#editor = editor;
+        this.#handleShape = new C_Shape('handle', 'ELLIPSE', {
+            fillStyle: HANDLE_COLOR,
+            globalAlpha: 0,
+        });
+        this.#pointerTarget = new C_PointerTarget();
+        this.#opacityLerp = new C_Lerp({
+            get: (() => this.#handleShape.style.globalAlpha ?? 0).bind(this),
+            set: ((value: number) => {
+                this.#handleShape.style.globalAlpha = value;
+            }).bind(this),
+            speed: 10,
+        });
+        this.#positionLerp = new C_LerpPosition(this, 20);
+
+        this.addComponents(
+            this.#handleShape,
+            this.#pointerTarget,
+            this.#opacityLerp,
+            this.#positionLerp,
+        );
+        this.setZIndex(200);
+    }
+
+    override update(deltaTime: number): boolean {
+        const updated = super.update(deltaTime);
+        const { selectedTiles, setSelectedTiles, brushEntityType, setIsDraggingTiles } =
+            getAppStore();
+        const selectedTileArray = Object.values(selectedTiles);
+        const hasSelection = selectedTileArray.length > 0;
+
+        const active = hasSelection && !brushEntityType;
+        if (active) {
+            const center = this.#calculateSelectionCenter(selectedTileArray);
+            this.#positionLerp.target = {
+                x: center.x * TILE_SIZE,
+                y: center.y * TILE_SIZE,
+            };
+
+            if (
+                this.#pointerTarget.isPointerHovered &&
+                this.#editor.pointerState[PointerButton.LEFT].pressed &&
+                !this.#isDragging
+            ) {
+                this.#isDragging = true;
+                this.#dragStartPosition = { ...this.#editor.pointerState.worldPosition };
+                this.#dragOffset = { x: 0, y: 0 };
+                this.#originalEntities.clear();
+                selectedTileArray.forEach((tile) => {
+                    this.#originalEntities.set(tile.entity.id, { ...tile.entity });
+                });
+                this.#handleShape.style.fillStyle = HANDLE_HOVER_COLOR;
+                setIsDraggingTiles(true);
+                this.#editor.capturePointerButtonClick(PointerButton.LEFT);
+            }
+
+            if (this.#isDragging) {
+                const currentPos = this.#editor.pointerState.worldPosition;
+                if (this.#dragStartPosition) {
+                    const deltaX = currentPos.x - this.#dragStartPosition.x;
+                    const deltaY = currentPos.y - this.#dragStartPosition.y;
+                    const newOffsetX = Math.round(deltaX / TILE_SIZE);
+                    const newOffsetY = Math.round(deltaY / TILE_SIZE);
+
+                    if (newOffsetX !== this.#dragOffset.x || newOffsetY !== this.#dragOffset.y) {
+                        this.#dragOffset = { x: newOffsetX, y: newOffsetY };
+                        this.#updateTilePositions(selectedTileArray);
+                    }
+                }
+
+                if (this.#editor.pointerState[PointerButton.LEFT].released) {
+                    this.#commitDrag();
+                    this.#isDragging = false;
+                    this.#dragStartPosition = null;
+                    this.#handleShape.style.fillStyle = this.#pointerTarget.isPointerHovered
+                        ? HANDLE_HOVER_COLOR
+                        : HANDLE_COLOR;
+                    setIsDraggingTiles(false);
+                }
+
+                if (this.#editor.getKey('Escape').pressed) {
+                    this.#cancelDrag(selectedTileArray);
+                    this.#isDragging = false;
+                    this.#dragStartPosition = null;
+                    this.#handleShape.style.fillStyle = HANDLE_COLOR;
+                    setIsDraggingTiles(false);
+                }
+            }
+
+            if (
+                this.#editor.getKey('r').pressed &&
+                !this.#isDragging &&
+                selectedTileArray.length > 0
+            ) {
+                const center = this.#calculateSelectionCenterInt(selectedTileArray);
+                const entities = selectedTileArray.map((t) => t.entity);
+                const newTiles = this.#editor.rotateEntities(
+                    entities,
+                    center,
+                    this.#editor.getKey('Shift').down ? -90 : 90,
+                );
+                setSelectedTiles(newTiles);
+                newTiles.forEach((t) => t.syncVisualState());
+            }
+        }
+
+        this.#opacityLerp.target = active ? 0.8 : 0;
+        this.#pointerTarget.setEnabled(active);
+        const scale = HANDLE_SIZE / this.#editor.camera.zoom;
+        this.setScale({
+            x: scale,
+            y: scale,
+        });
+
+        return updated;
+    }
+
+    #calculateSelectionCenter(tiles: E_Tile[]): Position {
+        if (tiles.length === 0) {
+            return { x: 0, y: 0 };
+        }
+
+        let minX = Number.POSITIVE_INFINITY;
+        let minY = Number.POSITIVE_INFINITY;
+        let maxX = Number.NEGATIVE_INFINITY;
+        let maxY = Number.NEGATIVE_INFINITY;
+
+        tiles.forEach((tile) => {
+            const pos = getLoopholeEntityPosition(tile.entity);
+            const edgeAlign = getLoopholeEntityEdgeAlignment(tile.entity);
+            const enginePos = loopholePositionToEnginePosition(pos, edgeAlign);
+            if (enginePos.x < minX) minX = enginePos.x;
+            if (enginePos.y < minY) minY = enginePos.y;
+            if (enginePos.x > maxX) maxX = enginePos.x;
+            if (enginePos.y > maxY) maxY = enginePos.y;
+        });
+
+        return {
+            x: (minX + maxX) / 2,
+            y: (minY + maxY) / 2,
+        };
+    }
+
+    #calculateSelectionCenterInt(tiles: E_Tile[]): Loophole_Int2 {
+        const center = this.#calculateSelectionCenter(tiles);
+        return {
+            x: Math.round(center.x),
+            y: Math.round(center.y),
+        };
+    }
+
+    #updateTilePositions(tiles: E_Tile[]) {
+        tiles.forEach((tile) => {
+            const originalEntity = this.#originalEntities.get(tile.entity.id);
+            if (!originalEntity) return;
+
+            const newEntity = { ...originalEntity };
+
+            let newPosition: Position;
+            if ('edgePosition' in newEntity) {
+                newPosition = {
+                    x: newEntity.edgePosition.cell.x + this.#dragOffset.x,
+                    y: newEntity.edgePosition.cell.y + this.#dragOffset.y,
+                };
+                newEntity.edgePosition = {
+                    ...newEntity.edgePosition,
+                    cell: newPosition,
+                };
+            } else {
+                newPosition = {
+                    x: newEntity.position.x + this.#dragOffset.x,
+                    y: newEntity.position.y + this.#dragOffset.y,
+                };
+                newEntity.position = newPosition;
+            }
+
+            tile.entity = newEntity;
+        });
+    }
+
+    #commitDrag() {
+        if (this.#dragOffset.x === 0 && this.#dragOffset.y === 0) {
+            return;
+        }
+
+        const originalEntities = Array.from(this.#originalEntities.values());
+        const newTiles = this.#editor.moveEntities(originalEntities, this.#dragOffset);
+
+        getAppStore().setSelectedTiles(newTiles);
+        newTiles.forEach((t) => t.syncVisualState());
+        this.#originalEntities.clear();
+    }
+
+    #cancelDrag(tiles: E_Tile[]) {
+        // Restore original positions
+        tiles.forEach((tile) => {
+            const originalEntity = this.#originalEntities.get(tile.entity.id);
+            if (originalEntity) {
+                tile.entity = originalEntity;
+            }
+        });
+
+        this.#originalEntities.clear();
+        this.#dragOffset = { x: 0, y: 0 };
+    }
+}
+
 export class UIScene extends Scene {
     #editor: LevelEditor | null = null;
 
     override create(editor: LevelEditor) {
         this.#editor = editor;
-        this.rootEntity?.setZIndex(100);
 
         this.addEntities(
-            new E_SelectionCursor(editor).setZIndex(-1),
-            new E_TileCursor(editor).setZIndex(-1),
+            new E_SelectionCursor(editor),
+            new E_TileCursor(editor),
+            new E_DragCursor(editor),
         );
     }
 
@@ -316,11 +534,18 @@ export class UIScene extends Scene {
         if (!this.#editor) return false;
 
         let updated = false;
-        const { brushEntityType, setBrushEntityType } = getAppStore();
+        const { brushEntityType, setBrushEntityType, selectedTiles, setSelectedTiles } =
+            getAppStore();
 
-        if (brushEntityType && this.#editor.getKey('Escape').pressed) {
-            setBrushEntityType(null);
-            updated = true;
+        if (this.#editor.getKey('Escape').pressed) {
+            if (brushEntityType) {
+                setBrushEntityType(null);
+                updated = true;
+            }
+            if (Object.keys(selectedTiles).length > 0) {
+                setSelectedTiles([]);
+                updated = true;
+            }
         }
 
         if (!cameraDragIsActive(this.#editor)) {
@@ -354,7 +579,7 @@ export class UIScene extends Scene {
             updated = true;
         }
 
-        if (this.#editor.getKey('Backspace').pressed) {
+        if (this.#editor.getKey('Backspace').pressed || this.#editor.getKey('Delete').pressed) {
             this.#editor.removeEntities(...Object.values(selectedTiles).map((t) => t.entity));
             setSelectedTiles([]);
             updated = true;

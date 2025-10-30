@@ -110,3 +110,83 @@ export class C_Lerp<T extends LerpValueType> extends Component {
         return current + (target - current) * deltaTime * this.#options.speed;
     }
 }
+
+interface OpacityLerpOptions {
+    speed: number;
+    variant?: 'normal' | 'degrees';
+    type?: 'linear' | 'fractional';
+}
+
+export class C_LerpOpacity extends C_Lerp<number> {
+    constructor(
+        target: { style: { globalAlpha?: number } },
+        speed: number,
+        options?: Omit<OpacityLerpOptions, 'speed'>,
+    ) {
+        super({
+            get: () => target.style.globalAlpha ?? 0,
+            set: (value: number) => {
+                target.style.globalAlpha = value;
+            },
+            speed,
+            variant: options?.variant,
+            type: options?.type,
+        });
+    }
+}
+
+interface PositionLerpOptions {
+    speed: number;
+    variant?: 'normal' | 'degrees';
+    type?: 'linear' | 'fractional';
+}
+
+export class C_LerpPosition extends C_Lerp<Position> {
+    constructor(
+        target: { position: Position; setPosition?: (value: Position) => void },
+        speed: number,
+        options?: Omit<PositionLerpOptions, 'speed'>,
+    ) {
+        super({
+            get: () => ({ ...target.position }),
+            set: (value: Position) => {
+                if (target.setPosition) {
+                    target.setPosition(value);
+                } else {
+                    target.position = value;
+                }
+            },
+            speed,
+            variant: options?.variant,
+            type: options?.type ?? 'fractional',
+        });
+    }
+}
+
+interface RotationLerpOptions {
+    speed: number;
+    variant?: 'normal' | 'degrees';
+    type?: 'linear' | 'fractional';
+}
+
+export class C_LerpRotation extends C_Lerp<number> {
+    constructor(
+        target: { rotation: number; setRotation?: (value: number) => void },
+        speed: number,
+        options?: Omit<RotationLerpOptions, 'speed'>,
+    ) {
+        super({
+            get: () => target.rotation,
+            set: (value: number) => {
+                if (target.setRotation) {
+                    target.setRotation(value);
+                } else {
+                    target.rotation = value;
+                }
+            },
+            speed,
+            variant: options?.variant ?? 'degrees',
+            type: options?.type,
+        });
+    }
+}

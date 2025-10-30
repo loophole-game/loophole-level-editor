@@ -208,10 +208,7 @@ export class LevelEditor extends Engine {
         this.#undoStack.push(actions);
     }
 
-    moveEntities(
-        entities: Loophole_EntityWithID[],
-        offset: { x: number; y: number },
-    ): E_Tile[] {
+    moveEntities(entities: Loophole_EntityWithID[], offset: { x: number; y: number }): E_Tile[] {
         const actions: EditAction[] = [];
 
         // Remove old entities and create new ones at offset positions
@@ -234,6 +231,16 @@ export class LevelEditor extends Engine {
                 };
             }
 
+            const overlappingEntities = this.#getOverlappingEntities(
+                getLoopholeEntityPosition(newEntity),
+                getLoopholeEntityPositionType(newEntity),
+                newEntity.entityType,
+                getLoopholeEntityEdgeAlignment(newEntity) || 'RIGHT',
+            );
+            actions.push(
+                ...overlappingEntities.map((entity) => ({ type: 'remove', entity }) as EditAction),
+            );
+
             actions.push({ type: 'place', entity: newEntity });
         }
 
@@ -246,70 +253,6 @@ export class LevelEditor extends Engine {
         rotation: 90 | -90,
     ): E_Tile[] {
         const actions: EditAction[] = [];
-
-        for (const entity of entities) {
-            actions.push({ type: 'remove', entity });
-
-            const newEntity = { ...entity };
-            const entityPos = getLoopholeEntityPosition(entity);
-
-            // Calculate relative position from center
-            const relX = entityPos.x - centerPosition.x;
-            const relY = entityPos.y - centerPosition.y;
-
-            // Rotate position around center
-            let newX: number, newY: number;
-            if (rotation === 90) {
-                // 90 degrees counter-clockwise: (x, y) -> (-y, x)
-                newX = -relY;
-                newY = relX;
-            } else {
-                // -90 degrees (270 counter-clockwise): (x, y) -> (y, -x)
-                newX = relY;
-                newY = -relX;
-            }
-
-            const newPos = {
-                x: Math.round(centerPosition.x + newX),
-                y: Math.round(centerPosition.y + newY),
-            };
-
-            // Update entity position
-            if ('edgePosition' in newEntity) {
-                // For edge entities, rotate the alignment
-                const currentAlignment = newEntity.edgePosition.alignment;
-                let newAlignment: Loophole_EdgeAlignment;
-                
-                if (rotation === 90) {
-                    // RIGHT -> TOP, TOP -> LEFT (which is RIGHT on the other side)
-                    newAlignment = currentAlignment === 'RIGHT' ? 'TOP' : 'RIGHT';
-                } else {
-                    // RIGHT -> BOTTOM (TOP on other side), TOP -> RIGHT
-                    newAlignment = currentAlignment === 'RIGHT' ? 'TOP' : 'RIGHT';
-                }
-
-                newEntity.edgePosition = {
-                    cell: newPos,
-                    alignment: newAlignment,
-                };
-            } else if ('position' in newEntity) {
-                newEntity.position = newPos;
-            }
-
-            // Rotate entity's own rotation if it has one
-            if ('rotation' in newEntity) {
-                const rotations: Loophole_Rotation[] = ['RIGHT', 'UP', 'LEFT', 'DOWN'];
-                const currentIndex = rotations.indexOf(newEntity.rotation);
-                const newIndex =
-                    rotation === 90
-                        ? (currentIndex + 1) % 4
-                        : (currentIndex + 3) % 4;
-                newEntity.rotation = rotations[newIndex];
-            }
-
-            actions.push({ type: 'place', entity: newEntity });
-        }
-
         return this.#performEditActions(actions);
     }
 
@@ -407,6 +350,7 @@ export class LevelEditor extends Engine {
         if (Object.keys(this.#stashedTiles).length < MAX_STASHED_TILES) {
             this.#stashedTiles[id] = tile;
             tile.setEnabled(false);
+            tile.initialized = false;
         } else {
             tile.destroy();
         }
