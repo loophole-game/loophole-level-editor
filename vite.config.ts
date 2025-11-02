@@ -18,4 +18,5 @@ export default defineConfig({
             usePolling: true,
         },
     },
+    base: '/loophole-level-editor/',
 });
