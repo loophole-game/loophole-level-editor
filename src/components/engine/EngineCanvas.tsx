@@ -24,6 +24,25 @@ export function EngineCanvas({ engineRef, aspectRatio, ...rest }: EngineCanvasPr
     const [canvasSize, setCanvasSize] = useState<Position>(
         calculateCanvasSize(window.innerWidth, window.innerHeight, aspectRatio),
     );
+    const [engineReady, setEngineReady] = useState(false);
+
+    useEffect(() => {
+        if (engineRef.current) {
+            setEngineReady(true);
+            return;
+        }
+
+        const checkEngine = () => {
+            if (engineRef.current) {
+                setEngineReady(true);
+            } else {
+                rafId = requestAnimationFrame(checkEngine);
+            }
+        };
+
+        let rafId = requestAnimationFrame(checkEngine);
+        return () => cancelAnimationFrame(rafId);
+    }, [engineRef]);
 
     useEffect(() => {
         if (engineRef.current) {
@@ -39,121 +58,110 @@ export function EngineCanvas({ engineRef, aspectRatio, ...rest }: EngineCanvasPr
                 window.removeEventListener('resize', onResize);
             };
         }
-    }, [aspectRatio, engineRef]);
+    }, [aspectRatio, engineReady, engineRef]);
 
     useEffect(() => {
-        const checkAndSetup = () => {
-            if (!canvasRef.current || !engineRef.current) {
-                return null;
-            }
+        if (!canvasRef.current || !engineRef.current) {
+            return;
+        }
 
-            const localCanvas = canvasRef.current;
-            engineRef.current.canvas = localCanvas;
-            return localCanvas;
+        const localCanvas = canvasRef.current;
+        engineRef.current.canvas = localCanvas;
+
+        const onMouseMove = (event: MouseEvent) =>
+            engineRef.current?.onMouseMove('mousemove', { x: event.clientX, y: event.clientY });
+        localCanvas.addEventListener('mousemove', onMouseMove);
+        const onMouseWheel = (event: WheelEvent) => {
+            engineRef.current?.onMouseWheel('mousewheel', { delta: event.deltaY });
+            event.preventDefault();
         };
+        localCanvas.addEventListener('wheel', onMouseWheel);
+        const onMouseDown = (event: MouseEvent) =>
+            engineRef.current?.onMouseDown('mousedown', {
+                button: event.button as PointerButton,
+            });
+        localCanvas.addEventListener('mousedown', onMouseDown);
+        const onMouseUp = (event: MouseEvent) =>
+            engineRef.current?.onMouseUp('mouseup', { button: event.button as PointerButton });
+        localCanvas.addEventListener('mouseup', onMouseUp);
+        const onMouseEnter = (event: MouseEvent) =>
+            engineRef.current?.onMouseEnter('mouseenter', {
+                target: event.target,
+                x: event.clientX,
+                y: event.clientY,
+            });
+        localCanvas.addEventListener('mouseenter', onMouseEnter);
+        const onMouseLeave = (event: MouseEvent) =>
+            engineRef.current?.onMouseLeave('mouseleave', {
+                target: event.target,
+                x: event.clientX,
+                y: event.clientY,
+            });
+        localCanvas.addEventListener('mouseleave', onMouseLeave);
+        const onMouseOver = (event: MouseEvent) =>
+            engineRef.current?.onMouseOver('mouseover', {
+                from: event.relatedTarget,
+                to: event.target,
+            });
+        localCanvas.addEventListener('mouseover', onMouseOver);
 
-        const localCanvas = checkAndSetup();
-        if (!localCanvas) {
-            const rafId = requestAnimationFrame(checkAndSetup);
-            return () => cancelAnimationFrame(rafId);
-        }
-
-        if (localCanvas && engineRef.current) {
-            const onMouseMove = (event: MouseEvent) =>
-                engineRef.current?.onMouseMove('mousemove', { x: event.clientX, y: event.clientY });
-            localCanvas.addEventListener('mousemove', onMouseMove);
-            const onMouseWheel = (event: WheelEvent) => {
-                engineRef.current?.onMouseWheel('mousewheel', { delta: event.deltaY });
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (
+                engineRef.current?.onKeyDown('keydown', {
+                    key: event.key,
+                    ctrl: event.ctrlKey,
+                    meta: event.metaKey,
+                    shift: event.shiftKey,
+                    alt: event.altKey,
+                })
+            ) {
                 event.preventDefault();
-            };
-            localCanvas.addEventListener('wheel', onMouseWheel);
-            const onMouseDown = (event: MouseEvent) =>
-                engineRef.current?.onMouseDown('mousedown', {
-                    button: event.button as PointerButton,
-                });
-            localCanvas.addEventListener('mousedown', onMouseDown);
-            const onMouseUp = (event: MouseEvent) =>
-                engineRef.current?.onMouseUp('mouseup', { button: event.button as PointerButton });
-            localCanvas.addEventListener('mouseup', onMouseUp);
-            const onMouseEnter = (event: MouseEvent) =>
-                engineRef.current?.onMouseEnter('mouseenter', {
-                    target: event.target,
-                    x: event.clientX,
-                    y: event.clientY,
-                });
-            localCanvas.addEventListener('mouseenter', onMouseEnter);
-            const onMouseLeave = (event: MouseEvent) =>
-                engineRef.current?.onMouseLeave('mouseleave', {
-                    target: event.target,
-                    x: event.clientX,
-                    y: event.clientY,
-                });
-            localCanvas.addEventListener('mouseleave', onMouseLeave);
-            const onMouseOver = (event: MouseEvent) =>
-                engineRef.current?.onMouseOver('mouseover', {
-                    from: event.relatedTarget,
-                    to: event.target,
-                });
-            localCanvas.addEventListener('mouseover', onMouseOver);
+            }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        const onKeyUp = (event: KeyboardEvent) => {
+            if (
+                engineRef.current?.onKeyUp('keyup', {
+                    key: event.key,
+                    ctrl: event.ctrlKey,
+                    meta: event.metaKey,
+                    shift: event.shiftKey,
+                    alt: event.altKey,
+                })
+            ) {
+                event.preventDefault();
+            }
+        };
+        window.addEventListener('keyup', onKeyUp);
 
-            const onKeyDown = (event: KeyboardEvent) => {
-                if (
-                    engineRef.current?.onKeyDown('keydown', {
-                        key: event.key,
-                        ctrl: event.ctrlKey,
-                        meta: event.metaKey,
-                        shift: event.shiftKey,
-                        alt: event.altKey,
-                    })
-                ) {
-                    event.preventDefault();
-                }
-            };
-            window.addEventListener('keydown', onKeyDown);
-            const onKeyUp = (event: KeyboardEvent) => {
-                if (
-                    engineRef.current?.onKeyUp('keyup', {
-                        key: event.key,
-                        ctrl: event.ctrlKey,
-                        meta: event.metaKey,
-                        shift: event.shiftKey,
-                        alt: event.altKey,
-                    })
-                ) {
-                    event.preventDefault();
-                }
-            };
-            window.addEventListener('keyup', onKeyUp);
+        const onBlur = () => {
+            engineRef.current?.resetAllKeyboardKeys?.();
+        };
+        window.addEventListener('blur', onBlur);
 
-            const onBlur = () => {
+        const onVisibilityChange = () => {
+            if (document.visibilityState !== 'visible') {
                 engineRef.current?.resetAllKeyboardKeys?.();
-            };
-            window.addEventListener('blur', onBlur);
+            }
+        };
+        document.addEventListener('visibilitychange', onVisibilityChange);
 
-            const onVisibilityChange = () => {
-                if (document.visibilityState !== 'visible') {
-                    engineRef.current?.resetAllKeyboardKeys?.();
-                }
-            };
-            document.addEventListener('visibilitychange', onVisibilityChange);
+        localCanvas.addEventListener('contextmenu', (event) => event.preventDefault());
 
-            localCanvas.addEventListener('contextmenu', (event) => event.preventDefault());
-
-            return () => {
-                localCanvas.removeEventListener('mousemove', onMouseMove);
-                localCanvas.removeEventListener('wheel', onMouseWheel);
-                localCanvas.removeEventListener('mousedown', onMouseDown);
-                localCanvas.removeEventListener('mouseup', onMouseUp);
-                localCanvas.removeEventListener('mouseenter', onMouseEnter);
-                localCanvas.removeEventListener('mouseleave', onMouseLeave);
-                localCanvas.removeEventListener('mouseover', onMouseOver);
-                window.removeEventListener('keydown', onKeyDown);
-                window.removeEventListener('keyup', onKeyUp);
-                window.removeEventListener('blur', onBlur);
-                document.removeEventListener('visibilitychange', onVisibilityChange);
-            };
-        }
-    }, [canvasSize, engineRef]);
+        return () => {
+            localCanvas.removeEventListener('mousemove', onMouseMove);
+            localCanvas.removeEventListener('wheel', onMouseWheel);
+            localCanvas.removeEventListener('mousedown', onMouseDown);
+            localCanvas.removeEventListener('mouseup', onMouseUp);
+            localCanvas.removeEventListener('mouseenter', onMouseEnter);
+            localCanvas.removeEventListener('mouseleave', onMouseLeave);
+            localCanvas.removeEventListener('mouseover', onMouseOver);
+            window.removeEventListener('keydown', onKeyDown);
+            window.removeEventListener('keyup', onKeyUp);
+            window.removeEventListener('blur', onBlur);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+        };
+    }, [canvasSize, engineReady, engineRef]);
 
     return <canvas {...rest} ref={canvasRef} width={canvasSize.x} height={canvasSize.y} />;
 }
