@@ -376,7 +376,7 @@ export class LevelEditor extends Engine {
             }
         }
 
-        //getAppStore().deselectEntities(Array.from(removedIDs));
+        getAppStore().deselectEntities(Array.from(removedIDs));
 
         if (updateStacks) {
             this.#undoStack.push(actions);

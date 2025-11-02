@@ -11,6 +11,11 @@ import type {
 } from './levelEditor/externalLevelSchema';
 import { useMemo } from 'react';
 import type { E_Tile } from './levelEditor/scenes/grid';
+import { isMac } from './engine/utils';
+
+interface UserSettings {
+    scrollDirection: -1 | 1;
+}
 
 interface AppStore {
     levels: Record<string, LevelWithMetadata>;
@@ -42,6 +47,9 @@ interface AppStore {
     setEditableLayers: (layers: Loophole_ExtendedEntityType[]) => void;
     addEditableLayer: (layer: Loophole_ExtendedEntityType) => void;
     removeEditableLayer: (layer: Loophole_ExtendedEntityType) => void;
+
+    userSettings: UserSettings;
+    setUserSettings: (settings: Partial<UserSettings>) => void;
 }
 
 export const useAppStore = create<AppStore>()(
@@ -134,6 +142,12 @@ export const useAppStore = create<AppStore>()(
                         editableLayers: state.editableLayers.filter((l) => l !== layer),
                         lockedLayers: { ...state.lockedLayers, [layer]: false },
                     })),
+
+                userSettings: {
+                    scrollDirection: isMac ? -1 : 1,
+                },
+                setUserSettings: (settings) =>
+                    set((state) => ({ userSettings: { ...state.userSettings, ...settings } })),
             };
         },
         {
@@ -147,6 +161,7 @@ export const useAppStore = create<AppStore>()(
                 brushEntityFlipDirection: state.brushEntityFlipDirection,
                 lockedLayers: state.lockedLayers,
                 editableLayers: state.editableLayers,
+                userSettings: state.userSettings,
             }),
             version: 2,
             migrate: () => {},

@@ -15,6 +15,7 @@ export function LevelEditorComponent() {
     const activeLevelID = useAppStore((state) => state.activeLevelID);
     const updateLevel = useAppStore((state) => state.updateLevel);
     const levelHashes = useAppStore((state) => state.levelHashes);
+    const userSettings = useAppStore((state) => state.userSettings);
 
     const level = levels[activeLevelID];
     const levelHash = levelHashes[activeLevelID];
@@ -42,7 +43,10 @@ export function LevelEditorComponent() {
     return (
         <div className="h-screen w-screen flex flex-col">
             <div className="fixed top-0 left-0">
-                <EngineCanvas engineRef={levelEditorRef} />
+                <EngineCanvas
+                    engineRef={levelEditorRef}
+                    scrollDirection={userSettings.scrollDirection}
+                />
             </div>
             <div className="h-full flex flex-col p-4 gap-4 z-10 pointer-events-none">
                 <TopPanel />

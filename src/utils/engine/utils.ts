@@ -12,3 +12,5 @@ export const lerpPosition = (from: Position, to: Position, t: number): Position 
         y: lerp(from.y, to.y, t),
     };
 };
+
+export const isMac = navigator.platform.toUpperCase().includes('MAC');

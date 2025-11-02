@@ -17,9 +17,15 @@ const calculateCanvasSize = (width: number, height: number, aspectRatio?: number
 interface EngineCanvasProps extends React.CanvasHTMLAttributes<HTMLCanvasElement> {
     engineRef: RefObject<Engine | null>;
     aspectRatio?: number;
+    scrollDirection?: -1 | 1;
 }
 
-export function EngineCanvas({ engineRef, aspectRatio, ...rest }: EngineCanvasProps) {
+export function EngineCanvas({
+    engineRef,
+    aspectRatio,
+    scrollDirection = 1,
+    ...rest
+}: EngineCanvasProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [canvasSize, setCanvasSize] = useState<Position>(
         calculateCanvasSize(window.innerWidth, window.innerHeight, aspectRatio),
@@ -72,7 +78,13 @@ export function EngineCanvas({ engineRef, aspectRatio, ...rest }: EngineCanvasPr
             engineRef.current?.onMouseMove('mousemove', { x: event.clientX, y: event.clientY });
         localCanvas.addEventListener('mousemove', onMouseMove);
         const onMouseWheel = (event: WheelEvent) => {
-            engineRef.current?.onMouseWheel('mousewheel', { delta: event.deltaY });
+            let delta = event.deltaY * scrollDirection;
+            if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+                delta = event.deltaY * 40;
+            } else if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+                delta = event.deltaY * 100;
+            }
+            engineRef.current?.onMouseWheel('mousewheel', { delta });
             event.preventDefault();
         };
         localCanvas.addEventListener('wheel', onMouseWheel);
@@ -105,7 +117,22 @@ export function EngineCanvas({ engineRef, aspectRatio, ...rest }: EngineCanvasPr
             });
         localCanvas.addEventListener('mouseover', onMouseOver);
 
+        const isInputFocused = (): boolean => {
+            const activeElement = document.activeElement;
+            if (!activeElement) return false;
+
+            const tagName = activeElement.tagName.toLowerCase();
+            const isInput = tagName === 'input' || tagName === 'textarea';
+            const isContentEditable = activeElement.hasAttribute('contenteditable');
+
+            return isInput || isContentEditable;
+        };
+
         const onKeyDown = (event: KeyboardEvent) => {
+            if (isInputFocused()) {
+                return;
+            }
+
             if (
                 engineRef.current?.onKeyDown('keydown', {
                     key: event.key,
@@ -120,6 +147,10 @@ export function EngineCanvas({ engineRef, aspectRatio, ...rest }: EngineCanvasPr
         };
         window.addEventListener('keydown', onKeyDown);
         const onKeyUp = (event: KeyboardEvent) => {
+            if (isInputFocused()) {
+                return;
+            }
+
             if (
                 engineRef.current?.onKeyUp('keyup', {
                     key: event.key,
@@ -161,7 +192,7 @@ export function EngineCanvas({ engineRef, aspectRatio, ...rest }: EngineCanvasPr
             window.removeEventListener('blur', onBlur);
             document.removeEventListener('visibilitychange', onVisibilityChange);
         };
-    }, [canvasSize, engineReady, engineRef]);
+    }, [canvasSize, engineReady, engineRef, scrollDirection]);
 
     return <canvas {...rest} ref={canvasRef} width={canvasSize.x} height={canvasSize.y} />;
 }

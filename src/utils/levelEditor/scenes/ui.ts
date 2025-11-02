@@ -686,7 +686,8 @@ export class UIScene extends Scene {
     #updateKeyboardControls(deltaTime: number): boolean {
         if (!this.#editor) return false;
 
-        const { setBrushEntityType, selectedTiles, setSelectedTiles } = getAppStore();
+        const { brushEntityType, setBrushEntityType, selectedTiles, setSelectedTiles } =
+            getAppStore();
         let updated = false;
 
         if (this.#editor.getKey('a').pressed && this.#editor.getKey('a').mod) {
@@ -733,7 +734,8 @@ export class UIScene extends Scene {
         const keys = Object.keys(ENTITY_METADATA) as Loophole_ExtendedEntityType[];
         for (let i = 0; i < Object.keys(ENTITY_METADATA).length; i++) {
             if (this.#editor.getKey((i === 9 ? 0 : i + 1).toString()).pressed) {
-                setBrushEntityType(keys[i]);
+                const newBrushEntityType = brushEntityType === keys[i] ? null : keys[i];
+                setBrushEntityType(newBrushEntityType);
                 updated = true;
                 break;
             }
