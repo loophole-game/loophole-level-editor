@@ -107,10 +107,14 @@ class E_TileCursor extends Entity {
             } = ENTITY_METADATA[brushEntityType];
             this.#tileImage.imageName = name;
 
-            let tilePosition: Position = { x: 0, y: 0 },
-                cursorPosition: Position = { x: 0, y: 0 };
-            let edgeAlignment: Loophole_EdgeAlignment = 'RIGHT';
+            const { position: tilePosition, edgeAlignment } =
+                this.#editor.calculateTilePositionFromWorld(
+                    window.engine.pointerState.worldPosition,
+                    brushEntityType,
+                );
 
+            // Calculate cursor position for visual display
+            let cursorPosition: Position = { x: 0, y: 0 };
             if (positionType === 'CELL') {
                 cursorPosition = {
                     x: Math.round(window.engine.pointerState.worldPosition.x / TILE_SIZE),
@@ -128,23 +132,15 @@ class E_TileCursor extends Entity {
                         x: localX > 0 ? cellX + 0.5 : cellX - 0.5,
                         y: cellY,
                     };
-                    edgeAlignment = 'RIGHT';
                     this.#targetRotation = loopholeRotationToDegrees('RIGHT');
                 } else {
                     cursorPosition = {
                         x: cellX,
                         y: localY > 0 ? cellY + 0.5 : cellY - 0.5,
                     };
-                    edgeAlignment = 'TOP';
                     this.#targetRotation = loopholeRotationToDegrees('UP');
                 }
             }
-
-            tilePosition = loopholePositionToEnginePosition(cursorPosition);
-            tilePosition = {
-                x: Math.floor(tilePosition.x),
-                y: Math.floor(tilePosition.y),
-            };
 
             this.#targetPosition = {
                 x: cursorPosition.x * TILE_SIZE,

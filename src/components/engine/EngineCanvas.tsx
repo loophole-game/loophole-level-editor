@@ -2,6 +2,9 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Engine } from '../../utils/engine';
 import type { Position } from '../../utils/engine/types';
 import type { PointerButton } from '../../utils/engine/systems/pointer';
+import { getAppStore } from '../../utils/store';
+import type { Loophole_ExtendedEntityType } from '../../utils/levelEditor/externalLevelSchema';
+import type { LevelEditor } from '../../utils/levelEditor';
 
 const calculateCanvasSize = (width: number, height: number, aspectRatio?: number): Position => {
     if (aspectRatio) {
@@ -179,6 +182,36 @@ export function EngineCanvas({
 
         localCanvas.addEventListener('contextmenu', (event) => event.preventDefault());
 
+        const onDragOver = (event: DragEvent) => {
+            event.preventDefault();
+            event.dataTransfer!.dropEffect = 'copy';
+        };
+        localCanvas.addEventListener('dragover', onDragOver);
+
+        const onDrop = (event: DragEvent) => {
+            event.preventDefault();
+            const entityType = event.dataTransfer?.getData('entityType');
+            if (!entityType || !engineRef.current) {
+                return;
+            }
+
+            const editor = engineRef.current as LevelEditor;
+            const { setBrushEntityType } = getAppStore();
+            const extendedType = entityType as Loophole_ExtendedEntityType;
+
+            // Set the brush entity type
+            setBrushEntityType(extendedType);
+
+            // Convert drop coordinates to screen coordinates relative to canvas
+            const canvasRect = localCanvas.getBoundingClientRect();
+            const screenX = event.clientX - canvasRect.left;
+            const screenY = event.clientY - canvasRect.top;
+
+            // Let the engine handle the drop
+            editor.handleDrop(screenX, screenY, extendedType);
+        };
+        localCanvas.addEventListener('drop', onDrop);
+
         return () => {
             localCanvas.removeEventListener('mousemove', onMouseMove);
             localCanvas.removeEventListener('wheel', onMouseWheel);
@@ -191,6 +224,8 @@ export function EngineCanvas({
             window.removeEventListener('keyup', onKeyUp);
             window.removeEventListener('blur', onBlur);
             document.removeEventListener('visibilitychange', onVisibilityChange);
+            localCanvas.removeEventListener('dragover', onDragOver);
+            localCanvas.removeEventListener('drop', onDrop);
         };
     }, [canvasSize, engineReady, engineRef, scrollDirection]);
 

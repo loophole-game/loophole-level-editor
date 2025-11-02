@@ -16,8 +16,9 @@ export default function TilePicker() {
                     <Tooltip key={entityType}>
                         <TooltipTrigger asChild>
                             <button
+                                draggable
                                 className={cn(
-                                    'size-16 aspect-square pixelated-image border-2 border-transparent p-1 rounded-lg transition-colors',
+                                    'size-16 aspect-square pixelated-image border-2 border-transparent p-1 rounded-lg transition-colors cursor-grab active:cursor-grabbing',
                                     {
                                         'border-sidebar': brushEntityType === entityType,
                                     },
@@ -29,12 +30,17 @@ export default function TilePicker() {
                                             : (entityType as Loophole_ExtendedEntityType),
                                     )
                                 }
+                                onDragStart={(e) => {
+                                    e.dataTransfer.setData('entityType', entityType);
+                                    e.dataTransfer.effectAllowed = 'copy';
+                                }}
                             >
                                 <img
                                     src={metadata.src}
                                     alt={metadata.name}
                                     width={64}
                                     height={64}
+                                    draggable={false}
                                 />
                             </button>
                         </TooltipTrigger>

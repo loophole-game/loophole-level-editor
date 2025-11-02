@@ -20,6 +20,7 @@ import {
     getLoopholeEntityExtendedType,
     getLoopholeEntityPosition,
     getLoopholeEntityPositionType,
+    loopholePositionToEnginePosition,
     OVERLAPPABLE_ENTITY_TYPES,
     TILE_SIZE,
     type LoopholePositionType,
@@ -140,6 +141,72 @@ export class LevelEditor extends Engine {
         const updated = true;
 
         return updated;
+    }
+
+    calculateTilePositionFromWorld(
+        worldPosition: { x: number; y: number },
+        entityType: Loophole_ExtendedEntityType,
+    ): { position: Loophole_Int2; edgeAlignment: Loophole_EdgeAlignment | null } {
+        const { positionType } = ENTITY_METADATA[entityType];
+        let cursorPosition: { x: number; y: number } = { x: 0, y: 0 };
+        let edgeAlignment: Loophole_EdgeAlignment | null = null;
+
+        if (positionType === 'CELL') {
+            cursorPosition = {
+                x: Math.round(worldPosition.x / TILE_SIZE),
+                y: Math.round(worldPosition.y / TILE_SIZE),
+            };
+        } else {
+            const cellX = Math.round(worldPosition.x / TILE_SIZE);
+            const cellY = Math.round(worldPosition.y / TILE_SIZE);
+            const localX = worldPosition.x - cellX * TILE_SIZE;
+            const localY = worldPosition.y - cellY * TILE_SIZE;
+
+            if (Math.abs(localX) > Math.abs(localY)) {
+                cursorPosition = {
+                    x: localX > 0 ? cellX + 0.5 : cellX - 0.5,
+                    y: cellY,
+                };
+                edgeAlignment = 'RIGHT';
+            } else {
+                cursorPosition = {
+                    x: cellX,
+                    y: localY > 0 ? cellY + 0.5 : cellY - 0.5,
+                };
+                edgeAlignment = 'TOP';
+            }
+        }
+
+        const enginePosition = loopholePositionToEnginePosition(cursorPosition, edgeAlignment);
+        const finalPosition: Loophole_Int2 = {
+            x: Math.floor(enginePosition.x),
+            y: Math.floor(enginePosition.y),
+        };
+
+        return { position: finalPosition, edgeAlignment };
+    }
+
+    handleDrop(
+        screenX: number,
+        screenY: number,
+        entityType: Loophole_ExtendedEntityType,
+    ): E_Tile[] {
+        const worldPosition = this.screenToWorld({ x: screenX, y: screenY });
+        const { position, edgeAlignment } = this.calculateTilePositionFromWorld(
+            worldPosition,
+            entityType,
+        );
+
+        const { brushEntityRotation, brushEntityFlipDirection, setSelectedTiles } = getAppStore();
+        const tiles = this.placeTile(
+            position,
+            entityType,
+            edgeAlignment,
+            brushEntityRotation,
+            brushEntityFlipDirection,
+        );
+        setSelectedTiles(tiles);
+        return tiles;
     }
 
     placeTile(
