@@ -42,10 +42,23 @@ export function EngineCanvas({ engineRef, aspectRatio, ...rest }: EngineCanvasPr
     }, [aspectRatio, engineRef]);
 
     useEffect(() => {
-        if (canvasRef.current && engineRef.current) {
+        const checkAndSetup = () => {
+            if (!canvasRef.current || !engineRef.current) {
+                return null;
+            }
+
             const localCanvas = canvasRef.current;
             engineRef.current.canvas = localCanvas;
+            return localCanvas;
+        };
 
+        const localCanvas = checkAndSetup();
+        if (!localCanvas) {
+            const rafId = requestAnimationFrame(checkAndSetup);
+            return () => cancelAnimationFrame(rafId);
+        }
+
+        if (localCanvas && engineRef.current) {
             const onMouseMove = (event: MouseEvent) =>
                 engineRef.current?.onMouseMove('mousemove', { x: event.clientX, y: event.clientY });
             localCanvas.addEventListener('mousemove', onMouseMove);
@@ -127,10 +140,6 @@ export function EngineCanvas({ engineRef, aspectRatio, ...rest }: EngineCanvasPr
             localCanvas.addEventListener('contextmenu', (event) => event.preventDefault());
 
             return () => {
-                if (!localCanvas) {
-                    return;
-                }
-
                 localCanvas.removeEventListener('mousemove', onMouseMove);
                 localCanvas.removeEventListener('wheel', onMouseWheel);
                 localCanvas.removeEventListener('mousedown', onMouseDown);
