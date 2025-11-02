@@ -336,9 +336,9 @@ export class LevelEditor extends Engine {
     }
 
     rotateEntities(
-        entities: Loophole_EntityWithID[],
-        centerPosition: Loophole_Int2,
-        rotation: 90 | -90,
+        _entities: Loophole_EntityWithID[],
+        _centerPosition: Loophole_Int2,
+        _rotation: 90 | -90,
         hash?: string | null,
     ): E_Tile[] {
         const group: EditActionGroup = {
