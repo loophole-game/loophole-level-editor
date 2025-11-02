@@ -53,8 +53,7 @@ type EditActionGroup = {
 };
 
 export class LevelEditor extends Engine {
-    #onLevelChanged: OnLevelChangedCallback;
-
+    #onLevelChanged: OnLevelChangedCallback | null = null;
     #level: Loophole_LevelWithIDs | null = null;
     #tiles: Record<string, E_Tile> = {};
     #stashedTiles: Record<string, E_Tile> = {};
@@ -62,7 +61,7 @@ export class LevelEditor extends Engine {
     #undoStack: EditActionGroup[] = [];
     #redoStack: EditActionGroup[] = [];
 
-    constructor(onLevelChanged: OnLevelChangedCallback, options: EngineOptions = {}) {
+    constructor(onLevelChanged?: OnLevelChangedCallback, options: EngineOptions = {}) {
         super({
             scenes: SCENES,
             startScenes: [GridScene.name, UIScene.name],
@@ -91,7 +90,7 @@ export class LevelEditor extends Engine {
             },
         });
 
-        this.#onLevelChanged = onLevelChanged;
+        this.#onLevelChanged = onLevelChanged ?? null;
     }
 
     get level(): Readonly<Loophole_Level | null> {
@@ -127,6 +126,10 @@ export class LevelEditor extends Engine {
         entranceTile.isEntrance = true;
 
         getAppStore().setSelectedTiles([]);
+    }
+
+    set onLevelChanged(onLevelChanged: OnLevelChangedCallback) {
+        this.#onLevelChanged = onLevelChanged;
     }
 
     get tiles(): Readonly<Record<string, E_Tile>> {
@@ -382,7 +385,7 @@ export class LevelEditor extends Engine {
 
         const level = this.level;
         if (level) {
-            this.#onLevelChanged(level);
+            this.#onLevelChanged?.(level);
         }
 
         return affectedTiles;

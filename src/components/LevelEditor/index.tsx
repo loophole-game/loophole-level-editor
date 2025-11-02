@@ -7,6 +7,7 @@ import TilePicker from './TilePicker';
 import { FPSCounter } from '../engine/FPSCounter';
 import { LayerButtons } from './LayerButtons';
 import { EntityInspector } from './EntityInspector';
+import type { Loophole_Level } from '@/utils/levelEditor/externalLevelSchema';
 
 export function LevelEditorComponent() {
     const levelEditorRef = useRef<LevelEditor | null>(null);
@@ -20,15 +21,20 @@ export function LevelEditorComponent() {
     const prevLevelHash = useRef<number | null>(null);
 
     useEffect(() => {
+        const onLevelChanged = (updatedLevel: Loophole_Level) => {
+            updateLevel(level.id, { level: updatedLevel });
+        };
         if (!window.engine) {
-            levelEditorRef.current = new LevelEditor((updatedLevel) => {
-                updateLevel(level.id, { level: updatedLevel });
-            }, {});
+            levelEditorRef.current = new LevelEditor(onLevelChanged);
         } else {
             if (prevLevelHash.current !== levelHash) {
                 levelEditorRef.current = window.engine as LevelEditor;
                 levelEditorRef.current.level = level.level;
                 prevLevelHash.current = levelHash;
+            }
+
+            if (levelEditorRef.current) {
+                levelEditorRef.current.onLevelChanged = onLevelChanged;
             }
         }
     }, [activeLevelID, levelHash, level, updateLevel]);
