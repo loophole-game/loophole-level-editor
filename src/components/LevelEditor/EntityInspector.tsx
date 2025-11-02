@@ -9,6 +9,7 @@ import {
     getLoopholeEntityExtendedType,
 } from '@/utils/utils';
 import { Trash } from 'lucide-react';
+import { Badge } from '../ui/badge';
 
 function computeSharedValue<T>(
     tiles: E_Tile[],
@@ -72,12 +73,15 @@ function MultiTileContent({ selectedTiles }: MultiTileContentProps) {
 
     return (
         <>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
                 <h2>{name}</h2>
                 {selectedTiles.length === 1 && primaryTile.isEntrance && (
-                    <span className="px-2 py-1 bg-green-600 text-white text-xs font-semibold rounded-md self-center">
+                    <Badge
+                        variant="destructive"
+                        className="bg-blue-500 text-white dark:bg-blue-600"
+                    >
                         Entrance
-                    </span>
+                    </Badge>
                 )}
                 {(multiple || !primaryTile.isEntrance) && (
                     <button

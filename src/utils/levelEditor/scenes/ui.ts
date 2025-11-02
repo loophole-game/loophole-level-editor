@@ -367,11 +367,7 @@ class E_SelectionCursor extends Entity {
         const leftButtonState = this.#editor.getPointerButton(PointerButton.LEFT);
         if (leftButtonState.pressed && !isMovingTiles) {
             this.#selectAllClickPosition = pointerPosition;
-        } else if (
-            leftButtonState.released ||
-            !this.#editor.pointerState.onScreen ||
-            isMovingTiles
-        ) {
+        } else if (leftButtonState.released || isMovingTiles) {
             this.#selectAllClickPosition = null;
         }
 

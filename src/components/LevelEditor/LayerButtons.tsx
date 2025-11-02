@@ -7,25 +7,34 @@ import {
     DropdownMenuTrigger,
     DropdownMenuLabel,
 } from '../ui/dropdown-menu';
-import { Lock, Unlock, Plus } from 'lucide-react';
+import { Lock, Unlock, Plus, Shuffle } from 'lucide-react';
 import type { Loophole_ExtendedEntityType } from '@/utils/levelEditor/externalLevelSchema';
 import { ENTITY_METADATA } from '@/utils/utils';
+import { Button } from '../ui/button';
 import clsx from 'clsx';
+import { useMemo } from 'react';
 
 const ALL_ENTITY_TYPES = Object.keys(ENTITY_METADATA) as Loophole_ExtendedEntityType[];
 
 export function LayerButtons() {
     const lockedLayers = useAppStore((state) => state.lockedLayers);
     const setLockedLayer = useAppStore((state) => state.setLockedLayer);
-    const editableLayers = useAppStore((state) => state.editableLayers);
+    const _editableLayers = useAppStore((state) => state.editableLayers);
     const addEditableLayer = useAppStore((state) => state.addEditableLayer);
     const removeEditableLayer = useAppStore((state) => state.removeEditableLayer);
+
+    const editableLayers = useMemo(() => {
+        const locked = Object.keys(lockedLayers).filter(
+            (layer) => lockedLayers[layer as Loophole_ExtendedEntityType],
+        ) as Loophole_ExtendedEntityType[];
+        const set = new Set<Loophole_ExtendedEntityType>([..._editableLayers, ...locked]);
+        return Array.from(set);
+    }, [_editableLayers, lockedLayers]);
 
     return (
         <div className="flex flex-col gap-2 w-full">
             <ToggleGroup
                 type="multiple"
-                variant="outline"
                 spacing={2}
                 size="sm"
                 className="w-full pointer-events-auto flex-wrap"
@@ -42,9 +51,11 @@ export function LayerButtons() {
                             }}
                             key={layer}
                             aria-selected={isLocked}
-                            className={clsx('font-bold hover:cursor-pointer transition-colors', {
-                                'text-white': !isLocked,
-                                'text-muted-foreground bg-white': isLocked,
+                            data-on={isLocked}
+                            variant="outline"
+                            className={clsx({
+                                '!bg-black !text-card': !isLocked,
+                                '!bg-card !border-accent !text-accent-foreground': isLocked,
                             })}
                         >
                             {isLocked ? <Lock /> : <Unlock />}
@@ -52,34 +63,51 @@ export function LayerButtons() {
                         </ToggleGroupItem>
                     );
                 })}
-                <DropdownMenu>
-                    <DropdownMenuTrigger className="inline-flex items-center justify-center rounded-md border border-input bg-transparent px-3 py-1 text-sm font-medium text-white shadow-xs hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 pointer-events-auto">
-                        <Plus />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-48 text-white">
-                        <DropdownMenuLabel>Select Lockable Layers</DropdownMenuLabel>
-                        {ALL_ENTITY_TYPES.map((layer) => {
-                            const { name } = ENTITY_METADATA[layer];
-                            const isEditable = editableLayers.includes(layer);
+                <div className="flex items-center gap-2">
+                    <Button
+                        variant="outline"
+                        size="icon-sm"
+                        onClick={() => {
+                            for (const layer of ALL_ENTITY_TYPES) {
+                                setLockedLayer(layer, !lockedLayers[layer]);
+                            }
+                        }}
+                    >
+                        <Shuffle />
+                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="icon-sm">
+                                <Plus />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-48">
+                            <DropdownMenuLabel>Show Lockable Layers</DropdownMenuLabel>
+                            {ALL_ENTITY_TYPES.map((layer) => {
+                                const { name } = ENTITY_METADATA[layer];
+                                const isEditable = editableLayers.includes(layer);
 
-                            return (
-                                <DropdownMenuCheckboxItem
-                                    key={layer}
-                                    checked={isEditable}
-                                    onCheckedChange={(checked) => {
-                                        if (checked) {
-                                            addEditableLayer(layer);
-                                        } else {
-                                            removeEditableLayer(layer);
-                                        }
-                                    }}
-                                >
-                                    {name}
-                                </DropdownMenuCheckboxItem>
-                            );
-                        })}
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                                return (
+                                    <DropdownMenuCheckboxItem
+                                        key={layer}
+                                        checked={isEditable}
+                                        onCheckedChange={(checked) => {
+                                            setTimeout(() => {
+                                                if (checked) {
+                                                    addEditableLayer(layer);
+                                                } else {
+                                                    removeEditableLayer(layer);
+                                                }
+                                            }, 100);
+                                        }}
+                                    >
+                                        {name}
+                                    </DropdownMenuCheckboxItem>
+                                );
+                            })}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
             </ToggleGroup>
         </div>
     );

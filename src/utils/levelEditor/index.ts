@@ -365,6 +365,7 @@ export class LevelEditor extends Engine {
                     affectedTiles.push(tile);
                     if (removedIDs.has(action.entity.tID)) {
                         delete this.#stashedTiles[action.entity.tID];
+                        removedIDs.delete(action.entity.tID);
                     }
                     break;
                 }

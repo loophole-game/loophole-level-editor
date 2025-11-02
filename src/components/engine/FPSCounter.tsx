@@ -26,7 +26,7 @@ export function FPSCounter({ className }: FPSCounterProps) {
     }, []);
 
     return (
-        <p className={cn('text-white font-bold', className)}>
+        <p className={cn('text-white', className)}>
             FPS: {stats.fps}
             <br />
             Update: {stats.updateTime.toFixed(1)}ms

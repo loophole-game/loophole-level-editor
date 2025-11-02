@@ -55,7 +55,9 @@ export function LevelEditorComponent() {
                     <LayerButtons />
                     <EntityInspector className="mt-auto" />
                 </div>
-                <FPSCounter className="fixed bottom-4 right-4 text-right" />
+                {userSettings.showEngineStats && (
+                    <FPSCounter className="fixed bottom-4 right-4 text-right" />
+                )}
             </div>
         </div>
     );

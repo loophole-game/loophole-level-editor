@@ -212,8 +212,8 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         tileScale: DEFAULT_WALL_SCALE,
     },
     ONE_WAY: {
-        name: 'One Way',
-        description: 'A one way that allows movement in one direction.',
+        name: 'One-Way',
+        description: 'A one-way that allows movement in one direction.',
         src: 'pixel/one-way.png',
         type: 'ONE_WAY',
         extendedType: 'ONE_WAY',
@@ -381,8 +381,8 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
     },
 };
 
-export const createLevelWithMetadata = (name: string): LevelWithMetadata => ({
-    id: v4(),
+export const createLevelWithMetadata = (name: string, id?: string): LevelWithMetadata => ({
+    id: id ?? v4(),
     name,
     createdAt: Date.now(),
     updatedAt: Date.now(),

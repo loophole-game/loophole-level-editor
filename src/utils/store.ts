@@ -15,6 +15,7 @@ import { isMac } from './engine/utils';
 
 interface UserSettings {
     scrollDirection: -1 | 1;
+    showEngineStats: boolean;
 }
 
 interface AppStore {
@@ -25,6 +26,7 @@ interface AppStore {
     setActiveLevelID: (levelID: string) => void;
     removeLevel: (levelID: string) => void;
     updateLevel: (id: string, level: Partial<LevelWithMetadata>, sendToEditor?: boolean) => void;
+    resetLevel: (id: string) => void;
 
     brushEntityType: Loophole_ExtendedEntityType | null;
     setBrushEntityType: (entityType: Loophole_ExtendedEntityType | null) => void;
@@ -93,6 +95,15 @@ export const useAppStore = create<AppStore>()(
                         },
                     }));
                 },
+                resetLevel: (id) => {
+                    set((state) => ({
+                        levels: {
+                            ...state.levels,
+                            [id]: createLevelWithMetadata(state.levels[id].name ?? '', id),
+                        },
+                        levelHashes: { ...state.levelHashes, [id]: Math.random() },
+                    }));
+                },
 
                 brushEntityType: null,
                 setBrushEntityType: (entityType) => set({ brushEntityType: entityType }),
@@ -127,7 +138,8 @@ export const useAppStore = create<AppStore>()(
                 isMovingTiles: false,
                 setIsMovingTiles: (isMoving) => set({ isMovingTiles: isMoving }),
                 isDraggingToPlace: false,
-                setIsDraggingToPlace: (isDraggingToPlace) => set({ isDraggingToPlace: isDraggingToPlace }),
+                setIsDraggingToPlace: (isDraggingToPlace) =>
+                    set({ isDraggingToPlace: isDraggingToPlace }),
 
                 lockedLayers: {},
                 setLockedLayer: (layer, locked) =>
@@ -149,6 +161,7 @@ export const useAppStore = create<AppStore>()(
 
                 userSettings: {
                     scrollDirection: isMac ? -1 : 1,
+                    showEngineStats: false,
                 },
                 setUserSettings: (settings) =>
                     set((state) => ({ userSettings: { ...state.userSettings, ...settings } })),
