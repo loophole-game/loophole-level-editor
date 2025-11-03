@@ -138,7 +138,7 @@ export class LevelEditor extends Engine {
         return this.#tiles;
     }
 
-    get tileCount(): number {
+    get entityCount(): number {
         return Object.keys(this.#tiles).length;
     }
 
@@ -228,7 +228,7 @@ export class LevelEditor extends Engine {
         flipDirection: boolean,
         hash?: string | null,
     ): E_Tile[] {
-        if (this.tileCount >= MAX_ENTITY_COUNT) {
+        if (this.entityCount >= MAX_ENTITY_COUNT) {
             return Array.from(Object.values(getAppStore().selectedTiles));
         }
 

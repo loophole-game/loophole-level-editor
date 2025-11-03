@@ -12,6 +12,7 @@ import { Scene } from '../../engine/systems/scene';
 import { C_Image } from '@/utils/engine/components/Image';
 import { getAppStore } from '@/utils/store';
 import {
+    MAX_ENTITY_COUNT,
     type Loophole_EdgeAlignment,
     type Loophole_EntityWithID,
     type Loophole_ExtendedEntityType,
@@ -77,7 +78,6 @@ class E_TileCursor extends Entity {
 
     override update(deltaTime: number): boolean {
         const updated = super.update(deltaTime);
-        if (!window.engine) return updated;
 
         const {
             brushEntityType,
@@ -109,17 +109,17 @@ class E_TileCursor extends Entity {
 
             const { position: tilePosition, edgeAlignment } =
                 this.#editor.calculateTilePositionFromWorld(
-                    window.engine.pointerState.worldPosition,
+                    this.#editor.pointerState.worldPosition,
                     brushEntityType,
                 );
             const cursorPosition = tilePosition;
             if (positionType === 'CELL') {
                 this.#targetRotation = 0;
             } else {
-                const cellX = Math.round(window.engine.pointerState.worldPosition.x / TILE_SIZE);
-                const cellY = Math.round(window.engine.pointerState.worldPosition.y / TILE_SIZE);
-                const localX = window.engine.pointerState.worldPosition.x - cellX * TILE_SIZE;
-                const localY = window.engine.pointerState.worldPosition.y - cellY * TILE_SIZE;
+                const cellX = Math.round(this.#editor.pointerState.worldPosition.x / TILE_SIZE);
+                const cellY = Math.round(this.#editor.pointerState.worldPosition.y / TILE_SIZE);
+                const localX = this.#editor.pointerState.worldPosition.x - cellX * TILE_SIZE;
+                const localY = this.#editor.pointerState.worldPosition.y - cellY * TILE_SIZE;
 
                 if (Math.abs(localX) > Math.abs(localY)) {
                     this.#targetRotation = loopholeRotationToDegrees('RIGHT');
@@ -230,7 +230,8 @@ class E_TileCursor extends Entity {
         }
 
         this.#positionLerp.target = this.#targetPosition ?? this.position;
-        this.#tileOpacityLerp.target = this.#active ? 0.5 : 0;
+        this.#tileOpacityLerp.target =
+            this.#active && this.#editor.entityCount < MAX_ENTITY_COUNT ? 0.5 : 0;
         if (!isDraggingToPlace) {
             this.#tileRotationLerp.target = this.#targetRotation ?? this.rotation;
         }

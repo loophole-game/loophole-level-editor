@@ -72,9 +72,24 @@ export class CameraSystem extends System {
         }
     }
 
-    zoomCamera(delta: number): void {
+    zoomCamera(delta: number, focalPoint?: Position): void {
+        const oldZoom = this.#camera.zoom;
         this.#camera.zoom += delta * this._engine.options.zoomSpeed;
         this.clampCameraZoom();
+        
+        // If a focal point is provided, adjust camera position to zoom towards that point
+        if (focalPoint) {
+            // The world-to-screen transform is: screenPos = worldPos * zoom + cameraPos + screenCenter
+            // To keep the focal point at the same screen position after zooming:
+            // focalPoint * oldZoom + oldCameraPos = focalPoint * newZoom + newCameraPos
+            // Therefore: newCameraPos = oldCameraPos + focalPoint * (oldZoom - newZoom)
+            const zoomDelta = oldZoom - this.#camera.zoom;
+            this.#camera.position = {
+                x: this.#camera.position.x + focalPoint.x * zoomDelta,
+                y: this.#camera.position.y + focalPoint.y * zoomDelta,
+            };
+        }
+        
         this.#worldToScreenMatrixDirty = true;
         this.#camera.dirty = true;
     }

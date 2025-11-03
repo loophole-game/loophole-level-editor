@@ -322,8 +322,8 @@ export class Engine {
         this._cameraSystem.setCameraZoom(zoom);
     }
 
-    zoomCamera(delta: number): void {
-        this._cameraSystem.zoomCamera(delta);
+    zoomCamera(delta: number, focalPoint?: Position): void {
+        this._cameraSystem.zoomCamera(delta, focalPoint);
     }
 
     setCameraRotation(rotation: number): void {

@@ -46,6 +46,7 @@ export function LevelEditorComponent() {
                 <EngineCanvas
                     engineRef={levelEditorRef}
                     scrollDirection={userSettings.scrollDirection}
+                    scrollSensitivity={userSettings.scrollSensitivity}
                 />
             </div>
             <div className="h-full flex flex-col p-4 gap-4 z-10 pointer-events-none">

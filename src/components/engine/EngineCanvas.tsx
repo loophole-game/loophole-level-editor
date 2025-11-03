@@ -21,12 +21,14 @@ interface EngineCanvasProps extends React.CanvasHTMLAttributes<HTMLCanvasElement
     engineRef: RefObject<Engine | null>;
     aspectRatio?: number;
     scrollDirection?: -1 | 1;
+    scrollSensitivity?: number;
 }
 
 export function EngineCanvas({
     engineRef,
     aspectRatio,
     scrollDirection = 1,
+    scrollSensitivity = 1,
     ...rest
 }: EngineCanvasProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -87,6 +89,7 @@ export function EngineCanvas({
             } else if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
                 delta = event.deltaY * 100;
             }
+            delta *= scrollSensitivity;
             engineRef.current?.onMouseWheel('mousewheel', { delta });
             event.preventDefault();
         };
@@ -227,7 +230,7 @@ export function EngineCanvas({
             localCanvas.removeEventListener('dragover', onDragOver);
             localCanvas.removeEventListener('drop', onDrop);
         };
-    }, [canvasSize, engineReady, engineRef, scrollDirection]);
+    }, [canvasSize, engineReady, engineRef, scrollDirection, scrollSensitivity]);
 
     return <canvas {...rest} ref={canvasRef} width={canvasSize.x} height={canvasSize.y} />;
 }

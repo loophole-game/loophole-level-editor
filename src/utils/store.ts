@@ -14,6 +14,7 @@ import type { CameraData } from './engine/types';
 interface UserSettings {
     scrollDirection: -1 | 1;
     showEngineStats: boolean;
+    scrollSensitivity: number;
 }
 
 interface AppStore {
@@ -167,6 +168,7 @@ export const useAppStore = create<AppStore>()(
                 userSettings: {
                     scrollDirection: isMac ? -1 : 1,
                     showEngineStats: false,
+                    scrollSensitivity: 1,
                 },
                 setUserSettings: (settings) =>
                     set((state) => ({ userSettings: { ...state.userSettings, ...settings } })),
@@ -188,7 +190,7 @@ export const useAppStore = create<AppStore>()(
                 editableLayers: state.editableLayers,
                 userSettings: state.userSettings,
             }),
-            version: 2,
+            version: 3,
             migrate: () => {},
         },
     ),

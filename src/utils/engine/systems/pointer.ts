@@ -203,7 +203,7 @@ export class PointerSystem extends System {
             }
 
             if (this.#pointerState.scrollDelta !== 0) {
-                this._engine.zoomCamera(this.#pointerState.scrollDelta);
+                this._engine.zoomCamera(this.#pointerState.scrollDelta, this.#pointerState.worldPosition);
                 this.#pointerState.scrollDelta = 0;
             }
 
