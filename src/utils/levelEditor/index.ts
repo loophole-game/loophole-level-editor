@@ -4,11 +4,12 @@ import type {
     Loophole_EdgeAlignment,
     Loophole_EntityType,
     Loophole_EntityWithID,
+    Loophole_Exit,
     Loophole_ExtendedEntityType,
     Loophole_Int2,
-    Loophole_Level,
-    Loophole_LevelWithIDs,
+    Loophole_InternalLevel,
     Loophole_Rotation,
+    WithID,
 } from './externalLevelSchema';
 import { E_Tile, GridScene } from './scenes/grid';
 import { TestScene } from './scenes/test';
@@ -37,7 +38,7 @@ const SCENES: AvailableScenes = {
     [GridScene.name]: (name) => new GridScene(name),
 };
 
-export type OnLevelChangedCallback = (level: Loophole_Level) => void;
+export type OnLevelChangedCallback = (level: Loophole_InternalLevel) => void;
 
 type EditAction =
     | {
@@ -55,7 +56,8 @@ type EditActionGroup = {
 
 export class LevelEditor extends Engine {
     #onLevelChanged: OnLevelChangedCallback | null = null;
-    #level: Loophole_LevelWithIDs | null = null;
+    #level: Loophole_InternalLevel | null = null;
+    #exitEntity: (Loophole_Exit & WithID) | null = null;
     #tiles: Record<string, E_Tile> = {};
     #stashedTiles: Record<string, E_Tile> = {};
 
@@ -94,37 +96,33 @@ export class LevelEditor extends Engine {
         this.#onLevelChanged = onLevelChanged ?? null;
     }
 
-    get level(): Readonly<Loophole_Level | null> {
-        if (!this.#level) {
-            return null;
-        }
-
-        return {
-            ...this.#level,
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            entities: this.#level.entities.map(({ tID: id, ...rest }) => ({ ...rest })),
-            entrance: {
-                entityType: this.#level.entrance.entityType,
-                position: this.#level.entrance.position,
-                rotation: this.#level.entrance.rotation,
-            },
-        };
+    get level(): Readonly<Loophole_InternalLevel | null> {
+        return this.#level;
     }
 
-    set level(level: Loophole_Level) {
-        this.#level = this.#addIDsToLevel(level);
+    set level(level: Loophole_InternalLevel) {
+        this.#level = level;
         this.#undoStack = [];
         this.#redoStack = [];
 
         for (const tile of Object.values(this.#tiles)) {
             this.#stashTile(tile);
         }
-
         for (const entity of this.#level.entities) {
             this.#placeEntity(entity, false);
         }
+
         const entranceTile = this.#placeEntity(this.#level.entrance, false);
-        entranceTile.isEntrance = true;
+        entranceTile.variant = 'entrance';
+
+        console.log(this.#level.exitPosition.x, this.#level.exitPosition.y);
+        this.#exitEntity = {
+            entityType: 'EXIT',
+            position: this.#level.exitPosition,
+            tID: v4(),
+        };
+        const exitTile = this.#placeEntity(this.#exitEntity, false);
+        exitTile.variant = 'exit';
 
         getAppStore().setSelectedTiles([]);
     }
@@ -218,7 +216,7 @@ export class LevelEditor extends Engine {
         hash?: string | null,
     ): E_Tile[] {
         const { createEntity, positionType, type } = ENTITY_METADATA[entityType];
-        if (this.#isOverlappingEntrance(position, positionType)) {
+        if (this.#isOverlappingCriticalTile(position, positionType)) {
             return [];
         }
 
@@ -245,14 +243,12 @@ export class LevelEditor extends Engine {
     }
 
     removeEntities(entities: Loophole_EntityWithID[], hash?: string | null): E_Tile[] {
-        const tiles = entities
-            .filter((entity) => entity.tID !== this.#level?.entrance.tID)
-            .map((entity) => ({
-                position: getLoopholeEntityPosition(entity),
-                positionType: getLoopholeEntityPositionType(entity),
-                entityType: entity.entityType,
-                edgeAlignment: getLoopholeEntityEdgeAlignment(entity),
-            }));
+        const tiles = entities.map((entity) => ({
+            position: getLoopholeEntityPosition(entity),
+            positionType: getLoopholeEntityPositionType(entity),
+            entityType: entity.entityType,
+            edgeAlignment: getLoopholeEntityEdgeAlignment(entity),
+        }));
 
         return this.removeTiles(tiles, hash);
     }
@@ -365,7 +361,10 @@ export class LevelEditor extends Engine {
             }
 
             if (
-                !this.#isOverlappingEntrance(newPosition, getLoopholeEntityPositionType(newEntity))
+                !this.#isOverlappingCriticalTile(
+                    newPosition,
+                    getLoopholeEntityPositionType(newEntity),
+                )
             ) {
                 const overlappingEntities = this.#getOverlappingEntities(
                     getLoopholeEntityPosition(newEntity),
@@ -479,6 +478,9 @@ export class LevelEditor extends Engine {
         if (this.#level && updateLevel) {
             if (entity.tID === this.#level.entrance.tID && entity.entityType === 'TIME_MACHINE') {
                 this.#level.entrance = entity;
+            } else if (entity.tID === this.#exitEntity?.tID && entity.entityType === 'EXIT') {
+                this.#exitEntity = entity;
+                this.#level.exitPosition = entity.position;
             } else {
                 this.#level.entities.push(entity);
             }
@@ -495,20 +497,6 @@ export class LevelEditor extends Engine {
         if (this.#level && updateLevel) {
             this.#level.entities = this.#level.entities.filter((e) => e.tID !== entity.tID);
         }
-    }
-
-    #addIDsToLevel(level: Loophole_Level): Loophole_LevelWithIDs {
-        return {
-            ...level,
-            entities: level.entities.map((entity) => ({
-                ...entity,
-                tID: v4(),
-            })),
-            entrance: {
-                ...level.entrance,
-                tID: v4(),
-            },
-        };
     }
 
     #claimOrCreateTile(entity: Loophole_EntityWithID): E_Tile {
@@ -595,14 +583,22 @@ export class LevelEditor extends Engine {
         });
     }
 
-    #isOverlappingEntrance(position: Loophole_Int2, positionType: LoopholePositionType): boolean {
-        if (!this.#level || positionType === 'EDGE') {
+    #isOverlappingCriticalTile(
+        position: Loophole_Int2,
+        positionType: LoopholePositionType,
+    ): boolean {
+        if (positionType !== 'CELL') {
             return false;
         }
 
-        const entrance = this.#level.entrance;
-        const entrancePos = getLoopholeEntityPosition(entrance);
+        if (
+            this.#level &&
+            (positionsEqual(position, getLoopholeEntityPosition(this.#level?.entrance)) ||
+                positionsEqual(position, this.#level.exitPosition))
+        ) {
+            return true;
+        }
 
-        return positionsEqual(position, entrancePos);
+        return false;
     }
 }

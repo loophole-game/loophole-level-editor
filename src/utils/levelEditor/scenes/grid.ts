@@ -25,11 +25,13 @@ import type { Position } from '@/utils/engine/types';
 const ACTIVE_TILE_OPACITY = 0.3;
 const TILE_HIGHLIGHT_SCALE_MULT = 1.2;
 
+type TileVariant = 'default' | 'entrance' | 'exit';
+
 export class E_Tile extends Entity {
     #editor: LevelEditor;
     #entity: Loophole_EntityWithID;
     #type: Loophole_ExtendedEntityType;
-    #isEntrance: boolean = false;
+    #variant: TileVariant = 'default';
 
     #initialized: boolean = false;
 
@@ -81,13 +83,13 @@ export class E_Tile extends Entity {
         this.#onEntityChanged();
     }
 
-    get isEntrance(): boolean {
-        return this.#isEntrance;
+    get variant(): TileVariant {
+        return this.#variant;
     }
 
-    set isEntrance(isEntrance: boolean) {
-        this.#isEntrance = isEntrance;
-        if (isEntrance) {
+    set variant(variant: TileVariant) {
+        this.#variant = variant;
+        if (variant === 'entrance') {
             if (!this.#guyImage) {
                 this.#guyImage = new C_Image('guy', 'Guy');
                 this.addComponents(this.#guyImage);

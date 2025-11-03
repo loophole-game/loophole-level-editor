@@ -48,7 +48,24 @@ export type ColorPalette = (typeof ColorPalette)[keyof typeof ColorPalette];
 
 export type Loophole_Level = {
     version: 0;
-    colorPalette: ColorPalette;
+    // The name of the level. Will be displayed in Steam Workshop.
+    name: string;
+    // The description of the level. Will be displayed in Steam Workshop.
+    description: string;
+    // The file name for a screenshot that will be displayed in Steam Workshop.
+    // This file should be in the same directory as the level when you upload to Workshop.
+    imageFile: string;
+    // The color palette for the walls and floors.
+    //    0: orange floor & blue walls
+    //    1: blue floor & orange/purple walls
+    //    2: purple floor & red walls
+    //    3: pink floor & purple walls
+    //    4: pale green floor & green walls
+    //    5: blue floor & green walls
+    //    6: white floor & red walls
+    colorPalette: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+    // The configuration of explosions in this level.
+    explosions: Loophole_Explosions[];
     // The entity for the time machine that the player will spawn inside.
     entrance: Loophole_TimeMachine;
     // The position where the level exit will be created.
@@ -56,8 +73,22 @@ export type Loophole_Level = {
     exitPosition: Loophole_Int2;
     // A list of all entities in the level, except for the entrance and exit.
     // Only some entities can share the same position. See "Entity Overlap Rules" for more.
-    // This array can have at most (MAX_ENTITY_COUNT - 2) elements
+    // This array can have at most (MAX_ENTITY_COUNT - 2) elements.
     entities: Loophole_Entity[];
+};
+
+export type Loophole_Explosions = {
+    // The direction that the explosions move
+    direction: Loophole_Rotation;
+    // The time at which the explosions will reach startPosition
+    startTime: Loophole_Int;
+    // The position that explosions will reach when time = startTime.
+    // If direction is "LEFT" or "RIGHT", this refers to an x coordinate.
+    // If direction is "UP" or "DOWN", this refers to a y coordinate.
+    startPosition: Loophole_Int;
+    // A real number that determines the speed that the explosions move across the screen.
+    // For example, a value of 0.5 would mean the explosions advance every other turn.
+    speed: number;
 };
 
 export type Loophole_EntityType =
@@ -72,7 +103,8 @@ export type Loophole_EntityType =
     | 'BUTTON'
     | 'DOOR'
     | 'WIRE'
-    | 'CLEANSING_POOL';
+    | 'CLEANSING_POOL'
+    | 'EXIT';
 
 export type Loophole_Entity =
     | Loophole_TimeMachine
@@ -86,7 +118,8 @@ export type Loophole_Entity =
     | Loophole_Button
     | Loophole_Door
     | Loophole_Wire
-    | Loophole_CleansingPool;
+    | Loophole_CleansingPool
+    | Loophole_Exit;
 
 export type Loophole_ExtendedEntityType =
     | Exclude<Loophole_EntityType, 'MUSHROOM'>
@@ -183,26 +216,60 @@ export interface Loophole_Door extends Loophole_EntityBase {
 // ---------+-------+-------+-------+-------
 // Corner   |   ┘   |   ┐   |   ┌   |   └
 //
-export type Loophole_Wire = {
+export interface Loophole_Wire extends Loophole_EntityBase {
     entityType: 'WIRE';
     position: Loophole_Int2;
     rotation: Loophole_Rotation;
     sprite: 'STRAIGHT' | 'CORNER';
     // The wire lights up when this channel is activated.
     channel: Loophole_Int;
+}
+
+export interface Loophole_Exit extends Loophole_EntityBase {
+    entityType: 'EXIT';
+    position: Loophole_Int2;
+}
+
+export interface WithID {
+    tID: string;
+}
+
+export type Loophole_EntityWithID = Loophole_Entity & WithID;
+
+export type Loophole_InternalLevel = Omit<Loophole_Level, 'entities'> & {
+    entities: Loophole_EntityWithID[];
+    entrance: Loophole_Level['entrance'] & WithID;
+    id: string;
 };
+
+/* =============== Constraints =============== */
+
+// The maximum number of entities allowed in a level.
+// This includes the entrance and exit, so the entities array
+// has a maximum length of  MAX_ENTITY_COUNT - 2.
+export const MAX_ENTITY_COUNT: Loophole_Int = 4000;
+
+// The maximum file size, in bytes (1MB).
+export const MAX_FILE_SIZE: Loophole_Int = 1_048_576;
+
+// The maximum position (inclusive) for all entities, the entrance, and the exit.
+export const MAX_POSITION: Loophole_Int2 = { x: 192, y: 104 };
+
+// The minimum position (inclusive) for all entities, the entrance, and the exit.
+export const MIN_POSITION: Loophole_Int2 = { x: -192, y: -104 };
 
 //
 // Entity Overlap Rules
 //
-//              | TimeMachine | Staff | Sauce | Mushroom | Button | Wire
-// -------------+-------------+-------+-------+----------+--------+-------
-//  TimeMachine |      N      |   N   |   N   |    N     |    N   |   N
-//  Staff       |      -      |   N   |   Y   |    Y     |    Y   |   Y
-//  Sauce       |      -      |   -   |   N   |    Y     |    Y   |   Y
-//  Mushroom    |      -      |   -   |   -   |    N     |    Y   |   Y
-//  Button      |      -      |   -   |   -   |    -     |    N   |   Y
-//  Wire        |      -      |   -   |   -   |    -     |    -   |   N
+//              | TimeMachine | Staff | Sauce | Mushroom | Button | Wire  | Exit
+// -------------+-------------+-------+-------+----------+--------+-------+-------
+//  TimeMachine |      N      |   N   |   N   |    N     |    N   |   N   |   N
+//  Staff       |      -      |   N   |   Y   |    Y     |    Y   |   Y   |   N
+//  Sauce       |      -      |   -   |   N   |    Y     |    Y   |   Y   |   N
+//  Mushroom    |      -      |   -   |   -   |    N     |    Y   |   Y   |   N
+//  Button      |      -      |   -   |   -   |    -     |    N   |   Y   |   N
+//  Wire        |      -      |   -   |   -   |    -     |    -   |   N   |   Y
+//  Exit        |      -      |   -   |   -   |    -     |    -   |   -   |   N
 //
 //              | Wall | Curtain | OneWay | Glass | Door
 // -------------+------+---------+--------+-------+------
@@ -212,14 +279,3 @@ export type Loophole_Wire = {
 //  Glass       |   -  |    -    |    -   |   N   |   N
 //  Door        |   -  |    -    |    -   |   -   |   N
 //
-
-interface EntityWithID {
-    tID: string;
-}
-
-export type Loophole_EntityWithID = Loophole_Entity & EntityWithID;
-
-export type Loophole_LevelWithIDs = Omit<Loophole_Level, 'entities'> & {
-    entities: Loophole_EntityWithID[];
-    entrance: Loophole_Level['entrance'] & EntityWithID;
-};

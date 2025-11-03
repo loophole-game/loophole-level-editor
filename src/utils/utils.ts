@@ -10,7 +10,6 @@ import type {
     Loophole_ExtendedEntityType,
     Loophole_Glass,
     Loophole_Int2,
-    Loophole_Level,
     Loophole_Mushroom,
     Loophole_OneWay,
     Loophole_Sauce,
@@ -19,6 +18,8 @@ import type {
     Loophole_Wall,
     Loophole_Wire,
     Loophole_CleansingPool,
+    Loophole_InternalLevel,
+    Loophole_Exit,
 } from './levelEditor/externalLevelSchema';
 import type { Position } from './engine/types';
 
@@ -42,6 +43,7 @@ const ENTITY_TYPE_DRAW_ORDER_LIST: Loophole_EntityType[] = [
     'CURTAIN',
     'TIME_MACHINE',
     'SAUCE',
+    'EXIT',
 ] as const;
 export const ENTITY_TYPE_DRAW_ORDER: Record<Loophole_EntityType, number> =
     ENTITY_TYPE_DRAW_ORDER_LIST.reduce(
@@ -129,14 +131,6 @@ export const ColorPalette = {
 };
 export type ColorPalette = (typeof ColorPalette)[keyof typeof ColorPalette];
 
-export type LevelWithMetadata = {
-    id: string;
-    level: Loophole_Level;
-    name: string;
-    createdAt: number;
-    updatedAt: number;
-};
-
 export const getTimestamp = (): number => Date.now();
 
 const DEFAULT_EDGE_ALIGNMENT: Loophole_EdgeAlignment = 'RIGHT';
@@ -164,6 +158,7 @@ interface EntityMetadata {
     hasRotation?: boolean;
     hasFlipDirection?: boolean;
     hasChannel?: boolean;
+    hideInPicker?: boolean;
 }
 
 export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata> = {
@@ -379,24 +374,39 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         tileOwnership: 'ONLY_TYPE_IN_TILE',
         tileScale: TILE_CENTER_FRACTION,
     },
+    EXIT: {
+        name: 'Exit',
+        description: "The level's exit.",
+        src: 'pixel/exit.png',
+        type: 'EXIT',
+        extendedType: 'EXIT',
+        positionType: 'CELL',
+        createEntity: (position): Loophole_Exit => ({
+            entityType: 'EXIT',
+            position,
+        }),
+        tileOwnership: 'ONLY_ENTITY_IN_TILE',
+        tileScale: TILE_CENTER_FRACTION,
+        hideInPicker: true,
+    },
 };
 
-export const createLevelWithMetadata = (name: string, id?: string): LevelWithMetadata => ({
-    id: id ?? v4(),
-    name,
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-    level: {
-        colorPalette: 0,
-        entities: [],
-        entrance: {
-            entityType: 'TIME_MACHINE',
-            position: { x: 0, y: 0 },
-            rotation: 'RIGHT',
-        },
-        exitPosition: { x: 0, y: 0 },
-        version: 0,
+export const createLevelWithMetadata = (name: string, id?: string): Loophole_InternalLevel => ({
+    colorPalette: 0,
+    entities: [],
+    entrance: {
+        entityType: 'TIME_MACHINE',
+        position: { x: -1, y: 0 },
+        rotation: 'RIGHT',
+        tID: v4(),
     },
+    exitPosition: { x: 1, y: 0 },
+    version: 0,
+    name,
+    description: '',
+    id: id ?? v4(),
+    explosions: [],
+    imageFile: '',
 });
 
 export const loopholeRotationToDegrees = (rotation: Loophole_Rotation): number => {

@@ -122,7 +122,7 @@ function ChannelInput({ selectedTiles }: ChannelInputProps) {
                 placeholder={sharedValue ? undefined : '— multiple values —'}
                 onChange={(e) => {
                     const newChannel = e.target.value === '' ? null : parseInt(e.target.value, 10);
-                    if (newChannel) {
+                    if (newChannel !== null && newChannel !== undefined) {
                         window.engine?.updateEntities(
                             selectedTiles.map((t) => t.entity),
                             { channel: newChannel },

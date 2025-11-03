@@ -324,8 +324,8 @@ class E_TileCursor extends Entity {
         }
     }
 
-    #getTileKey(position: Position, edgeAlignment: Loophole_EdgeAlignment): string {
-        return `${position.x},${position.y},${edgeAlignment}`;
+    #getTileKey(position: Position, edgeAlignment: Loophole_EdgeAlignment | null): string {
+        return `${position.x},${position.y},${edgeAlignment ?? 'NONE'}`;
     }
 }
 

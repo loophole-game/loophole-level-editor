@@ -1,12 +1,9 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import {
-    createLevelWithMetadata,
-    getLoopholeEntityExtendedType,
-    type LevelWithMetadata,
-} from './utils';
+import { createLevelWithMetadata, getLoopholeEntityExtendedType } from './utils';
 import type {
     Loophole_ExtendedEntityType,
+    Loophole_InternalLevel,
     Loophole_Rotation,
 } from './levelEditor/externalLevelSchema';
 import { useMemo } from 'react';
@@ -19,13 +16,17 @@ interface UserSettings {
 }
 
 interface AppStore {
-    levels: Record<string, LevelWithMetadata>;
+    levels: Record<string, Loophole_InternalLevel>;
     levelHashes: Record<string, number>;
     activeLevelID: string;
-    addLevel: (level: LevelWithMetadata) => void;
+    addLevel: (level: Loophole_InternalLevel) => void;
     setActiveLevelID: (levelID: string) => void;
     removeLevel: (levelID: string) => void;
-    updateLevel: (id: string, level: Partial<LevelWithMetadata>, sendToEditor?: boolean) => void;
+    updateLevel: (
+        id: string,
+        level: Partial<Loophole_InternalLevel>,
+        sendToEditor?: boolean,
+    ) => void;
     resetLevel: (id: string) => void;
 
     brushEntityType: Loophole_ExtendedEntityType | null;
@@ -186,7 +187,7 @@ export const useAppStore = create<AppStore>()(
     ),
 );
 
-export const useCurrentLevel = (): LevelWithMetadata | null => {
+export const useCurrentLevel = (): Loophole_InternalLevel | null => {
     const activeLevelID = useAppStore((state) => state.activeLevelID);
     const levels = useAppStore((state) => state.levels);
 
