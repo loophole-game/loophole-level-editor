@@ -1,5 +1,5 @@
-import { Camera, RefreshCw, Rocket, Settings } from 'lucide-react';
-import { useAppStore, useCurrentLevel } from '../../utils/store';
+import { Camera, Grid, Mouse, RefreshCw, Rocket, Settings, Wrench } from 'lucide-react';
+import { useAppStore, useCurrentLevel, useSettingsStore } from '../../utils/stores';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Slider } from '../ui/slider';
@@ -19,10 +19,15 @@ const DEFAULT_LEVEL_NAME = 'Untitled Level';
 export default function TopPanel() {
     const currentLevel = useCurrentLevel();
     const updateLevel = useAppStore((state) => state.updateLevel);
-    const userSettings = useAppStore((state) => state.userSettings);
-    const setUserSettings = useAppStore((state) => state.setUserSettings);
     const resetLevel = useAppStore((state) => state.resetLevel);
     const setCameraTarget = useAppStore((state) => state.setCameraTarget);
+
+    const scrollDirection = useSettingsStore((state) => state.scrollDirection);
+    const scrollSensitivity = useSettingsStore((state) => state.scrollSensitivity);
+    const showEngineStats = useSettingsStore((state) => state.showEngineStats);
+    const showGrid = useSettingsStore((state) => state.showGrid);
+    const setUserSettings = useSettingsStore((state) => state.setUserSettings);
+
     if (!currentLevel) return null;
 
     const { name } = currentLevel;
@@ -35,6 +40,14 @@ export default function TopPanel() {
         const a = document.createElement('a');
         a.href = url;
         a.download = `${name}.json`;
+    };
+
+    const resetViewport = () => {
+        setCameraTarget({
+            position: { x: 0, y: 0 },
+            rotation: 0,
+            zoom: 1,
+        });
     };
 
     return (
@@ -58,39 +71,43 @@ export default function TopPanel() {
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56" align="end">
                     <DropdownMenuLabel>Level Settings</DropdownMenuLabel>
-                    <DropdownMenuItem
-                        onClick={() =>
-                            setCameraTarget({
-                                position: { x: 0, y: 0 },
-                                rotation: 0,
-                                zoom: 1,
-                            })
-                        }
-                    >
+                    <DropdownMenuItem onClick={() => resetViewport()}>
                         <Camera /> Reset Viewport
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => resetLevel(currentLevel.id)}>
+                    <DropdownMenuItem
+                        onClick={() => {
+                            resetLevel(currentLevel.id);
+                            resetViewport();
+                        }}
+                    >
                         <RefreshCw /> Clear Level
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel>Editor Settings</DropdownMenuLabel>
                     <DropdownMenuCheckboxItem
-                        checked={userSettings.scrollDirection === -1}
+                        checked={showGrid}
+                        onCheckedChange={(checked) => setUserSettings({ showGrid: checked })}
+                    >
+                        <Grid /> Show Grid
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                        checked={scrollDirection === -1}
                         onCheckedChange={(checked) =>
                             setUserSettings({ scrollDirection: checked ? -1 : 1 })
                         }
                     >
+                        <Mouse />
                         Invert Scroll Direction
                     </DropdownMenuCheckboxItem>
                     <div className="px-2 py-2">
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-medium">Scroll Sensitivity</span>
                             <span className="text-sm text-muted-foreground">
-                                {userSettings.scrollSensitivity.toFixed(1)}x
+                                {scrollSensitivity.toFixed(1)}x
                             </span>
                         </div>
                         <Slider
-                            value={[userSettings.scrollSensitivity]}
+                            value={[scrollSensitivity]}
                             onValueChange={([value]) =>
                                 setUserSettings({ scrollSensitivity: value })
                             }
@@ -101,10 +118,10 @@ export default function TopPanel() {
                         />
                     </div>
                     <DropdownMenuCheckboxItem
-                        checked={userSettings.showEngineStats}
+                        checked={showEngineStats}
                         onCheckedChange={(checked) => setUserSettings({ showEngineStats: checked })}
                     >
-                        Show Engine Stats
+                        <Wrench /> Engine Stats
                     </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
             </DropdownMenu>

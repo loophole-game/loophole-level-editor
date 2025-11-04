@@ -1,4 +1,4 @@
-import { useAppStore } from '@/utils/store';
+import { useAppStore } from '@/utils/stores';
 import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import {
     DropdownMenu,

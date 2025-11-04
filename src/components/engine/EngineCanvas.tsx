@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Engine } from '../../utils/engine';
 import type { Position } from '../../utils/engine/types';
 import type { PointerButton } from '../../utils/engine/systems/pointer';
-import { getAppStore } from '../../utils/store';
+import { getAppStore } from '../../utils/stores';
 import type { Loophole_ExtendedEntityType } from '../../utils/levelEditor/externalLevelSchema';
 import type { LevelEditor } from '../../utils/levelEditor';
 

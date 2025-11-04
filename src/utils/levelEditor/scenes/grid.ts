@@ -3,7 +3,7 @@ import { Entity } from '../../engine/entities';
 import { Scene } from '../../engine/systems/scene';
 import type { Loophole_EntityWithID, Loophole_ExtendedEntityType } from '../externalLevelSchema';
 import { C_PointerTarget } from '../../engine/components/PointerTarget';
-import { getAppStore } from '@/utils/store';
+import { getAppStore, getSettingsStore } from '@/utils/stores';
 import { C_Image } from '@/utils/engine/components/Image';
 import type { LevelEditor } from '..';
 import { PointerButton } from '@/utils/engine/systems/pointer';
@@ -192,8 +192,10 @@ const SCREEN_BORDER_SIZE = {
 };
 
 export class GridScene extends Scene {
+    #grids: Entity[] = [];
+
     override create() {
-        this.addEntities(
+        this.#grids.push(
             new E_InfiniteShape(
                 'grid',
                 new C_Shape(
@@ -222,5 +224,20 @@ export class GridScene extends Scene {
                 },
             ).setScale(SCREEN_BORDER_SIZE),
         );
+        this.addEntities(...this.#grids);
+    }
+
+    override update() {
+        let updated = false;
+
+        const { showGrid } = getSettingsStore();
+        this.#grids.forEach((grid) => {
+            if (grid.enabled !== showGrid) {
+                updated = true;
+                grid.setEnabled(showGrid);
+            }
+        });
+
+        return updated;
     }
 }

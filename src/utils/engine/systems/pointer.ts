@@ -172,6 +172,14 @@ export class PointerSystem extends System {
         }
 
         if (this._engine.options.cameraDrag) {
+            if (this.#pointerState.scrollDelta !== 0) {
+                this._engine.zoomCamera(
+                    this.#pointerState.scrollDelta,
+                    this.#pointerState.worldPosition,
+                );
+                this.#pointerState.scrollDelta = 0;
+            }
+
             const buttonStates = this._engine.options.cameraDragButtons.map(
                 (btn) => this.#pointerState[btn],
             );
@@ -200,14 +208,6 @@ export class PointerSystem extends System {
             if (buttonStates.some((state) => state.released) && this.#dragStartMousePosition) {
                 this.#dragStartMousePosition = null;
                 this.#dragStartCameraPosition = null;
-            }
-
-            if (this.#pointerState.scrollDelta !== 0) {
-                this._engine.zoomCamera(
-                    this.#pointerState.scrollDelta,
-                    this.#pointerState.worldPosition,
-                );
-                this.#pointerState.scrollDelta = 0;
             }
 
             if (this.#dragStartMousePosition) {

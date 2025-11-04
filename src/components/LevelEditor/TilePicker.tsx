@@ -1,6 +1,6 @@
 import { cn } from '../../lib/utils';
 import type { Loophole_ExtendedEntityType } from '../../utils/levelEditor/externalLevelSchema';
-import { useAppStore } from '../../utils/store';
+import { useAppStore } from '../../utils/stores';
 import { ENTITY_METADATA } from '../../utils/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
 import Panel from './Panel';

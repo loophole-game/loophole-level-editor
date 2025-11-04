@@ -1,5 +1,5 @@
 import { LevelEditor } from '@/utils/levelEditor';
-import { useAppStore } from '@/utils/store';
+import { useAppStore, useSettingsStore } from '@/utils/stores';
 import { useEffect, useRef } from 'react';
 import { EngineCanvas } from '../engine/EngineCanvas';
 import TopPanel from './TopPanel';
@@ -8,6 +8,7 @@ import { FPSCounter } from '../engine/FPSCounter';
 import { LayerButtons } from './LayerButtons';
 import { EntityInspector } from './EntityInspector';
 import type { Loophole_InternalLevel } from '@/utils/levelEditor/externalLevelSchema';
+import clsx from 'clsx';
 
 export function LevelEditorComponent() {
     const levelEditorRef = useRef<LevelEditor | null>(null);
@@ -15,7 +16,10 @@ export function LevelEditorComponent() {
     const activeLevelID = useAppStore((state) => state.activeLevelID);
     const updateLevel = useAppStore((state) => state.updateLevel);
     const levelHashes = useAppStore((state) => state.levelHashes);
-    const userSettings = useAppStore((state) => state.userSettings);
+
+    const scrollDirection = useSettingsStore((state) => state.scrollDirection);
+    const scrollSensitivity = useSettingsStore((state) => state.scrollSensitivity);
+    const showEngineStats = useSettingsStore((state) => state.showEngineStats);
 
     const level = levels[activeLevelID];
     const levelHash = levelHashes[activeLevelID];
@@ -45,8 +49,8 @@ export function LevelEditorComponent() {
             <div className="fixed top-0 left-0">
                 <EngineCanvas
                     engineRef={levelEditorRef}
-                    scrollDirection={userSettings.scrollDirection}
-                    scrollSensitivity={userSettings.scrollSensitivity}
+                    scrollDirection={scrollDirection}
+                    scrollSensitivity={scrollSensitivity}
                 />
             </div>
             <div className="h-full flex flex-col p-4 gap-4 z-10 pointer-events-none">
@@ -56,9 +60,13 @@ export function LevelEditorComponent() {
                     <LayerButtons />
                     <EntityInspector className="mt-auto" />
                 </div>
-                {userSettings.showEngineStats && (
-                    <FPSCounter className="fixed bottom-4 right-4 text-right" />
-                )}
+                <div
+                    className={clsx('fixed bottom-4 right-4 text-right transition-opacity', {
+                        'opacity-0': !showEngineStats,
+                    })}
+                >
+                    <FPSCounter />
+                </div>
             </div>
         </div>
     );

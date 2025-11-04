@@ -32,7 +32,7 @@ import {
     type LoopholePositionType,
 } from '../utils';
 import { v4 } from 'uuid';
-import { getAppStore } from '../store';
+import { getAppStore } from '../stores';
 import { positionsEqual } from '../engine/utils';
 import type { Position } from '../engine/types';
 
@@ -543,8 +543,6 @@ export class LevelEditor extends Engine {
                 group.actions.push({ type: 'place', entity: newEntity });
             }
         }
-
-        console.log(group);
 
         return this.#performEditActions(group);
     }

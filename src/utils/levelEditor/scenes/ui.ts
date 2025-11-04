@@ -10,7 +10,7 @@ import {
 import { Entity } from '../../engine/entities';
 import { Scene } from '../../engine/systems/scene';
 import { C_Image } from '@/utils/engine/components/Image';
-import { getAppStore } from '@/utils/store';
+import { getAppStore } from '@/utils/stores';
 import {
     MAX_ENTITY_COUNT,
     type Loophole_EdgeAlignment,

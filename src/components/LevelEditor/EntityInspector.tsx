@@ -1,4 +1,4 @@
-import { useAppStore } from '@/utils/store';
+import { useAppStore } from '@/utils/stores';
 import Panel from './Panel';
 import clsx from 'clsx';
 import type { E_Tile } from '@/utils/levelEditor/scenes/grid';

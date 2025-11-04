@@ -11,12 +11,6 @@ import type { E_Tile } from './levelEditor/scenes/grid';
 import { isMac } from './engine/utils';
 import type { CameraData } from './engine/types';
 
-interface UserSettings {
-    scrollDirection: -1 | 1;
-    showEngineStats: boolean;
-    scrollSensitivity: number;
-}
-
 interface AppStore {
     levels: Record<string, Loophole_InternalLevel>;
     levelHashes: Record<string, number>;
@@ -54,9 +48,6 @@ interface AppStore {
     setEditableLayers: (layers: Loophole_ExtendedEntityType[]) => void;
     addEditableLayer: (layer: Loophole_ExtendedEntityType) => void;
     removeEditableLayer: (layer: Loophole_ExtendedEntityType) => void;
-
-    userSettings: UserSettings;
-    setUserSettings: (settings: Partial<UserSettings>) => void;
 
     cameraTarget: CameraData | null;
     setCameraTarget: (cameraTarget: CameraData | null) => void;
@@ -165,14 +156,6 @@ export const useAppStore = create<AppStore>()(
                         lockedLayers: { ...state.lockedLayers, [layer]: false },
                     })),
 
-                userSettings: {
-                    scrollDirection: isMac ? -1 : 1,
-                    showEngineStats: false,
-                    scrollSensitivity: 1,
-                },
-                setUserSettings: (settings) =>
-                    set((state) => ({ userSettings: { ...state.userSettings, ...settings } })),
-
                 cameraTarget: null,
                 setCameraTarget: (cameraTarget) => set({ cameraTarget }),
             };
@@ -188,7 +171,6 @@ export const useAppStore = create<AppStore>()(
                 brushEntityFlipDirection: state.brushEntityFlipDirection,
                 lockedLayers: state.lockedLayers,
                 editableLayers: state.editableLayers,
-                userSettings: state.userSettings,
             }),
             version: 3,
             migrate: () => {},
@@ -204,3 +186,38 @@ export const useCurrentLevel = (): Loophole_InternalLevel | null => {
 };
 
 export const getAppStore = () => useAppStore.getState();
+
+interface UserSettings {
+    scrollDirection: -1 | 1;
+    showEngineStats: boolean;
+    scrollSensitivity: number;
+    showGrid: boolean;
+}
+
+interface SettingsStore extends UserSettings {
+    setUserSettings: (settings: Partial<UserSettings>) => void;
+}
+
+export const useSettingsStore = create<SettingsStore>()(
+    persist(
+        (set) => {
+            return {
+                scrollDirection: isMac ? -1 : 1,
+                showEngineStats: false,
+                scrollSensitivity: 1,
+                showGrid: true,
+
+                setUserSettings: (settings) => set({ ...settings }),
+            };
+        },
+        {
+            name: 'settings-store',
+            storage: createJSONStorage(() => localStorage),
+            partialize: (state) => ({ ...state }),
+            version: 1,
+            migrate: () => {},
+        },
+    ),
+);
+
+export const getSettingsStore = () => useSettingsStore.getState();
