@@ -107,27 +107,18 @@ class E_TileCursor extends Entity {
             } = ENTITY_METADATA[brushEntityType];
             this.#tileImage.imageName = name;
 
-            const { position: tilePosition, edgeAlignment } =
-                this.#editor.calculateTilePositionFromWorld(
-                    this.#editor.pointerState.worldPosition,
-                    brushEntityType,
-                );
-            const cursorPosition = tilePosition;
-            if (positionType === 'CELL') {
-                this.#targetRotation = 0;
-            } else {
-                const cellX = Math.round(this.#editor.pointerState.worldPosition.x / TILE_SIZE);
-                const cellY = Math.round(this.#editor.pointerState.worldPosition.y / TILE_SIZE);
-                const localX = this.#editor.pointerState.worldPosition.x - cellX * TILE_SIZE;
-                const localY = this.#editor.pointerState.worldPosition.y - cellY * TILE_SIZE;
-
-                if (Math.abs(localX) > Math.abs(localY)) {
-                    this.#targetRotation = loopholeRotationToDegrees('RIGHT');
-                } else {
-                    this.#targetRotation = loopholeRotationToDegrees('UP');
-                }
-            }
-
+            const {
+                position: tilePosition,
+                edgeAlignment,
+                rotation,
+            } = this.#editor.calculateTilePositionFromWorld(
+                this.#editor.pointerState.worldPosition,
+                brushEntityType,
+            );
+            const cursorPosition = {
+                x: tilePosition.x + (edgeAlignment === 'RIGHT' ? 0.5 : 0),
+                y: tilePosition.y + (edgeAlignment === 'TOP' ? 0.5 : 0),
+            };
             this.#targetPosition = {
                 x: cursorPosition.x * TILE_SIZE,
                 y: cursorPosition.y * TILE_SIZE,
@@ -147,6 +138,7 @@ class E_TileCursor extends Entity {
                 }
             }
 
+            this.#targetRotation = rotation;
             if (hasRotation) {
                 this.#targetRotation =
                     (this.#targetRotation + loopholeRotationToDegrees(_brushEntityRotation)) % 360;

@@ -83,7 +83,7 @@ function MultiTileContent({ selectedTiles }: MultiTileContentProps) {
                         Entrance
                     </Badge>
                 )}
-                {(multiple || primaryTile.variant === 'default') && (
+                {selectedTiles.some((t) => t.variant === 'default') && (
                     <button
                         onClick={() =>
                             window.engine?.removeEntities(selectedTiles.map((t) => t.entity))

@@ -19,12 +19,14 @@ import { TestScene } from './scenes/test';
 import { UIScene } from './scenes/ui';
 import {
     convertLoopholeTypeToExtendedType,
+    degreesToLoopholeRotation,
     ENTITY_METADATA,
     getLoopholeEntityEdgeAlignment,
     getLoopholeEntityExtendedType,
     getLoopholeEntityPosition,
     getLoopholeEntityPositionType,
     loopholePositionToEnginePosition,
+    loopholeRotationToDegrees,
     OVERLAPPABLE_ENTITY_TYPES,
     TILE_SIZE,
     type LoopholePositionType,
@@ -32,6 +34,7 @@ import {
 import { v4 } from 'uuid';
 import { getAppStore } from '../store';
 import { positionsEqual } from '../engine/utils';
+import type { Position } from '../engine/types';
 
 const MAX_STASHED_TILES = 10_000;
 
@@ -155,16 +158,23 @@ export class LevelEditor extends Engine {
     calculateTilePositionFromWorld(
         worldPosition: { x: number; y: number },
         entityType: Loophole_ExtendedEntityType,
-    ): { position: Loophole_Int2; edgeAlignment: Loophole_EdgeAlignment | null } {
-        const { positionType } = ENTITY_METADATA[entityType];
-        let cursorPosition: { x: number; y: number } = { x: 0, y: 0 };
+    ): {
+        position: Loophole_Int2;
+        edgeAlignment: Loophole_EdgeAlignment | null;
+        rotation: number;
+    } {
+        let tilePosition: Position = { x: 0, y: 0 },
+            cursorPosition: Position = { x: 0, y: 0 };
         let edgeAlignment: Loophole_EdgeAlignment | null = null;
+        let rotation: number = 0;
 
+        const { positionType } = ENTITY_METADATA[entityType];
         if (positionType === 'CELL') {
             cursorPosition = {
                 x: Math.round(worldPosition.x / TILE_SIZE),
                 y: Math.round(worldPosition.y / TILE_SIZE),
             };
+            rotation = 0;
         } else {
             const cellX = Math.round(worldPosition.x / TILE_SIZE);
             const cellY = Math.round(worldPosition.y / TILE_SIZE);
@@ -177,24 +187,27 @@ export class LevelEditor extends Engine {
                     y: cellY,
                 };
                 edgeAlignment = 'RIGHT';
+                rotation = loopholeRotationToDegrees('RIGHT');
             } else {
                 cursorPosition = {
                     x: cellX,
                     y: localY > 0 ? cellY + 0.5 : cellY - 0.5,
                 };
                 edgeAlignment = 'TOP';
+                rotation = loopholeRotationToDegrees('UP');
             }
         }
 
-        const enginePosition = loopholePositionToEnginePosition(cursorPosition, edgeAlignment);
-        const finalPosition: Loophole_Int2 = {
-            x: Math.floor(enginePosition.x),
-            y: Math.floor(enginePosition.y),
+        tilePosition = loopholePositionToEnginePosition(cursorPosition);
+        tilePosition = {
+            x: Math.floor(tilePosition.x),
+            y: Math.floor(tilePosition.y),
         };
-        finalPosition.x = Math.max(MIN_POSITION.x, Math.min(MAX_POSITION.x, finalPosition.x));
-        finalPosition.y = Math.max(MIN_POSITION.y, Math.min(MAX_POSITION.y, finalPosition.y));
 
-        return { position: finalPosition, edgeAlignment };
+        tilePosition.x = Math.max(MIN_POSITION.x, Math.min(MAX_POSITION.x, tilePosition.x));
+        tilePosition.y = Math.max(MIN_POSITION.y, Math.min(MAX_POSITION.y, tilePosition.y));
+
+        return { position: tilePosition, edgeAlignment, rotation };
     }
 
     handleDrop(
@@ -422,15 +435,117 @@ export class LevelEditor extends Engine {
     }
 
     rotateEntities(
-        _entities: Loophole_EntityWithID[],
-        _centerPosition: Loophole_Int2,
-        _rotation: 90 | -90,
+        entities: Loophole_EntityWithID[],
+        centerPosition: Loophole_Int2,
+        rotation: 90 | -90,
         hash?: string | null,
     ): E_Tile[] {
         const group: EditActionGroup = {
             actions: [],
             hash: hash || v4(),
         };
+
+        for (const entity of entities) {
+            group.actions.push({ type: 'remove', entity });
+
+            let newEntity: Loophole_EntityWithID;
+            const positionType = getLoopholeEntityPositionType(entity);
+
+            if (positionType === 'CELL') {
+                // Rotate cell position around center
+                if (!('position' in entity)) continue;
+
+                const currentPos = entity.position;
+                const dx = currentPos.x - centerPosition.x;
+                const dy = currentPos.y - centerPosition.y;
+
+                const newPosition: Loophole_Int2 =
+                    rotation === 90
+                        ? {
+                              x: centerPosition.x - dy,
+                              y: centerPosition.y + dx,
+                          }
+                        : {
+                              x: centerPosition.x + dy,
+                              y: centerPosition.y - dx,
+                          };
+
+                // Update rotation property if entity has one
+                if ('rotation' in entity) {
+                    const currentDegrees = loopholeRotationToDegrees(entity.rotation);
+                    const newDegrees = (currentDegrees + rotation + 360) % 360;
+                    newEntity = {
+                        ...entity,
+                        position: newPosition,
+                        rotation: degreesToLoopholeRotation(newDegrees),
+                    };
+                } else {
+                    newEntity = {
+                        ...entity,
+                        position: newPosition,
+                    };
+                }
+            } else {
+                // Handle edge entities
+                if (!('edgePosition' in entity)) continue;
+
+                const edgePos = entity.edgePosition;
+
+                // Convert edge position to world coordinates
+                const worldX = edgePos.cell.x + (edgePos.alignment === 'RIGHT' ? 0.5 : 0);
+                const worldY = edgePos.cell.y + (edgePos.alignment === 'TOP' ? 0.5 : 0);
+
+                // Rotate world position around center
+                const dx = worldX - centerPosition.x;
+                const dy = worldY - centerPosition.y;
+
+                const newWorldX = rotation === 90 ? centerPosition.x - dy : centerPosition.x + dy;
+                const newWorldY = rotation === 90 ? centerPosition.y + dx : centerPosition.y - dx;
+
+                // Convert back to edge position
+                // Alignment always flips when rotating 90 degrees
+                const newAlignment: Loophole_EdgeAlignment =
+                    edgePos.alignment === 'RIGHT' ? 'TOP' : 'RIGHT';
+
+                // Calculate new cell position
+                const newCellX = Math.round(newWorldX - (newAlignment === 'RIGHT' ? 0.5 : 0));
+                const newCellY = Math.round(newWorldY - (newAlignment === 'TOP' ? 0.5 : 0));
+
+                newEntity = {
+                    ...entity,
+                    edgePosition: {
+                        cell: { x: newCellX, y: newCellY },
+                        alignment: newAlignment,
+                    },
+                };
+            }
+
+            // Check if new position is valid
+            const newPosition = getLoopholeEntityPosition(newEntity);
+            if (
+                !this.#isOverlappingCriticalTile(
+                    newPosition,
+                    getLoopholeEntityPositionType(newEntity),
+                )
+            ) {
+                const overlappingEntities = this.#getOverlappingEntities(
+                    newPosition,
+                    getLoopholeEntityPositionType(newEntity),
+                    newEntity.entityType,
+                    getLoopholeEntityEdgeAlignment(newEntity) || 'RIGHT',
+                );
+                group.actions.push(
+                    ...overlappingEntities.map(
+                        (entity) => ({ type: 'remove', entity }) as EditAction,
+                    ),
+                );
+
+                group.actions.push({ type: 'place', entity: newEntity });
+            }
+        }
+
+        console.log(group);
+
         return this.#performEditActions(group);
     }
 

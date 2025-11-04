@@ -76,7 +76,7 @@ export class CameraSystem extends System {
         const oldZoom = this.#camera.zoom;
         this.#camera.zoom += delta * this._engine.options.zoomSpeed;
         this.clampCameraZoom();
-        
+
         // If a focal point is provided, adjust camera position to zoom towards that point
         if (focalPoint) {
             // The world-to-screen transform is: screenPos = worldPos * zoom + cameraPos + screenCenter
@@ -89,7 +89,7 @@ export class CameraSystem extends System {
                 y: this.#camera.position.y + focalPoint.y * zoomDelta,
             };
         }
-        
+
         this.#worldToScreenMatrixDirty = true;
         this.#camera.dirty = true;
     }
