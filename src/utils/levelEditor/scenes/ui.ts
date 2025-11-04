@@ -438,7 +438,7 @@ class E_DragCursor extends Entity {
     }
 
     override update(deltaTime: number): boolean {
-        const updated = super.update(deltaTime);
+        let updated = super.update(deltaTime);
         const { selectedTiles, setSelectedTiles, brushEntityType, setIsMovingTiles } =
             getAppStore();
         const selectedTileArray = Object.values(selectedTiles);
@@ -519,10 +519,15 @@ class E_DragCursor extends Entity {
 
         this.#opacityLerp.target = active ? 0.8 : 0;
         this.#pointerTarget.setEnabled(active);
-        this.#handleShape.style.fillStyle =
+
+        const targetColor =
             this.#pointerTarget.isPointerHovered || this.#isDragging
                 ? HANDLE_HOVER_COLOR
                 : HANDLE_COLOR;
+        if (this.#handleShape.style.fillStyle !== targetColor) {
+            this.#handleShape.style.fillStyle = targetColor;
+            updated = true;
+        }
 
         return updated;
     }
