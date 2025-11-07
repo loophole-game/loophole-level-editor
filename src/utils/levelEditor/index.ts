@@ -259,7 +259,7 @@ export class LevelEditor extends Engine {
         }
 
         const { createEntity, positionType } = ENTITY_METADATA[entityType];
-        if (this.#isOverlappingCriticalTile(position, positionType)) {
+        if (this.#isOverlappingCriticalTile(entityType, position, positionType)) {
             return [];
         }
 
@@ -378,7 +378,11 @@ export class LevelEditor extends Engine {
 
             const position = getLoopholeEntityPosition(entity);
             const positionType = getLoopholeEntityPositionType(entity);
-            const isCritical = this.#isOverlappingCriticalTile(position, positionType);
+            const isCritical = this.#isOverlappingCriticalTile(
+                entity.entityType,
+                position,
+                positionType,
+            );
 
             const newEntity = { ...entity };
             let newPosition: Loophole_Int2;
@@ -405,6 +409,7 @@ export class LevelEditor extends Engine {
             if (
                 isCritical ||
                 !this.#isOverlappingCriticalTile(
+                    entity.entityType,
                     newPosition,
                     getLoopholeEntityPositionType(newEntity),
                 )
@@ -456,7 +461,11 @@ export class LevelEditor extends Engine {
             let newEntity = entity;
             const positionType = getLoopholeEntityPositionType(entity);
             const position = getLoopholeEntityPosition(entity);
-            const isCritical = this.#isOverlappingCriticalTile(position, positionType);
+            const isCritical = this.#isOverlappingCriticalTile(
+                entity.entityType,
+                position,
+                positionType,
+            );
 
             if (positionType === 'CELL') {
                 if ('position' in entity) {
@@ -487,9 +496,16 @@ export class LevelEditor extends Engine {
                 } else if ('startPosition' in entity) {
                     const currentDegrees = loopholeRotationToDegrees(entity.direction);
                     const newDegrees = (currentDegrees + rotation + 360) % 360;
+                    const cellPos: Position = {
+                        x: Math.round(centerPosition.x / TILE_SIZE),
+                        y: Math.round(centerPosition.y / TILE_SIZE),
+                    };
                     newEntity = {
                         ...entity,
-                        startPosition: 0,
+                        startPosition:
+                            entity.direction === 'RIGHT' || entity.direction === 'LEFT'
+                                ? cellPos.y
+                                : cellPos.x,
                         direction: degreesToLoopholeRotation(newDegrees),
                     };
                 } else {
@@ -528,6 +544,7 @@ export class LevelEditor extends Engine {
             if (
                 isCritical ||
                 !this.#isOverlappingCriticalTile(
+                    newEntity.entityType,
                     newPosition,
                     getLoopholeEntityPositionType(newEntity),
                 )
@@ -735,10 +752,11 @@ export class LevelEditor extends Engine {
     }
 
     #isOverlappingCriticalTile(
+        entityType: Loophole_EntityType | Loophole_ExtendedEntityType,
         position: Loophole_Int2,
         positionType: LoopholePositionType,
     ): boolean {
-        if (positionType !== 'CELL') {
+        if (entityType === 'EXPLOSION' || positionType !== 'CELL') {
             return false;
         }
 

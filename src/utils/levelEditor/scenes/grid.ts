@@ -233,15 +233,15 @@ export class E_Tile extends Entity {
 
     #updatePosition() {
         if (this.#entity.entityType === 'EXPLOSION' && this.#editor.canvasSize) {
-            const length = this.#editor.canvasSize.y / this.#editor.camera.zoom;
+            const isHorizontal =
+                this.#entity.direction === 'RIGHT' || this.#entity.direction === 'LEFT';
+            const length =
+                (isHorizontal ? this.#editor.canvasSize.y : this.#editor.canvasSize.x) /
+                this.#editor.camera.zoom;
             this.#highlightEntity
-                .setScale(
-                    this.#entity.direction === 'RIGHT' || this.#entity.direction === 'LEFT'
-                        ? { x: TILE_SIZE, y: length }
-                        : { x: length, y: TILE_SIZE },
-                )
+                .setScale(isHorizontal ? { x: TILE_SIZE, y: length } : { x: length, y: TILE_SIZE })
                 .setPosition(
-                    this.#entity.direction === 'RIGHT' || this.#entity.direction === 'LEFT'
+                    isHorizontal
                         ? {
                               x: this.position.x,
                               y: -this.#editor.camera.position.y / this.#editor.camera.zoom,
