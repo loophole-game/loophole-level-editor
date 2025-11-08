@@ -77,8 +77,8 @@ export interface EngineOptions {
 
 const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
     zoomSpeed: 0.001,
-    minZoom: 0.1,
-    maxZoom: 10,
+    minZoom: -3, // 2^-3 = 0.125 (1/8x scale)
+    maxZoom: 3, // 2^3 = 8 (8x scale)
     clearColor: 'black',
 
     scenes: {},
@@ -312,6 +312,12 @@ export class Engine {
 
     capturePointerButtonClick(button: PointerButton): void {
         return this._pointerSystem.capturePointerButtonClick(button);
+    }
+
+    setCamera(camera: CameraData): void {
+        this._cameraSystem.setCameraPosition(camera.position);
+        this._cameraSystem.setCameraRotation(camera.rotation);
+        this._cameraSystem.setCameraZoom(camera.zoom);
     }
 
     setCameraPosition(position: Position): void {

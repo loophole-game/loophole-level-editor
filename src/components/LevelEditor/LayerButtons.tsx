@@ -16,7 +16,11 @@ import { useMemo } from 'react';
 
 const ALL_ENTITY_TYPES = Object.keys(ENTITY_METADATA) as Loophole_ExtendedEntityType[];
 
-export function LayerButtons() {
+interface LayerButtonsProps {
+    groupClassName?: string;
+}
+
+export function LayerButtons({ groupClassName }: LayerButtonsProps) {
     const lockedLayers = useAppStore((state) => state.lockedLayers);
     const setLockedLayer = useAppStore((state) => state.setLockedLayer);
     const _editableLayers = useAppStore((state) => state.editableLayers);
@@ -37,7 +41,7 @@ export function LayerButtons() {
                 type="multiple"
                 spacing={2}
                 size="sm"
-                className="w-full pointer-events-auto flex-wrap"
+                className={clsx('w-full flex-wrap', groupClassName)}
             >
                 {editableLayers.map((layer) => {
                     const { name } = ENTITY_METADATA[layer];
@@ -95,6 +99,7 @@ export function LayerButtons() {
                                             setTimeout(() => {
                                                 if (checked) {
                                                     addEditableLayer(layer);
+                                                    setLockedLayer(layer, true);
                                                 } else {
                                                     removeEditableLayer(layer);
                                                 }

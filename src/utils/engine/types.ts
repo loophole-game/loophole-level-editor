@@ -1,9 +1,16 @@
 import type { RenderCommandStream } from './systems/render';
 
-export type Position = {
+export interface Position {
     x: number;
     y: number;
-};
+}
+
+export interface BoundingBox {
+    x1: number;
+    x2: number;
+    y1: number;
+    y2: number;
+}
 
 export type RecursiveArray<T> = Array<RecursiveArray<T> | T>;
 

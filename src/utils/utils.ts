@@ -24,8 +24,9 @@ import type {
     Loophole_Explosion,
     Loophole_Int,
 } from './levelEditor/externalLevelSchema';
-import type { Position } from './engine/types';
+import type { CameraData, Position } from './engine/types';
 import type { E_Tile } from './levelEditor/scenes/grid';
+import { calculateBoundingBox, scaleToZoom } from './engine/utils';
 
 export const TILE_CENTER_FRACTION = 0.7;
 export const TILE_SIZE = 100;
@@ -550,27 +551,15 @@ export const getLoopholeExplosionStartPosition = (
 };
 
 export const calculateSelectionCenter = (tiles: E_Tile[]): Position => {
-    if (tiles.length === 0) {
-        return { x: 0, y: 0 };
-    }
-
-    let minX = Number.POSITIVE_INFINITY;
-    let minY = Number.POSITIVE_INFINITY;
-    let maxX = Number.NEGATIVE_INFINITY;
-    let maxY = Number.NEGATIVE_INFINITY;
-
-    tiles.forEach((tile) => {
-        const pos =
-            tile.entity.entityType === 'EXPLOSION' ? tile.highlightEntity.position : tile.position;
-        if (pos.x < minX) minX = pos.x;
-        if (pos.y < minY) minY = pos.y;
-        if (pos.x > maxX) maxX = pos.x;
-        if (pos.y > maxY) maxY = pos.y;
-    });
+    const box = calculateBoundingBox(
+        tiles.map((t) =>
+            t.entity.entityType === 'EXPLOSION' ? t.highlightEntity.position : t.position,
+        ),
+    );
 
     return {
-        x: (minX + maxX) / 2,
-        y: (minY + maxY) / 2,
+        x: (box.x1 + box.x2) / 2,
+        y: (box.y1 + box.y2) / 2,
     };
 };
 
@@ -643,3 +632,49 @@ export const COLOR_PALETTE_METADATA: Record<
 };
 
 export const DEFAULT_LEVEL_NAME = 'Untitled Level';
+
+const LEVEL_CAMERA_PADDING = 4;
+
+export const calculateLevelCameraTarget = (level: Loophole_InternalLevel): CameraData => {
+    const entityPositions = [
+        ...[...level.entities, ...level.explosions, level.entrance].map((e) =>
+            getLoopholeEntityPosition(e),
+        ),
+        level.exitPosition,
+    ];
+
+    const boundingBox = calculateBoundingBox(entityPositions);
+    boundingBox.x1 -= LEVEL_CAMERA_PADDING;
+    boundingBox.x2 += LEVEL_CAMERA_PADDING;
+    boundingBox.y1 -= LEVEL_CAMERA_PADDING;
+    boundingBox.y2 += LEVEL_CAMERA_PADDING;
+    boundingBox.x1 *= TILE_SIZE;
+    boundingBox.x2 *= TILE_SIZE;
+    boundingBox.y1 *= TILE_SIZE;
+    boundingBox.y2 *= TILE_SIZE;
+
+    const boundingSize = {
+        x: boundingBox.x2 - boundingBox.x1,
+        y: boundingBox.y2 - boundingBox.y1,
+    };
+    const screenSize = {
+        x: window.innerWidth,
+        y: window.innerHeight,
+    };
+
+    const targetPosition = {
+        x: -(boundingBox.x1 + boundingBox.x2) / 2,
+        y: -(boundingBox.y1 + boundingBox.y2) / 2,
+    };
+
+    const scaleX = screenSize.x / boundingSize.x;
+    const scaleY = screenSize.y / boundingSize.y;
+    const targetScale = Math.min(scaleX, scaleY);
+    const targetZoom = scaleToZoom(targetScale);
+
+    return {
+        position: { x: targetPosition.x * targetScale, y: targetPosition.y * targetScale },
+        rotation: 0,
+        zoom: targetZoom,
+    };
+};

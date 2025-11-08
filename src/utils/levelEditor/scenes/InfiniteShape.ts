@@ -1,6 +1,7 @@
 import { Entity } from '../../engine/entities';
 import { C_Shape } from '../../engine/components/Shape';
 import type { Position } from '../../engine/types';
+import { zoomToScale } from '../../engine/utils';
 
 export class E_InfiniteShape extends Entity {
     #shape: C_Shape;
@@ -29,7 +30,8 @@ export class E_InfiniteShape extends Entity {
         const updated = super.update(deltaTime);
 
         if (window.engine?.canvasSize) {
-            if (window.engine.camera.zoom >= this.#zoomCullThresh) {
+            const scale = zoomToScale(window.engine.camera.zoom);
+            if (scale >= this.#zoomCullThresh) {
                 const topLeft = window.engine.screenToWorld({ x: 0, y: 0 }),
                     bottomRight = window.engine.screenToWorld(window.engine.canvasSize);
                 const gridTopLeft = {

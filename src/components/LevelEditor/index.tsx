@@ -10,6 +10,7 @@ import { EntityInspector } from './EntityInspector';
 import type { Loophole_InternalLevel } from '@/utils/levelEditor/externalLevelSchema';
 import { COLOR_PALETTE_METADATA } from '@/utils/utils';
 import clsx from 'clsx';
+import { OpenInterfacePanel } from '../OpenInterfacePanel';
 
 export function LevelEditorComponent() {
     const levelEditorRef = useRef<LevelEditor | null>(null);
@@ -21,6 +22,7 @@ export function LevelEditorComponent() {
     const scrollDirection = useSettingsStore((state) => state.scrollDirection);
     const scrollSensitivity = useSettingsStore((state) => state.scrollSensitivity);
     const showEngineStats = useSettingsStore((state) => state.showEngineStats);
+    const interfaceHidden = useAppStore((state) => state.interfaceHidden);
 
     const level = levels[activeLevelID];
     const levelHash = levelHashes[activeLevelID];
@@ -56,8 +58,12 @@ export function LevelEditorComponent() {
         }
     }, [activeLevelID, levelHash, level, updateLevel]);
 
+    const panelClassName = clsx({
+        'pointer-events-auto': !interfaceHidden,
+    });
+
     return (
-        <div className={clsx('h-screen w-screen flex flex-col', colorPaletteClass)}>
+        <div className={clsx('h-screen w-screen flex flex-col overflow-hidden', colorPaletteClass)}>
             <div className="fixed top-0 left-0">
                 <EngineCanvas
                     engineRef={levelEditorRef}
@@ -65,13 +71,20 @@ export function LevelEditorComponent() {
                     scrollSensitivity={scrollSensitivity}
                 />
             </div>
-            <div className="h-full flex flex-col p-4 gap-4 z-10 pointer-events-none">
-                <TopPanel />
+            <div
+                className={clsx(
+                    'h-full flex flex-col p-4 gap-4 z-10 pointer-events-none transition-all',
+                    {
+                        'scale-125 opacity-0': interfaceHidden,
+                    },
+                )}
+            >
+                <TopPanel className={panelClassName} />
                 <div className="h-full flex flex-col gap-4 max-w-54">
-                    <TilePicker />
-                    <LayerButtons />
+                    <TilePicker className={panelClassName} />
+                    <LayerButtons groupClassName={panelClassName} />
                 </div>
-                <EntityInspector className="mt-auto w-fit" />
+                <EntityInspector className={clsx('mt-auto w-fit', panelClassName)} />
                 <div
                     className={clsx('fixed bottom-4 right-4 text-right transition-opacity', {
                         'opacity-0': !showEngineStats,
@@ -80,6 +93,7 @@ export function LevelEditorComponent() {
                     <FPSCounter />
                 </div>
             </div>
+            <OpenInterfacePanel />
         </div>
     );
 }

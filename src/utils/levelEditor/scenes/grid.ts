@@ -7,6 +7,7 @@ import { getAppStore, getSettingsStore } from '@/utils/stores';
 import { C_Image } from '@/utils/engine/components/Image';
 import type { LevelEditor } from '..';
 import { PointerButton } from '@/utils/engine/systems/pointer';
+import { zoomToScale } from '../../engine/utils';
 import {
     ENTITY_METADATA,
     ENTITY_TYPE_DRAW_ORDER,
@@ -106,7 +107,12 @@ export class E_Tile extends Entity {
 
     set entity(entity: Loophole_EntityWithID) {
         this.#entity = entity;
+        this.#type = getLoopholeEntityExtendedType(entity);
         this.#onEntityChanged();
+    }
+
+    get type(): Loophole_ExtendedEntityType {
+        return this.#type;
     }
 
     get variant(): TileVariant {
@@ -235,19 +241,19 @@ export class E_Tile extends Entity {
         if (this.#entity.entityType === 'EXPLOSION' && this.#editor.canvasSize) {
             const isHorizontal =
                 this.#entity.direction === 'RIGHT' || this.#entity.direction === 'LEFT';
+            const scale = zoomToScale(this.#editor.camera.zoom);
             const length =
-                (isHorizontal ? this.#editor.canvasSize.y : this.#editor.canvasSize.x) /
-                this.#editor.camera.zoom;
+                (isHorizontal ? this.#editor.canvasSize.y : this.#editor.canvasSize.x) / scale;
             this.#highlightEntity
                 .setScale(isHorizontal ? { x: TILE_SIZE, y: length } : { x: length, y: TILE_SIZE })
                 .setPosition(
                     isHorizontal
                         ? {
                               x: this.position.x,
-                              y: -this.#editor.camera.position.y / this.#editor.camera.zoom,
+                              y: -this.#editor.camera.position.y / scale,
                           }
                         : {
-                              x: -this.#editor.camera.position.x / this.#editor.camera.zoom,
+                              x: -this.#editor.camera.position.x / scale,
                               y: this.position.y,
                           },
                 );

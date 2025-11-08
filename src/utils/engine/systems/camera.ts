@@ -2,7 +2,7 @@ import { System } from '.';
 import type { Engine } from '..';
 import type { Entity } from '../entities';
 import type { Camera, CameraData, Position } from '../types';
-import { DEFAULT_CAMERA_OPTIONS, lerp } from '../utils';
+import { DEFAULT_CAMERA_OPTIONS, lerp, zoomToScale } from '../utils';
 
 export class CameraSystem extends System {
     #camera: Required<Camera>;
@@ -41,11 +41,12 @@ export class CameraSystem extends System {
                 return new DOMMatrix();
             }
 
+            const scale = zoomToScale(this.#camera.zoom);
             this.#worldToScreenMatrix = new DOMMatrix()
                 .translate(this._engine.canvasSize.x / 2, this._engine.canvasSize.y / 2)
                 .translate(this.#camera.position.x, this.#camera.position.y)
                 .rotate(this.#camera.rotation)
-                .scale(this.#camera.zoom, this.#camera.zoom);
+                .scale(scale, scale);
             this.#worldToScreenMatrixDirty = false;
         }
 
@@ -67,6 +68,7 @@ export class CameraSystem extends System {
     setCameraZoom(zoom: number): void {
         if (this.#camera.zoom !== zoom) {
             this.#camera.zoom = zoom;
+            this.clampCameraZoom();
             this.#worldToScreenMatrixDirty = true;
             this.#camera.dirty = true;
         }
@@ -74,19 +76,16 @@ export class CameraSystem extends System {
 
     zoomCamera(delta: number, focalPoint?: Position): void {
         const oldZoom = this.#camera.zoom;
+        const oldScale = zoomToScale(oldZoom);
         this.#camera.zoom += delta * this._engine.options.zoomSpeed;
         this.clampCameraZoom();
+        const newScale = zoomToScale(this.#camera.zoom);
 
-        // If a focal point is provided, adjust camera position to zoom towards that point
         if (focalPoint) {
-            // The world-to-screen transform is: screenPos = worldPos * zoom + cameraPos + screenCenter
-            // To keep the focal point at the same screen position after zooming:
-            // focalPoint * oldZoom + oldCameraPos = focalPoint * newZoom + newCameraPos
-            // Therefore: newCameraPos = oldCameraPos + focalPoint * (oldZoom - newZoom)
-            const zoomDelta = oldZoom - this.#camera.zoom;
+            const scaleDelta = oldScale - newScale;
             this.#camera.position = {
-                x: this.#camera.position.x + focalPoint.x * zoomDelta,
-                y: this.#camera.position.y + focalPoint.y * zoomDelta,
+                x: this.#camera.position.x + focalPoint.x * scaleDelta,
+                y: this.#camera.position.y + focalPoint.y * scaleDelta,
             };
         }
 
@@ -171,7 +170,8 @@ export class CameraSystem extends System {
             this.#worldToScreenMatrixDirty = true;
         }
 
-        this.#rootEntity.setScale(this.#camera.zoom);
+        const scale = zoomToScale(this.#camera.zoom);
+        this.#rootEntity.setScale(scale);
         this.#rootEntity.setRotation(this.#camera.rotation);
         this.#rootEntity.setPosition(this.#camera.position);
 

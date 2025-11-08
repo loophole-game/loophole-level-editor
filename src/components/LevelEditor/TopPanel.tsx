@@ -1,4 +1,5 @@
 import {
+    AppWindow,
     Camera,
     File,
     Grid,
@@ -16,7 +17,7 @@ import { useAppStore, useCurrentLevel, useSettingsStore } from '../../utils/stor
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Slider } from '../ui/slider';
-import Panel from './Panel';
+import { Panel } from '../Panel';
 import {
     DropdownMenu,
     DropdownMenuCheckboxItem,
@@ -55,8 +56,13 @@ import type {
     Loophole_Level,
     Loophole_InternalLevel,
 } from '@/utils/levelEditor/externalLevelSchema';
+import clsx from 'clsx';
 
-export default function TopPanel() {
+interface TopPanelProps {
+    className?: string;
+}
+
+export default function TopPanel({ className }: TopPanelProps) {
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
     const levels = useAppStore((state) => state.levels);
@@ -66,7 +72,8 @@ export default function TopPanel() {
     const addLevel = useAppStore((state) => state.addLevel);
     const removeLevel = useAppStore((state) => state.removeLevel);
     const setActiveLevelID = useAppStore((state) => state.setActiveLevelID);
-    const setCameraTarget = useAppStore((state) => state.setCameraTarget);
+    const centerCameraOnLevel = useAppStore((state) => state.centerCameraOnLevel);
+    const setInterfaceHidden = useAppStore((state) => state.setInterfaceHidden);
 
     const scrollDirection = useSettingsStore((state) => state.scrollDirection);
     const scrollSensitivity = useSettingsStore((state) => state.scrollSensitivity);
@@ -90,14 +97,6 @@ export default function TopPanel() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-    };
-
-    const resetViewport = () => {
-        setCameraTarget({
-            position: { x: 0, y: 0 },
-            rotation: 0,
-            zoom: 1,
-        });
     };
 
     const importLevelFromFile = () => {
@@ -167,7 +166,7 @@ export default function TopPanel() {
     };
 
     return (
-        <Panel className="flex items-center w-full">
+        <Panel className={clsx('flex items-center w-full', className)}>
             <Input
                 type="text"
                 className="border-none outline-none !text-xl font-bold"
@@ -263,7 +262,7 @@ export default function TopPanel() {
                     <DropdownMenuItem
                         onClick={() => {
                             resetLevel(currentLevel.id);
-                            resetViewport();
+                            centerCameraOnLevel();
                         }}
                     >
                         <RefreshCw /> Clear Current Level
@@ -273,8 +272,11 @@ export default function TopPanel() {
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel>Editor Settings</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => resetViewport()}>
+                    <DropdownMenuItem onClick={() => centerCameraOnLevel()}>
                         <Camera /> Reset Viewport
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setInterfaceHidden(true)}>
+                        <AppWindow /> Hide Panels
                     </DropdownMenuItem>
                     <DropdownMenuCheckboxItem
                         checked={showGrid}

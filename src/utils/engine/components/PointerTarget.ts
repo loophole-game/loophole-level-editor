@@ -1,5 +1,6 @@
 import { Component } from '.';
 import type { Position } from '../types';
+import { zoomToScale } from '../utils';
 
 interface PointerTargetOptions {
     onPointerEnter?: () => void;
@@ -48,10 +49,11 @@ export class C_PointerTarget extends Component {
         if (transform && window.engine) {
             // Compute scene-space matrix by removing camera transform from the entity's world matrix
             const camera = window.engine.camera;
+            const scale = zoomToScale(camera.zoom);
             const cameraMatrix = new DOMMatrix()
                 .translate(camera.position.x, camera.position.y)
                 .rotate(camera.rotation)
-                .scale(camera.zoom, camera.zoom);
+                .scale(scale, scale);
             const sceneMatrix = cameraMatrix.inverse().multiply(transform.worldMatrix as DOMMatrix);
 
             // Extract scene-space position, rotation, and scale
@@ -116,10 +118,11 @@ export class C_PointerTarget extends Component {
 
         // Compute scene-space matrix by removing camera transform from the entity's world matrix
         const camera = window.engine.camera;
+        const scale = zoomToScale(camera.zoom);
         const cameraMatrix = new DOMMatrix()
             .translate(camera.position.x, camera.position.y)
             .rotate(camera.rotation)
-            .scale(camera.zoom, camera.zoom);
+            .scale(scale, scale);
         const sceneMatrix = cameraMatrix.inverse().multiply(transform.worldMatrix as DOMMatrix);
 
         // Extract scene-space position

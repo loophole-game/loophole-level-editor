@@ -1,16 +1,21 @@
+import clsx from 'clsx';
 import { cn } from '../../lib/utils';
 import type { Loophole_ExtendedEntityType } from '../../utils/levelEditor/externalLevelSchema';
 import { useAppStore } from '../../utils/stores';
 import { ENTITY_METADATA } from '../../utils/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip';
-import Panel from './Panel';
+import { Panel } from '../Panel';
 
-export default function TilePicker() {
+interface TilePickerProps {
+    className?: string;
+}
+
+export default function TilePicker({ className }: TilePickerProps) {
     const brushEntityType = useAppStore((state) => state.brushEntityType);
     const setBrushEntityType = useAppStore((state) => state.setBrushEntityType);
 
     return (
-        <Panel className="flex h-min w-fit">
+        <Panel className={clsx('flex h-min w-fit', className)}>
             <div className="grid grid-cols-3 gap-2">
                 {Object.entries(ENTITY_METADATA).map(
                     ([entityType, metadata]) =>

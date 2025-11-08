@@ -670,7 +670,7 @@ export class UIScene extends Scene {
         };
         if (cameraOffset.x !== 0 || cameraOffset.y !== 0) {
             const camera = this.#editor.camera;
-            const offsetMagnitude = 500 * this.#editor.camera.zoom;
+            const offsetMagnitude = 500;
             this.#editor.setCameraPosition({
                 x: camera.position.x - cameraOffset.x * offsetMagnitude * deltaTime,
                 y: camera.position.y - cameraOffset.y * offsetMagnitude * deltaTime,

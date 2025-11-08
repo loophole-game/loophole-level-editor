@@ -18,6 +18,7 @@ import { E_Tile, GridScene } from './scenes/grid';
 import { TestScene } from './scenes/test';
 import { UIScene } from './scenes/ui';
 import {
+    calculateLevelCameraTarget,
     convertLoopholeTypeToExtendedType,
     degreesToLoopholeRotation,
     ENTITY_METADATA,
@@ -70,6 +71,7 @@ export class LevelEditor extends Engine {
     #exitEntity: (Loophole_Exit & WithID) | null = null;
     #tiles: Record<string, E_Tile> = {};
     #stashedTiles: Record<string, E_Tile> = {};
+    #levelID: string | null = null;
 
     #undoStack: EditActionGroup[] = [];
     #redoStack: EditActionGroup[] = [];
@@ -78,8 +80,8 @@ export class LevelEditor extends Engine {
         super({
             scenes: SCENES,
             startScenes: [GridScene.name, UIScene.name],
-            minZoom: 0.1,
-            maxZoom: 2,
+            minZoom: -3,
+            maxZoom: 0.5,
             cameraDrag: true,
             clearColor: '#1e2124',
             keysToCapture: [
@@ -142,6 +144,12 @@ export class LevelEditor extends Engine {
             explosionTile.variant = 'explosion';
         }
 
+        if (level?.id !== this.#levelID) {
+            const camera = calculateLevelCameraTarget(level);
+            this.setCamera(camera);
+            this.#levelID = level.id;
+        }
+
         getAppStore().setSelectedTiles([]);
         this.forceRender();
     }
@@ -166,10 +174,10 @@ export class LevelEditor extends Engine {
         }
 
         if (this.getKey('-').pressed) {
-            this.zoomCamera(-0.1 / this.options.zoomSpeed);
+            this.zoomCamera(-0.4 / this.options.zoomSpeed);
         }
         if (this.getKey('=').pressed) {
-            this.zoomCamera(0.1 / this.options.zoomSpeed);
+            this.zoomCamera(0.4 / this.options.zoomSpeed);
         }
 
         return false;
@@ -604,6 +612,7 @@ export class LevelEditor extends Engine {
 
             for (const overlappingEntity of overlappingEntities) {
                 if (overlappingEntity.tID !== entity.tID) {
+                    actions.actions.push({ type: 'remove', entity: overlappingEntity });
                     this.#removeEntity(overlappingEntity);
                     removedIDs.add(overlappingEntity.tID);
                 }

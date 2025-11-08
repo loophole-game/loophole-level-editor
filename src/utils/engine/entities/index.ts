@@ -3,6 +3,7 @@ import { RENDER_CMD, RenderCommand, type RenderCommandStream } from '../systems/
 import type { Camera, Position, RecursiveArray, Renderable } from '../types';
 import { C_Transform } from '../components/transforms';
 import type { Scene } from '../systems/scene';
+import { zoomToScale } from '../utils';
 
 interface ScaleToCamera {
     x: boolean;
@@ -264,9 +265,10 @@ export class Entity implements Renderable {
 
         const shouldScaleToCamera = this._scaleToCamera.x || this._scaleToCamera.y;
         if (shouldScaleToCamera) {
+            const scale = zoomToScale(camera.zoom);
             this.scaleBy({
-                x: this._scaleToCamera.x ? 1 / camera.zoom : 1,
-                y: this._scaleToCamera.y ? 1 / camera.zoom : 1,
+                x: this._scaleToCamera.x ? 1 / scale : 1,
+                y: this._scaleToCamera.y ? 1 / scale : 1,
             });
         }
 
@@ -300,9 +302,10 @@ export class Entity implements Renderable {
         out.push(new RenderCommand(RENDER_CMD.POP_TRANSFORM, null));
 
         if (shouldScaleToCamera) {
+            const scale = zoomToScale(camera.zoom);
             this.scaleBy({
-                x: this._scaleToCamera.x ? camera.zoom : 1,
-                y: this._scaleToCamera.y ? camera.zoom : 1,
+                x: this._scaleToCamera.x ? scale : 1,
+                y: this._scaleToCamera.y ? scale : 1,
             });
         }
     }

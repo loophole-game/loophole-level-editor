@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { createLevelWithMetadata, getLoopholeEntityExtendedType } from './utils';
+import {
+    calculateLevelCameraTarget,
+    createLevelWithMetadata,
+    getLoopholeEntityExtendedType,
+} from './utils';
 import type {
     Loophole_ExtendedEntityType,
     Loophole_InternalLevel,
@@ -51,11 +55,15 @@ interface AppStore {
 
     cameraTarget: CameraData | null;
     setCameraTarget: (cameraTarget: CameraData | null) => void;
+    centerCameraOnLevel: () => void;
+
+    interfaceHidden: boolean;
+    setInterfaceHidden: (hidden: boolean) => void;
 }
 
 export const useAppStore = create<AppStore>()(
     persist(
-        (set) => {
+        (set, get) => {
             const defaultLevel = createLevelWithMetadata('');
 
             return {
@@ -170,7 +178,16 @@ export const useAppStore = create<AppStore>()(
 
                 lockedLayers: {},
                 setLockedLayer: (layer, locked) =>
-                    set((state) => ({ lockedLayers: { ...state.lockedLayers, [layer]: locked } })),
+                    set((state) => ({
+                        lockedLayers: { ...state.lockedLayers, [layer]: locked },
+
+                        selectedTiles: Object.fromEntries(
+                            Object.entries(state.selectedTiles).filter(
+                                // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                                ([_, e]) => e.type !== layer,
+                            ),
+                        ),
+                    })),
 
                 editableLayers: ['SAUCE', 'WIRE', 'EXPLOSION'],
                 setEditableLayers: (layers) => set({ editableLayers: layers }),
@@ -179,7 +196,6 @@ export const useAppStore = create<AppStore>()(
                         editableLayers: state.editableLayers.includes(layer)
                             ? state.editableLayers
                             : [...state.editableLayers, layer],
-                        lockedLayers: { ...state.lockedLayers, [layer]: true },
                     })),
                 removeEditableLayer: (layer) =>
                     set((state) => ({
@@ -189,6 +205,18 @@ export const useAppStore = create<AppStore>()(
 
                 cameraTarget: null,
                 setCameraTarget: (cameraTarget) => set({ cameraTarget }),
+                centerCameraOnLevel: () => {
+                    const { activeLevelID, levels, setCameraTarget } = get();
+                    const level = levels[activeLevelID];
+                    if (!level) {
+                        return;
+                    }
+
+                    setCameraTarget(calculateLevelCameraTarget(level));
+                },
+
+                interfaceHidden: false,
+                setInterfaceHidden: (hidden) => set({ interfaceHidden: hidden }),
             };
         },
         {
@@ -202,6 +230,7 @@ export const useAppStore = create<AppStore>()(
                 brushEntityFlipDirection: state.brushEntityFlipDirection,
                 lockedLayers: state.lockedLayers,
                 editableLayers: state.editableLayers,
+                interfaceHidden: state.interfaceHidden,
             }),
             version: 3,
             migrate: () => {},
