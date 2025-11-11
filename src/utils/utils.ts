@@ -28,7 +28,7 @@ import type { CameraData, Position } from './engine/types';
 import type { E_Tile } from './levelEditor/scenes/grid';
 import { calculateBoundingBox, scaleToZoom } from './engine/utils';
 
-export const TILE_CENTER_FRACTION = 0.7;
+export const TILE_CENTER_FRACTION = 1;
 export const TILE_SIZE = 100;
 
 export type LoopholePositionType = 'CELL' | 'EDGE';
@@ -142,7 +142,7 @@ export type ColorPalette = (typeof ColorPalette)[keyof typeof ColorPalette];
 export const getTimestamp = (): number => Date.now();
 
 const DEFAULT_EDGE_ALIGNMENT: Loophole_EdgeAlignment = 'RIGHT';
-const DEFAULT_WALL_SCALE = 0.85;
+const DEFAULT_WALL_SCALE = 1;
 
 export const OVERLAPPABLE_ENTITY_TYPES: Loophole_EntityType[][] = [
     ['CURTAIN', 'DOOR'],
@@ -165,7 +165,8 @@ interface EntityMetadata {
         flipDirection: boolean,
     ) => Loophole_Entity;
     tileOwnership: TileOwnership;
-    tileScale: number;
+    tileScale?: number;
+    highlightScale?: number;
     hasRotation?: boolean;
     hasDirection?: boolean;
     hasFlipDirection?: boolean;
@@ -179,7 +180,7 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
     TIME_MACHINE: {
         name: 'Time Machine',
         description: 'A time machine that the player will spawn inside.',
-        src: 'pixel/time-machine.png',
+        src: 'vector/time-machine.svg',
         type: 'TIME_MACHINE',
         extendedType: 'TIME_MACHINE',
         positionType: 'CELL',
@@ -189,14 +190,13 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             rotation,
         }),
         tileOwnership: 'ONLY_ENTITY_IN_TILE',
-        tileScale: TILE_CENTER_FRACTION,
         hasRotation: true,
         dragPlacementDisabled: true,
     },
     WALL: {
         name: 'Wall',
         description: 'A wall that blocks vision and movement.',
-        src: 'pixel/wall.png',
+        src: 'vector/wall.svg',
         type: 'WALL',
         extendedType: 'WALL',
         positionType: 'EDGE',
@@ -213,7 +213,7 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
     CURTAIN: {
         name: 'Curtain',
         description: 'A curtain that blocks vision and movement.',
-        src: 'pixel/curtain.png',
+        src: 'vector/curtain.svg',
         type: 'CURTAIN',
         extendedType: 'CURTAIN',
         positionType: 'EDGE',
@@ -225,12 +225,12 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             },
         }),
         tileOwnership: 'ONLY_ENTITY_IN_TILE',
-        tileScale: DEFAULT_WALL_SCALE,
+        tileScale: 1.1,
     },
     ONE_WAY: {
         name: 'One-Way',
         description: 'A one-way that allows movement in one direction.',
-        src: 'pixel/one-way.png',
+        src: 'vector/one-way.svg',
         type: 'ONE_WAY',
         extendedType: 'ONE_WAY',
         positionType: 'EDGE',
@@ -249,7 +249,7 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
     GLASS: {
         name: 'Glass',
         description: 'A glass that blocks vision and movement.',
-        src: 'pixel/glass.png',
+        src: 'vector/glass.svg',
         type: 'GLASS',
         extendedType: 'GLASS',
         positionType: 'EDGE',
@@ -266,7 +266,7 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
     STAFF: {
         name: 'Staff',
         description: 'A staff that allows movement in one direction.',
-        src: 'pixel/box.png',
+        src: 'vector/staff.svg',
         type: 'STAFF',
         extendedType: 'STAFF',
         positionType: 'CELL',
@@ -275,12 +275,11 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             position,
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
-        tileScale: TILE_CENTER_FRACTION,
     },
     BUTTON: {
         name: 'Button',
         description: 'A button that allows movement in one direction.',
-        src: 'pixel/button.png',
+        src: 'vector/button.svg',
         type: 'BUTTON',
         extendedType: 'BUTTON',
         positionType: 'CELL',
@@ -290,7 +289,6 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             channel: 0,
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
-        tileScale: TILE_CENTER_FRACTION,
         hasChannel: true,
     },
     SAUCE: {
@@ -305,12 +303,13 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             position,
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
-        tileScale: 1.001,
+        highlightScale: 1,
+        tileScale: 1.002,
     },
     DOOR: {
         name: 'Door',
         description: 'A door that allows movement in one direction.',
-        src: 'pixel/door.png',
+        src: 'vector/door.svg',
         type: 'DOOR',
         extendedType: 'DOOR',
         positionType: 'EDGE',
@@ -349,7 +348,7 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
     CLEANSING_POOL: {
         name: 'Cleansing Pool',
         description: 'A pool that cleanses the player of all status effects.',
-        src: 'pixel/pool.png',
+        src: 'vector/pool.svg',
         type: 'CLEANSING_POOL',
         extendedType: 'CLEANSING_POOL',
         positionType: 'CELL',
@@ -358,12 +357,11 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             position,
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
-        tileScale: TILE_CENTER_FRACTION,
     },
     MUSHROOM_BLUE: {
         name: 'Invisibility Pickup',
         description: 'A mushroom that allows movement in one direction.',
-        src: 'pixel/invis.png',
+        src: 'vector/blue-mushroom.svg',
         type: 'MUSHROOM',
         extendedType: 'MUSHROOM_BLUE',
         positionType: 'CELL',
@@ -373,12 +371,11 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             mushroomType: 'BLUE',
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
-        tileScale: TILE_CENTER_FRACTION,
     },
     MUSHROOM_GREEN: {
         name: 'Drugs Pickup',
         description: 'A mushroom that allows movement in one direction.',
-        src: 'pixel/drugs.png',
+        src: 'vector/green-mushroom.svg',
         type: 'MUSHROOM',
         extendedType: 'MUSHROOM_GREEN',
         positionType: 'CELL',
@@ -388,12 +385,11 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             mushroomType: 'GREEN',
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
-        tileScale: TILE_CENTER_FRACTION,
     },
     MUSHROOM_RED: {
         name: 'Shield Pickup',
         description: 'A mushroom that allows movement in one direction.',
-        src: 'pixel/shield.png',
+        src: 'vector/red-mushroom.svg',
         type: 'MUSHROOM',
         extendedType: 'MUSHROOM_RED',
         positionType: 'CELL',
@@ -403,12 +399,11 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             mushroomType: 'RED',
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
-        tileScale: TILE_CENTER_FRACTION,
     },
     EXIT: {
         name: 'Exit',
         description: "The level's exit.",
-        src: 'pixel/exit.png',
+        src: 'vector/exit.svg',
         type: 'EXIT',
         extendedType: 'EXIT',
         positionType: 'CELL',
@@ -417,7 +412,6 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             position,
         }),
         tileOwnership: 'ONLY_ENTITY_IN_TILE',
-        tileScale: TILE_CENTER_FRACTION,
         hideInPicker: true,
     },
     EXPLOSION: {
@@ -435,7 +429,6 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             speed: 0.5,
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
-        tileScale: TILE_CENTER_FRACTION,
         dragPlacementDisabled: true,
         hasDirection: true,
     },
@@ -592,42 +585,50 @@ export const COLOR_PALETTE_METADATA: Record<
         name: string;
         class: string;
         image: string;
+        wall: string;
     }
 > = {
     [Loophole_ColorPalette.ONE]: {
         name: 'One',
         class: 'color-palette-one',
         image: 'color-screenshots/1.png',
+        wall: 'orange',
     },
     [Loophole_ColorPalette.TWO]: {
         name: 'Two',
         class: 'color-palette-two',
         image: 'color-screenshots/2.png',
+        wall: 'blue',
     },
     [Loophole_ColorPalette.THREE]: {
         name: 'Three',
         class: 'color-palette-three',
         image: 'color-screenshots/3.png',
+        wall: 'purple',
     },
     [Loophole_ColorPalette.FOUR]: {
         name: 'Four',
         class: 'color-palette-four',
         image: 'color-screenshots/4.png',
+        wall: 'pink',
     },
     [Loophole_ColorPalette.FIVE]: {
         name: 'Five',
         class: 'color-palette-five',
         image: 'color-screenshots/5.png',
+        wall: 'pale-green',
     },
     [Loophole_ColorPalette.SIX]: {
         name: 'Six',
         class: 'color-palette-six',
         image: 'color-screenshots/6.png',
+        wall: 'green',
     },
     [Loophole_ColorPalette.SEVEN]: {
         name: 'Seven',
         class: 'color-palette-seven',
         image: 'color-screenshots/7.png',
+        wall: 'red',
     },
 };
 

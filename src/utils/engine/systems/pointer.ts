@@ -188,6 +188,7 @@ export class PointerSystem extends System {
                     this.#pointerState.worldPosition,
                 );
                 this.#pointerState.scrollDelta = 0;
+                this._engine.cameraTarget = null;
             }
 
             const buttonStates = this._engine.options.cameraDragButtons.map(
@@ -212,6 +213,7 @@ export class PointerSystem extends System {
                         x: this.#dragStartCameraPosition.x + screenDelta.x,
                         y: this.#dragStartCameraPosition.y + screenDelta.y,
                     });
+                    this._engine.cameraTarget = null;
                 }
             }
 

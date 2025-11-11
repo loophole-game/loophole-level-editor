@@ -16,18 +16,16 @@ import {
     getLoopholeEntityExtendedType,
     getLoopholeEntityPosition,
     getLoopholeEntityPositionType,
-    getLoopholeWireSprite,
     GUY_SPRITE,
     loopholePositionToEnginePosition,
     TILE_SIZE,
-    WIRE_CORNER_SPRITE,
 } from '@/utils/utils';
 import { C_Lerp, C_LerpOpacity, C_LerpPosition } from '@/utils/engine/components/Lerp';
 import type { Position } from '@/utils/engine/types';
 import { E_InfiniteShape } from './InfiniteShape';
+import { E_EntityVisual } from '../tileVisual';
 
 const ACTIVE_TILE_OPACITY = 0.3;
-const TILE_HIGHLIGHT_SCALE_MULT = 1.2;
 
 type TileVariant = 'default' | 'entrance' | 'exit' | 'explosion';
 
@@ -52,12 +50,15 @@ export class E_Tile extends Entity {
     #variant: TileVariant = 'default';
 
     #initialized: boolean = false;
+    #canBeReused: boolean = true;
 
     #tileImage: C_Image;
-    #tileShape: C_Shape;
     #positionLerp: C_Lerp<Position>;
 
+    #entityVisual: E_EntityVisual;
+
     #highlightEntity: E_TileHighlight;
+    #pointerParent: Entity;
     #pointerTarget: C_PointerTarget;
     #highlightShape: C_Shape;
     #opacityLerp: C_Lerp<number>;
@@ -72,11 +73,15 @@ export class E_Tile extends Entity {
         this.#type = getLoopholeEntityExtendedType(entity);
         this.#tileImage = new C_Image('tile', '', {
             imageSmoothingEnabled: false,
-        });
+        }).setZIndex(10);
         this.#positionLerp = new C_LerpPosition(this, 20);
         this.addComponents(this.#tileImage, this.#positionLerp);
 
         this.#highlightEntity = new E_TileHighlight(this);
+        this.#entityVisual = new E_EntityVisual().setZIndex(-1);
+        this.#pointerParent = new Entity('pointer_parent');
+        this.#highlightEntity.addEntities(this.#entityVisual, this.#pointerParent);
+
         this.#pointerTarget = new C_PointerTarget();
         this.#pointerTarget.canInteract = false;
         this.#highlightShape = new C_Shape('shape', 'RECT', {
@@ -84,18 +89,15 @@ export class E_Tile extends Entity {
             globalAlpha: 0,
         }).setZIndex(1);
         this.#opacityLerp = new C_LerpOpacity(this.#highlightShape, 5);
-        this.#tileShape = new C_Shape('tile', 'RECT', {
-            fillStyle: 'white',
-        });
-        this.#highlightEntity.addComponents(
+        this.#pointerParent.addComponents(
             this.#pointerTarget,
-            this.#tileShape,
             this.#highlightShape,
             this.#opacityLerp,
         );
 
         if (this.entity.entityType === 'EXPLOSION') {
             this.#editor.addSceneEntities(GridScene.name, this.#highlightEntity);
+            this.#canBeReused = false;
         } else {
             this.addEntities(this.#highlightEntity);
         }
@@ -142,6 +144,14 @@ export class E_Tile extends Entity {
         this.#initialized = initialized;
     }
 
+    get canBeReused(): boolean {
+        return this.#canBeReused;
+    }
+
+    get tileImage(): C_Image {
+        return this.#tileImage;
+    }
+
     get highlightEntity(): Entity {
         return this.#highlightEntity;
     }
@@ -175,6 +185,11 @@ export class E_Tile extends Entity {
         return super.update(deltaTime);
     }
 
+    override destroy(): void {
+        this.#highlightEntity.destroy();
+        super.destroy();
+    }
+
     syncVisualState() {
         const { selectedTiles } = getAppStore();
         this.#highlightShape.style.globalAlpha =
@@ -182,18 +197,23 @@ export class E_Tile extends Entity {
     }
 
     stashTile() {
+        if (!this.#canBeReused) {
+            return;
+        }
+
         this.initialized = false;
         this.setEnabled(false);
-        this.#highlightEntity.setEnabled(false);
+        this.#highlightEntity.setEnabled(false); // TODO: make disabling propagate to children
     }
 
     #onEntityChanged() {
         const loopholePosition = getLoopholeEntityPosition(this.#entity);
         const edgeAlignment = getLoopholeEntityEdgeAlignment(this.#entity);
+        const positionType = getLoopholeEntityPositionType(this.#entity);
         const enginePosition = loopholePositionToEnginePosition(loopholePosition, edgeAlignment);
         this.#type = getLoopholeEntityExtendedType(this.#entity);
-        const positionType = getLoopholeEntityPositionType(this.#entity);
-        const { name, tileScale: tileScaleOverride = 1 } = ENTITY_METADATA[this.#type];
+        const { tileScale: tileScaleOverride = 1, highlightScale = 1.1 } =
+            ENTITY_METADATA[this.#type];
 
         this.setScale(tileScaleOverride * TILE_SIZE);
         this.setRotation(getLoopholeEntityDegreeRotation(this.#entity));
@@ -208,33 +228,18 @@ export class E_Tile extends Entity {
             this.#initialized = true;
         }
 
+        const pointerScale =
+            positionType === 'CELL'
+                ? highlightScale
+                : { x: highlightScale * 0.5, y: highlightScale };
+
+        this.#pointerParent.setScale(pointerScale);
+
         this.setZIndex(ENTITY_TYPE_DRAW_ORDER[this.#entity.entityType] + 1);
 
-        const wireSprite = getLoopholeWireSprite(this.#entity);
-        if (this.entity.entityType === 'EXPLOSION') {
-            this.#tileShape.setEnabled(true);
-            this.#highlightShape.setScale(1);
-            this.#tileShape.style.fillStyle = 'orange';
-        } else {
-            this.#tileShape.setEnabled(false);
-            this.#highlightShape.setScale(1 / TILE_HIGHLIGHT_SCALE_MULT);
-            if (wireSprite === 'CORNER') {
-                this.#tileImage.imageName = WIRE_CORNER_SPRITE;
-            } else {
-                this.#tileImage.imageName = name;
-            }
-        }
-
-        this.#highlightEntity.setEnabled(true).setScale(
-            positionType === 'CELL'
-                ? TILE_HIGHLIGHT_SCALE_MULT
-                : {
-                      x: 0.5 * TILE_HIGHLIGHT_SCALE_MULT,
-                      y: TILE_HIGHLIGHT_SCALE_MULT,
-                  },
-        );
-
         this.#updatePosition();
+
+        this.#entityVisual.onEntityChanged(this.#type, this.#entity);
     }
 
     #updatePosition() {

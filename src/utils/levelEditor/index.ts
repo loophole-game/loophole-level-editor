@@ -19,6 +19,7 @@ import { TestScene } from './scenes/test';
 import { UIScene } from './scenes/ui';
 import {
     calculateLevelCameraTarget,
+    COLOR_PALETTE_METADATA,
     convertLoopholeTypeToExtendedType,
     degreesToLoopholeRotation,
     ENTITY_METADATA,
@@ -29,6 +30,7 @@ import {
     getLoopholeExplosionPosition,
     getLoopholeExplosionStartPosition,
     GUY_SPRITE,
+    Loophole_ColorPalette,
     loopholePositionToEnginePosition,
     loopholeRotationToDegrees,
     OVERLAPPABLE_ENTITY_TYPES,
@@ -72,6 +74,7 @@ export class LevelEditor extends Engine {
     #tiles: Record<string, E_Tile> = {};
     #stashedTiles: Record<string, E_Tile> = {};
     #levelID: string | null = null;
+    #lastColorPalette: Loophole_ColorPalette | null = null;
 
     #undoStack: EditActionGroup[] = [];
     #redoStack: EditActionGroup[] = [];
@@ -178,6 +181,18 @@ export class LevelEditor extends Engine {
         }
         if (this.getKey('=').pressed) {
             this.zoomCamera(0.4 / this.options.zoomSpeed);
+        }
+
+        const colorPalette = this.#level?.colorPalette;
+        if (colorPalette !== undefined && colorPalette !== this.#lastColorPalette) {
+            Object.values(this.#tiles).forEach((tile) => {
+                if (tile.type === 'WALL') {
+                    console.log(COLOR_PALETTE_METADATA[colorPalette].wall);
+                    tile.tileImage.style.fillStyle = COLOR_PALETTE_METADATA[colorPalette].wall;
+                }
+            });
+            this.forceRender();
+            this.#lastColorPalette = colorPalette;
         }
 
         return false;
@@ -703,7 +718,11 @@ export class LevelEditor extends Engine {
 
     #stashTile(tile: E_Tile) {
         const id = tile.entity.tID;
-        if (Object.keys(this.#stashedTiles).length < MAX_STASHED_TILES && !this.#stashedTiles[id]) {
+        if (
+            tile.canBeReused &&
+            Object.keys(this.#stashedTiles).length < MAX_STASHED_TILES &&
+            !this.#stashedTiles[id]
+        ) {
             this.#stashedTiles[id] = tile;
             tile.stashTile();
         } else {

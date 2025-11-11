@@ -8,7 +8,7 @@ import {
 import type { Position } from '../types';
 import { C_Drawable } from './index';
 
-type Shape = 'RECT' | 'ELLIPSE';
+export type Shape = 'RECT' | 'ELLIPSE';
 
 export class C_Shape extends C_Drawable {
     #shape: Shape;
@@ -40,6 +40,15 @@ export class C_Shape extends C_Drawable {
         } else {
             this.#gap = null;
         }
+    }
+
+    get shape(): Shape {
+        return this.#shape;
+    }
+
+    set shape(shape: Shape) {
+        this.#shape = shape;
+        this.setOrigin(shape === 'ELLIPSE' ? { x: 0, y: 0 } : { x: 0.5, y: 0.5 });
     }
 
     get repeat(): Position | null {

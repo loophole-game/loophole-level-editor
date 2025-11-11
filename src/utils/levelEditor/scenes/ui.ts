@@ -9,7 +9,6 @@ import {
 } from '@/utils/utils';
 import { Entity } from '../../engine/entities';
 import { Scene } from '../../engine/systems/scene';
-import { C_Image } from '@/utils/engine/components/Image';
 import { getAppStore } from '@/utils/stores';
 import {
     MAX_ENTITY_COUNT,
@@ -33,6 +32,7 @@ import { C_Shape } from '@/utils/engine/components/Shape';
 import { E_Tile, E_TileHighlight } from './grid';
 import { C_PointerTarget } from '@/utils/engine/components/PointerTarget';
 import { v4 } from 'uuid';
+import { E_EntityVisual } from '../tileVisual';
 
 const HANDLE_COLOR = 'yellow';
 const HANDLE_HOVER_COLOR = 'red';
@@ -43,7 +43,7 @@ const cameraDragIsActive = (editor: LevelEditor) =>
 
 class E_TileCursor extends Entity {
     #editor: LevelEditor;
-    #tileImage: C_Image;
+    #entityVisual: E_EntityVisual;
 
     #positionLerp: C_Lerp<Position>;
     #tileOpacityLerp: C_Lerp<number>;
@@ -60,17 +60,13 @@ class E_TileCursor extends Entity {
     #dragHash: string | null = null;
 
     constructor(editor: LevelEditor) {
-        const tileImageComp = new C_Image('cursor', ENTITY_METADATA['MUSHROOM_BLUE'].name, {
-            imageSmoothingEnabled: false,
-            globalAlpha: 0,
-        });
-
-        super('cursor', tileImageComp);
+        super('cursor');
+        this.#entityVisual = new E_EntityVisual();
+        this.addEntities(this.#entityVisual);
 
         this.#editor = editor;
         this.setZIndex(50);
-        this.#tileImage = tileImageComp;
-        this.#tileOpacityLerp = new C_LerpOpacity(this.#tileImage, 4);
+        this.#tileOpacityLerp = new C_LerpOpacity(this.#entityVisual, 4);
         this.#positionLerp = new C_LerpPosition(this, 20);
         this.#tileRotationLerp = new C_LerpRotation(this, 1000);
         this.addComponents(this.#tileOpacityLerp, this.#positionLerp, this.#tileRotationLerp);
@@ -99,14 +95,13 @@ class E_TileCursor extends Entity {
         ) {
             const {
                 positionType,
-                name,
-                tileScale: tileScaleOverride,
+                tileScale: tileScaleOverride = 1,
                 hasRotation,
                 hasFlipDirection,
                 type,
                 dragPlacementDisabled,
             } = ENTITY_METADATA[brushEntityType];
-            this.#tileImage.imageName = name;
+            this.#entityVisual.onEntityChanged(brushEntityType);
 
             const {
                 position: tilePosition,
@@ -388,7 +383,7 @@ class E_SelectionCursor extends Entity {
                 const hoveredTiles = (
                     this.#editor.pointerSystem
                         .getPointerTargetsWithinBox(topLeft, bottomRight)
-                        .map((t) => t.entity)
+                        .map((t) => t.entity?.parent)
                         .filter((e) => e?.typeString === E_TileHighlight.name) as E_TileHighlight[]
                 ).map((t) => t.tile);
                 setSelectedTiles(hoveredTiles);
