@@ -499,7 +499,6 @@ export class LevelEditor extends Engine {
         rotation: 90 | -90,
         hash?: string | null,
     ): E_Tile[] {
-        console.log('rotate', centerPosition);
         const group: EditActionGroup = {
             actions: [],
             hash: hash || v4(),

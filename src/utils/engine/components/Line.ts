@@ -2,15 +2,28 @@ import { C_Drawable } from '.';
 import {
     RENDER_CMD,
     RenderCommand,
-    type DrawDataLine,
     type RenderCommandStream,
     type RenderStyle,
 } from '../systems/render';
 import type { Position } from '../types';
 
+const DEFAULT_ARROW_LENGTH = 1;
+const DEFAULT_ARROW_ANGLE = 45;
+
+interface ArrowTip {
+    type: 'arrow';
+    length?: number;
+    angle?: number;
+}
+
+type Tip = ArrowTip;
+
 export class C_Line extends C_Drawable {
     #start: Position;
     #end: Position;
+
+    #startTip: Tip | null = null;
+    #endTip: Tip | null = null;
 
     constructor(name: string, start: Position, end: Position, style?: RenderStyle) {
         super(name, { x: 0, y: 0 }, { x: 1, y: 1 }, style);
@@ -43,6 +56,16 @@ export class C_Line extends C_Drawable {
         return this;
     }
 
+    setStartTip(tip: Tip | null): this {
+        this.#startTip = tip;
+        return this;
+    }
+
+    setEndTip(tip: Tip | null): this {
+        this.#endTip = tip;
+        return this;
+    }
+
     override queueRenderCommands(out: RenderCommandStream): void {
         if (!this.entity) {
             return;
@@ -52,13 +75,42 @@ export class C_Line extends C_Drawable {
             return;
         }
 
-        const data: DrawDataLine = {
-            x1: this.#start.x,
-            y1: this.#start.y,
-            x2: this.#end.x,
-            y2: this.#end.y,
-        };
+        out.push(
+            new RenderCommand(RENDER_CMD.DRAW_LINE, this.style, {
+                x1: this.#start.x,
+                y1: this.#start.y,
+                x2: this.#end.x,
+                y2: this.#end.y,
+            }),
+        );
 
-        out.push(new RenderCommand(RENDER_CMD.DRAW_LINE, this.style, data));
+        this.#drawTip(this.#startTip, this.#start, -1, out);
+        this.#drawTip(this.#endTip, this.#end, 1, out);
+    }
+
+    #drawTip(tip: Tip | null, origin: Position, angMult: number, out: RenderCommandStream) {
+        if (tip?.type === 'arrow') {
+            const { length = DEFAULT_ARROW_LENGTH } = tip;
+            let { angle = DEFAULT_ARROW_ANGLE } = tip;
+            angle *= angMult;
+            const baseAng = Math.atan2(this.#end.x - this.#start.x, this.#end.y - this.#start.y);
+
+            out.push(
+                new RenderCommand(RENDER_CMD.DRAW_LINE, this.style, {
+                    x1: origin.x,
+                    y1: origin.y,
+                    x2: origin.x + Math.cos(baseAng + (angle / 180) * Math.PI) * length,
+                    y2: origin.y + -Math.sin(baseAng + (angle / 180) * Math.PI) * length,
+                }),
+            );
+            out.push(
+                new RenderCommand(RENDER_CMD.DRAW_LINE, this.style, {
+                    x1: origin.x,
+                    y1: origin.y,
+                    x2: origin.x + -Math.cos(baseAng + (-angle / 180) * Math.PI) * length,
+                    y2: origin.y + Math.sin(baseAng + (-angle / 180) * Math.PI) * length,
+                }),
+            );
+        }
     }
 }

@@ -31,9 +31,8 @@ import { E_Tile, E_TileHighlight } from './grid';
 import { C_PointerTarget } from '@/utils/engine/components/PointerTarget';
 import { v4 } from 'uuid';
 import { E_EntityVisual } from '../entityVisual';
-
-const HANDLE_COLOR = 'yellow';
-const HANDLE_HOVER_COLOR = 'red';
+import type { C_Drawable } from '@/utils/engine/components';
+import { C_Line } from '@/utils/engine/components/Line';
 
 const multiSelectIsActive = (editor: LevelEditor) => editor.getKey('Shift').down;
 const cameraDragIsActive = (editor: LevelEditor) =>
@@ -410,39 +409,79 @@ class E_SelectionCursor extends Entity {
     }
 }
 
+const HANDLE_ARROW_LENGTH = 4;
+
+type DragAxis = 'x' | 'y' | 'both';
+
 class E_DragCursor extends Entity {
     #editor: LevelEditor;
-    #handleShape: C_Shape;
-    #pointerTarget: C_PointerTarget;
+    #drawables: C_Drawable[];
     #opacityLerp: C_Lerp<number>;
     #positionLerp: C_LerpPosition;
+
+    #boxPointerTarget: C_PointerTarget;
+    #upPointerTarget: C_PointerTarget;
+    #rightPointerTarget: C_PointerTarget;
 
     #isDragging: boolean = false;
     #dragStartPosition: Position | null = null;
     #originalEntities: Map<string, Loophole_EntityWithID> = new Map();
     #dragOffset: Loophole_Int2 = { x: 0, y: 0 };
+    #dragAxis: DragAxis = 'both';
+
+    #opacity = 0;
 
     constructor(editor: LevelEditor) {
         super('drag_handle');
 
         this.#editor = editor;
-        this.#handleShape = new C_Shape('handle', 'ELLIPSE', {
-            fillStyle: HANDLE_COLOR,
-            globalAlpha: 0,
-        });
-        this.#pointerTarget = new C_PointerTarget();
+        this.#drawables = [
+            new C_Shape('handle', 'RECT', {
+                fillStyle: 'red',
+            }),
+            new C_Line(
+                'up-arrow',
+                { x: 0, y: -0.5 },
+                { x: 0, y: -HANDLE_ARROW_LENGTH },
+                {
+                    lineWidth: 0.25,
+                    fillStyle: 'blue',
+                },
+            ).setEndTip({ type: 'arrow' }),
+            new C_Line(
+                'right-arrow',
+                { x: 0.5, y: 0 },
+                { x: HANDLE_ARROW_LENGTH, y: 0 },
+                {
+                    lineWidth: 0.25,
+                    fillStyle: 'green',
+                },
+            ).setEndTip({ type: 'arrow' }),
+        ];
+        this.#boxPointerTarget = new C_PointerTarget();
+        this.#upPointerTarget = new C_PointerTarget();
+        this.#rightPointerTarget = new C_PointerTarget();
         this.#opacityLerp = new C_Lerp({
-            get: (() => this.#handleShape.style.globalAlpha ?? 0).bind(this),
+            get: (() => this.#opacity).bind(this),
             set: ((value: number) => {
-                this.#handleShape.style.globalAlpha = value;
+                this.opacity = value;
             }).bind(this),
             speed: 10,
         });
         this.#positionLerp = new C_LerpPosition(this, 30);
+        this.opacity = 0;
 
+        this.addEntities(
+            new Entity('up', this.#upPointerTarget)
+                .setPosition({ x: 0, y: -(HANDLE_ARROW_LENGTH + 0.5) / 2 })
+                .setScale({ x: 1, y: HANDLE_ARROW_LENGTH - 0.5 }),
+            new Entity('up', this.#rightPointerTarget)
+                .setPosition({ x: (HANDLE_ARROW_LENGTH + 0.5) / 2, y: 0 })
+                .setScale({ x: HANDLE_ARROW_LENGTH - 0.5, y: 1 }),
+        );
         this.addComponents(
-            this.#handleShape,
-            this.#pointerTarget,
+            ...this.#drawables,
+            this.#boxPointerTarget,
             this.#opacityLerp,
             this.#positionLerp,
         )
@@ -451,8 +490,13 @@ class E_DragCursor extends Entity {
             .setScaleToCamera(true);
     }
 
+    set opacity(opacity: number) {
+        this.#opacity = opacity;
+        this.#drawables.forEach((d) => (d.style.globalAlpha = opacity));
+    }
+
     override update(deltaTime: number): boolean {
-        let updated = super.update(deltaTime);
+        const updated = super.update(deltaTime);
         const { selectedTiles, setSelectedTiles, brushEntityType, setIsMovingTiles } =
             getAppStore();
         const selectedTileArray = Object.values(selectedTiles);
@@ -467,10 +511,15 @@ class E_DragCursor extends Entity {
             }
 
             if (
-                this.#pointerTarget.isPointerHovered &&
+                this.#anyTargetHovered() &&
                 this.#editor.pointerState[PointerButton.LEFT].pressed &&
                 !this.#isDragging
             ) {
+                this.#dragAxis = this.#boxPointerTarget.isPointerHovered
+                    ? 'both'
+                    : this.#upPointerTarget.isPointerHovered
+                      ? 'y'
+                      : 'x';
                 this.#isDragging = true;
                 this.#dragStartPosition = { ...this.#editor.pointerState.worldPosition };
                 this.#dragOffset = { x: 0, y: 0 };
@@ -485,8 +534,10 @@ class E_DragCursor extends Entity {
             if (this.#isDragging) {
                 const currentPos = this.#editor.pointerState.worldPosition;
                 if (this.#dragStartPosition) {
-                    const deltaX = currentPos.x - this.#dragStartPosition.x;
-                    const deltaY = currentPos.y - this.#dragStartPosition.y;
+                    const deltaX =
+                        this.#dragAxis !== 'y' ? currentPos.x - this.#dragStartPosition.x : 0;
+                    const deltaY =
+                        this.#dragAxis !== 'x' ? currentPos.y - this.#dragStartPosition.y : 0;
                     const newOffsetX = Math.round(deltaX / TILE_SIZE);
                     const newOffsetY = Math.round(deltaY / TILE_SIZE);
 
@@ -536,19 +587,24 @@ class E_DragCursor extends Entity {
             }
         }
 
-        this.#opacityLerp.target = active ? 0.8 : 0;
-        this.#pointerTarget.setEnabled(active);
-
-        const targetColor =
-            this.#pointerTarget.isPointerHovered || this.#isDragging
-                ? HANDLE_HOVER_COLOR
-                : HANDLE_COLOR;
-        if (this.#handleShape.style.fillStyle !== targetColor) {
-            this.#handleShape.style.fillStyle = targetColor;
-            updated = true;
-        }
+        this.#opacityLerp.target = active
+            ? this.#isDragging || this.#anyTargetHovered()
+                ? 0.6
+                : 1
+            : 0;
+        this.#boxPointerTarget.setEnabled(active);
+        this.#upPointerTarget.setEnabled(active);
+        this.#rightPointerTarget.setEnabled(active);
 
         return updated;
+    }
+
+    #anyTargetHovered() {
+        return (
+            this.#boxPointerTarget.isPointerHovered ||
+            this.#upPointerTarget.isPointerHovered ||
+            this.#rightPointerTarget.isPointerHovered
+        );
     }
 
     #calculateSelectionCenter(tiles: E_Tile[]): Position {
