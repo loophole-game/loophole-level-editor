@@ -415,6 +415,8 @@ type DragAxis = 'x' | 'y' | 'both';
 
 class E_DragCursor extends Entity {
     #editor: LevelEditor;
+    #upArrow: C_Line;
+    #rightArrow: C_Line;
     #drawables: C_Drawable[];
     #opacityLerp: C_Lerp<number>;
     #positionLerp: C_LerpPosition;
@@ -435,29 +437,35 @@ class E_DragCursor extends Entity {
         super('drag_handle');
 
         this.#editor = editor;
+
+        this.#upArrow = new C_Line(
+            'up-arrow',
+            { x: 0, y: -0.5 },
+            { x: 0, y: -HANDLE_ARROW_LENGTH },
+            {
+                lineWidth: 0.2,
+                fillStyle: 'blue',
+            },
+        ).setEndTip({ type: 'arrow' });
+        this.#rightArrow = new C_Line(
+            'right-arrow',
+            { x: 0.5, y: 0 },
+            { x: HANDLE_ARROW_LENGTH, y: 0 },
+            {
+                lineWidth: 0.2,
+                fillStyle: 'green',
+            },
+        ).setEndTip({ type: 'arrow' });
         this.#drawables = [
+            this.#upArrow,
+            this.#rightArrow,
             new C_Shape('handle', 'RECT', {
-                fillStyle: 'red',
+                fillStyle: '#FF5555',
+                strokeStyle: 'red',
+                lineWidth: 2,
             }),
-            new C_Line(
-                'up-arrow',
-                { x: 0, y: -0.5 },
-                { x: 0, y: -HANDLE_ARROW_LENGTH },
-                {
-                    lineWidth: 0.25,
-                    fillStyle: 'blue',
-                },
-            ).setEndTip({ type: 'arrow' }),
-            new C_Line(
-                'right-arrow',
-                { x: 0.5, y: 0 },
-                { x: HANDLE_ARROW_LENGTH, y: 0 },
-                {
-                    lineWidth: 0.25,
-                    fillStyle: 'green',
-                },
-            ).setEndTip({ type: 'arrow' }),
         ];
+
         this.#boxPointerTarget = new C_PointerTarget();
         this.#upPointerTarget = new C_PointerTarget();
         this.#rightPointerTarget = new C_PointerTarget();
@@ -595,6 +603,31 @@ class E_DragCursor extends Entity {
         this.#boxPointerTarget.setEnabled(active);
         this.#upPointerTarget.setEnabled(active);
         this.#rightPointerTarget.setEnabled(active);
+
+        if (
+            selectedTileArray.length === 1 &&
+            selectedTileArray[0].entity.entityType === 'EXPLOSION'
+        ) {
+            if (
+                selectedTileArray[0].entity.direction === 'RIGHT' ||
+                selectedTileArray[0].entity.direction === 'LEFT'
+            ) {
+                this.#upPointerTarget.entity?.setEnabled(false);
+                this.#upArrow.setEnabled(false);
+                this.#rightPointerTarget.entity?.setEnabled(true);
+                this.#rightArrow.setEnabled(true);
+            } else {
+                this.#upPointerTarget.entity?.setEnabled(true);
+                this.#upArrow.setEnabled(true);
+                this.#rightPointerTarget.entity?.setEnabled(false);
+                this.#rightArrow.setEnabled(false);
+            }
+        } else if (selectedTileArray.length > 0) {
+            this.#upPointerTarget.entity?.setEnabled(true);
+            this.#upArrow.setEnabled(true);
+            this.#rightPointerTarget.entity?.setEnabled(true);
+            this.#rightArrow.setEnabled(true);
+        }
 
         return updated;
     }

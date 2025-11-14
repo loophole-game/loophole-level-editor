@@ -63,7 +63,10 @@ export class E_EntityVisual extends Entity {
         const { name } = ENTITY_METADATA[type];
         if (this.#mode === 'tile' && type === 'EXPLOSION') {
             this.#requestTileShapes('RECT');
-            this.#tileShapes[0].style.fillStyle = 'orange';
+            this.#tileShapes[0].style = {
+                fillStyle: 'orange',
+                globalAlpha: 0.5,
+            };
         } else {
             switch (type) {
                 case 'WIRE': {
