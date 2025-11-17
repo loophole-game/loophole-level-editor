@@ -95,8 +95,14 @@ export class C_Line extends C_Drawable {
             angle *= angMult;
             const baseAng = Math.atan2(this.#end.x - this.#start.x, this.#end.y - this.#start.y);
 
+            const tipStyle: RenderStyle = {
+                ...this.style,
+                lineCap: 'round',
+                lineJoin: 'round',
+            };
+
             out.push(
-                new RenderCommand(RENDER_CMD.DRAW_LINE, this.style, {
+                new RenderCommand(RENDER_CMD.DRAW_LINE, tipStyle, {
                     x1: origin.x,
                     y1: origin.y,
                     x2: origin.x + Math.cos(baseAng + (angle / 180) * Math.PI) * length,
@@ -104,7 +110,7 @@ export class C_Line extends C_Drawable {
                 }),
             );
             out.push(
-                new RenderCommand(RENDER_CMD.DRAW_LINE, this.style, {
+                new RenderCommand(RENDER_CMD.DRAW_LINE, tipStyle, {
                     x1: origin.x,
                     y1: origin.y,
                     x2: origin.x + -Math.cos(baseAng + (-angle / 180) * Math.PI) * length,

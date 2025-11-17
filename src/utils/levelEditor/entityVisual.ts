@@ -1,5 +1,6 @@
 import { C_Image } from '../engine/components/Image';
 import { C_Shape, type Shape } from '../engine/components/Shape';
+import { C_Line } from '../engine/components/Line';
 import { Entity } from '../engine/entities';
 import {
     COLOR_PALETTE_METADATA,
@@ -12,6 +13,11 @@ import type { Loophole_EntityWithID, Loophole_ExtendedEntityType } from './exter
 
 type Mode = 'brush' | 'tile';
 
+interface TimeMachineDecals {
+    arrow: C_Line;
+    walls: E_EntityVisual[];
+}
+
 export class E_EntityVisual extends Entity {
     #tileImage: C_Image;
     #tileShapes: C_Shape[] = [];
@@ -19,6 +25,8 @@ export class E_EntityVisual extends Entity {
 
     #type: Loophole_ExtendedEntityType | null = null;
     #mode: Mode;
+
+    #timeMachineDecals: TimeMachineDecals | null = null;
 
     constructor(mode: Mode) {
         super('entity_visual');
@@ -44,6 +52,12 @@ export class E_EntityVisual extends Entity {
         this.#tileShapes.forEach((shape) => {
             shape.style.globalAlpha = opacity;
         });
+        if (this.#timeMachineDecals) {
+            this.#timeMachineDecals.arrow.style.globalAlpha = opacity;
+            this.#timeMachineDecals.walls.forEach((wall) => {
+                wall.opacity = opacity;
+            });
+        }
     }
 
     setEntityType(type: Loophole_ExtendedEntityType, entity?: Loophole_EntityWithID): this {
@@ -53,6 +67,7 @@ export class E_EntityVisual extends Entity {
 
     override destroy(): void {
         window.engine?.removeColorPaletteChangedListener(this.id.toString());
+        this.#clearTimeMachineDecals();
         super.destroy();
     }
 
@@ -64,6 +79,7 @@ export class E_EntityVisual extends Entity {
         this.#type = type;
         this.#requestTileShapes();
         this.#tileImage.imageName = '';
+        this.#clearTimeMachineDecals();
 
         const { name } = ENTITY_METADATA[type];
         if (this.#mode === 'tile' && type === 'EXPLOSION') {
@@ -86,6 +102,11 @@ export class E_EntityVisual extends Entity {
                     ) {
                         this.onColorPaletteChanged(window.engine.colorPalette);
                     }
+                    break;
+                }
+                case 'TIME_MACHINE': {
+                    this.#tileImage.imageName = name;
+                    this.#createTimeMachineDecals();
                     break;
                 }
                 default:
@@ -118,5 +139,60 @@ export class E_EntityVisual extends Entity {
         }
 
         return this.#tileShapes.slice(0, shapes.length);
+    }
+
+    #createTimeMachineDecals() {
+        if (!this.#timeMachineDecals) {
+            const arrow = new C_Line(
+                'arrow',
+                { x: -0.2, y: 0 },
+                { x: 0.3, y: 0 },
+                { strokeStyle: 'white', lineWidth: 0.1, lineCap: 'round' },
+            ).setEndTip({
+                type: 'arrow',
+                length: 0.25,
+            });
+
+            const walls = [
+                new E_EntityVisual('tile')
+                    .setEntityType('ONE_WAY')
+                    .setPosition({ x: -0.5, y: 0 })
+                    .setZIndex(1),
+                new E_EntityVisual('tile')
+                    .setEntityType('ONE_WAY')
+                    .setPosition({ x: 0.5, y: 0 })
+                    .setZIndex(1),
+                new E_EntityVisual('tile')
+                    .setEntityType('WALL')
+                    .setPosition({ x: 0, y: 0.5 })
+                    .setRotation(90)
+                    .setZIndex(1),
+                new E_EntityVisual('tile')
+                    .setEntityType('WALL')
+                    .setPosition({ x: 0, y: -0.5 })
+                    .setRotation(90)
+                    .setZIndex(1),
+            ];
+
+            this.addComponents(arrow);
+            this.addEntities(...walls);
+            this.#timeMachineDecals = { arrow, walls };
+        } else {
+            this.#timeMachineDecals.arrow.setEnabled(true);
+            this.#timeMachineDecals.walls.forEach((w) => w.setEnabled(true));
+        }
+    }
+
+    #clearTimeMachineDecals() {
+        if (this.#timeMachineDecals) {
+            if (this.#mode !== 'brush') {
+                this.removeComponents(this.#timeMachineDecals.arrow);
+                this.removeChildren(...this.#timeMachineDecals.walls);
+                this.#timeMachineDecals = null;
+            } else {
+                this.#timeMachineDecals.walls.forEach((w) => w.setEnabled(false));
+                this.#timeMachineDecals.arrow.setEnabled(false);
+            }
+        }
     }
 }

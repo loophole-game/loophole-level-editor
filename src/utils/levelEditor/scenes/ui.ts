@@ -56,6 +56,8 @@ class E_TileCursor extends Entity {
     #dragEdgeAlignment: Loophole_EdgeAlignment | null = null;
     #dragHash: string | null = null;
 
+    #prevBrushEntityType: Loophole_ExtendedEntityType | null = null;
+
     constructor(editor: LevelEditor) {
         super('cursor');
 
@@ -247,7 +249,12 @@ class E_TileCursor extends Entity {
         this.#tileOpacityLerp.target =
             this.#active && this.#editor.entityCount < MAX_ENTITY_COUNT ? 0.5 : 0;
         if (!isDraggingToPlace) {
-            this.#tileRotationLerp.target = this.#targetRotation ?? this.rotation;
+            const targetRotation = this.#targetRotation ?? this.rotation;
+            if (this.#prevBrushEntityType !== brushEntityType) {
+                this.#prevBrushEntityType = brushEntityType;
+                this.setRotation(targetRotation);
+            }
+            this.#tileRotationLerp.target = targetRotation;
         }
 
         return updated;
