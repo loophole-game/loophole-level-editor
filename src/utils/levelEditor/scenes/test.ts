@@ -14,25 +14,77 @@ export class TestScene extends Scene {
             .setScale({ x: 200, y: 200 })
             .rotate(45)
             .addEntities(
-                new Entity('Top Left', new C_Shape('Dot', 'ELLIPSE', { fillStyle: 'yellow' }))
-                    .setScale({ x: 0.25, y: 0.25 })
-                    .setPosition({ x: -0.5, y: -0.5 }),
-                new Entity('Top Right', new C_Shape('Dot', 'ELLIPSE', { fillStyle: 'green' }))
-                    .setScale({ x: 0.25, y: 0.25 })
-                    .setPosition({ x: 0.5, y: -0.5 }),
-                new Entity('Bottom Left', new C_Shape('Dot', 'ELLIPSE', { fillStyle: 'blue' }))
-                    .setScale({ x: 0.25, y: 0.25 })
-                    .setPosition({ x: -0.5, y: 0.5 }),
-                new Entity('Bottom Right', new C_Shape('Dot', 'ELLIPSE', { fillStyle: 'purple' }))
-                    .setScale({ x: 0.25, y: 0.25 })
-                    .setPosition({ x: 0.5, y: 0.5 }),
-                new Entity('Center Behind', new C_Shape('Dot', 'ELLIPSE', { fillStyle: 'orange' }))
-                    .setZIndex(-1)
-                    .setScale({ x: 1.25, y: 1.25 }),
-                new Entity(
-                    'Center Above',
-                    new C_Shape('Dot', 'ELLIPSE', { fillStyle: 'white' }),
-                ).setScale({ x: 0.02, y: 0.02 }),
+                new Entity({
+                    name: 'Top Left',
+                    scale: 0.25,
+                    position: { x: -0.5, y: -0.5 },
+                    components: [
+                        new C_Shape({
+                            name: 'Dot',
+                            shape: 'ELLIPSE',
+                            style: { fillStyle: 'yellow' },
+                        }),
+                    ],
+                }),
+                new Entity({
+                    name: 'Top Right',
+                    scale: 0.25,
+                    position: { x: 0.5, y: -0.5 },
+                    components: [
+                        new C_Shape({
+                            name: 'Dot',
+                            shape: 'ELLIPSE',
+                            style: { fillStyle: 'green' },
+                        }),
+                    ],
+                }),
+                new Entity({
+                    name: 'Bottom Left',
+                    scale: 0.25,
+                    position: { x: -0.5, y: 0.5 },
+                    components: [
+                        new C_Shape({
+                            name: 'Dot',
+                            shape: 'ELLIPSE',
+                            style: { fillStyle: 'blue' },
+                        }),
+                    ],
+                }),
+                new Entity({
+                    name: 'Bottom Right',
+                    scale: 0.25,
+                    position: 0.5,
+                    components: [
+                        new C_Shape({
+                            name: 'Dot',
+                            shape: 'ELLIPSE',
+                            style: { fillStyle: 'purple' },
+                        }),
+                    ],
+                }),
+                new Entity({
+                    name: 'Center Behind',
+                    scale: 1.25,
+                    zIndex: -1,
+                    components: [
+                        new C_Shape({
+                            name: 'Dot',
+                            shape: 'ELLIPSE',
+                            style: { fillStyle: 'orange' },
+                        }),
+                    ],
+                }),
+                new Entity({
+                    name: 'Center Above',
+                    scale: 0.02,
+                    components: [
+                        new C_Shape({
+                            name: 'Dot',
+                            shape: 'ELLIPSE',
+                            style: { fillStyle: 'white' },
+                        }),
+                    ],
+                }),
             );
         this.addEntities(this.#rotatingBox);
 
@@ -69,13 +121,19 @@ export class TestScene extends Scene {
         let root: Entity | null = null;
         for (let i = 0; i < count; i++) {
             const frame = pattern[i % pattern.length];
-            const entity = new Entity(
-                `Nested Box Level ${i + 1}`,
-                new C_Shape(`Box Level ${i + 1}`, 'RECT', {
-                    fillStyle: `hsl(${(i * 40) % 360}, 70%, 50%)`,
-                    lineWidth: 0.1,
-                }),
-            )
+            const entity = new Entity({
+                name: `Nested Box Level ${i + 1}`,
+                components: [
+                    new C_Shape({
+                        name: `Box Level ${i + 1}`,
+                        shape: 'RECT',
+                        style: {
+                            fillStyle: `hsl(${(i * 40) % 360}, 70%, 50%)`,
+                            lineWidth: 0.1,
+                        },
+                    }),
+                ],
+            })
                 .setScale({ x: 0.75, y: 0.75 })
                 .setPosition(frame)
                 .rotate(12 * (i % 2 === 0 ? 1 : -1));

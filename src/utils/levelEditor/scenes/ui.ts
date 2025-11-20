@@ -61,7 +61,7 @@ class E_TileCursor extends Entity {
     constructor(editor: LevelEditor) {
         super('cursor');
 
-        this.#entityVisual = new E_EntityVisual('brush');
+        this.#entityVisual = new E_EntityVisual({ mode: 'brush' });
         this.#tileOpacityLerp = new C_Lerp({
             get: () => this.#entityVisual.opacity,
             set: (value: number) => {
@@ -348,9 +348,14 @@ class E_SelectionCursor extends Entity {
         super('ms_cursor');
 
         this.#editor = editor;
-        this.#shapeComp = new C_Shape('rect', 'RECT', {
-            fillStyle: 'blue',
-        }).setOrigin(0);
+        this.#shapeComp = new C_Shape({
+            name: 'rect',
+            shape: 'RECT',
+            style: {
+                fillStyle: 'blue',
+            },
+            origin: 0,
+        });
         this.#opacityLerp = new C_Lerp<number>({
             get: (() => this.#shapeComp.style.globalAlpha ?? 0).bind(this),
             set: ((value: number) => {
@@ -431,7 +436,7 @@ class E_SelectionCursor extends Entity {
     }
 }
 
-const HANDLE_ARROW_LENGTH = 4;
+const HANDLE_ARROW_LENGTH = 3;
 
 type DragAxis = 'x' | 'y' | 'both';
 
@@ -460,31 +465,29 @@ class E_DragCursor extends Entity {
 
         this.#editor = editor;
 
-        this.#upArrow = new C_Line(
-            'up-arrow',
-            { x: 0, y: -0.5 },
-            { x: 0, y: -HANDLE_ARROW_LENGTH },
-            {
-                lineWidth: 0.2,
-                fillStyle: 'blue',
-            },
-        ).setEndTip({ type: 'arrow' });
-        this.#rightArrow = new C_Line(
-            'right-arrow',
-            { x: 0.5, y: 0 },
-            { x: HANDLE_ARROW_LENGTH, y: 0 },
-            {
-                lineWidth: 0.2,
-                fillStyle: 'green',
-            },
-        ).setEndTip({ type: 'arrow' });
+        this.#upArrow = new C_Line({
+            name: 'up-arrow',
+            start: { x: 0, y: -0.5 },
+            end: { x: 0, y: -HANDLE_ARROW_LENGTH },
+            style: { lineWidth: 0.15, fillStyle: 'blue' },
+        }).setEndTip({ type: 'arrow', length: 0.5 });
+        this.#rightArrow = new C_Line({
+            name: 'right-arrow',
+            start: { x: 0.5, y: 0 },
+            end: { x: HANDLE_ARROW_LENGTH, y: 0 },
+            style: { lineWidth: 0.15, fillStyle: 'green' },
+        }).setEndTip({ type: 'arrow', length: 0.5 });
         this.#drawables = [
             this.#upArrow,
             this.#rightArrow,
-            new C_Shape('handle', 'RECT', {
-                fillStyle: '#FF5555',
-                strokeStyle: 'red',
-                lineWidth: 2,
+            new C_Shape({
+                name: 'handle',
+                shape: 'RECT',
+                style: {
+                    fillStyle: '#FF5555',
+                    strokeStyle: 'red',
+                    lineWidth: 2,
+                },
             }),
         ];
 
@@ -502,10 +505,10 @@ class E_DragCursor extends Entity {
         this.opacity = 0;
 
         this.addEntities(
-            new Entity('up', this.#upPointerTarget)
+            new Entity({ name: 'up', components: [this.#upPointerTarget] })
                 .setPosition({ x: 0, y: -(HANDLE_ARROW_LENGTH + 0.5) / 2 })
                 .setScale({ x: 1, y: HANDLE_ARROW_LENGTH - 0.5 }),
-            new Entity('up', this.#rightPointerTarget)
+            new Entity({ name: 'up', components: [this.#rightPointerTarget] })
                 .setPosition({ x: (HANDLE_ARROW_LENGTH + 0.5) / 2, y: 0 })
                 .setScale({ x: HANDLE_ARROW_LENGTH - 0.5, y: 1 }),
         );
@@ -516,7 +519,7 @@ class E_DragCursor extends Entity {
             this.#positionLerp,
         )
             .setZIndex(200)
-            .setScale(20)
+            .setScale(28)
             .setScaleToCamera(true);
     }
 

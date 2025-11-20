@@ -3,12 +3,24 @@ import { RENDER_CMD, RenderCommand, type RenderCommandStream } from '../systems/
 import type { Camera, Position, RecursiveArray, Renderable } from '../types';
 import { C_Transform } from '../components/transforms';
 import type { Scene } from '../systems/scene';
-import { zoomToScale } from '../utils';
+import { vectorOrNumberToVector, zoomToScale } from '../utils';
 import type { Engine } from '..';
 
 interface ScaleToCamera {
     x: boolean;
     y: boolean;
+}
+
+export interface EntityOptions {
+    name?: string;
+    components?: Component[];
+    children?: Entity[];
+    enabled?: boolean;
+    zIndex?: number;
+    position?: number | Position;
+    scale?: number | Position;
+    rotation?: number;
+    scaleToCamera?: boolean | ScaleToCamera;
 }
 
 export class Entity implements Renderable {
@@ -31,12 +43,29 @@ export class Entity implements Renderable {
     protected _components: Component[];
     #componentsZIndexDirty: boolean = false;
 
-    constructor(name: string, ...components: Component[]) {
+    constructor(options?: string | EntityOptions) {
+        const { name = `entity-${this._id}`, ...rest } =
+            typeof options === 'string' ? { name: options } : (options ?? {});
         this._name = name;
-        this._components = [...components];
-        this._components.push((this._transform = new C_Transform()));
+        this._enabled = rest?.enabled ?? true;
+        this._zIndex = rest?.zIndex ?? 0;
+        this._scaleToCamera = rest?.scaleToCamera
+            ? vectorOrNumberToVector(rest.scaleToCamera)
+            : { x: false, y: false };
+        this._children = rest?.children ?? [];
+        this._components = rest?.components ?? [];
+        this._components.push(
+            (this._transform = new C_Transform(
+                vectorOrNumberToVector(rest?.position ?? { x: 0, y: 0 }),
+                rest?.rotation ?? 0,
+                vectorOrNumberToVector(rest?.scale ?? { x: 1, y: 1 }),
+            )),
+        );
         this._components.forEach((component) => {
-            component.entity = this;
+            component.entity = this as Entity;
+        });
+        this._children.forEach((child) => {
+            child.parent = this;
         });
     }
 

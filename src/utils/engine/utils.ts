@@ -57,3 +57,21 @@ export const calculateBoundingBox = (positions: Position[]): BoundingBox => {
 
     return box;
 };
+
+export const vectorOrNumberToVector = <T>(
+    vector:
+        | T
+        | {
+              x: T;
+              y: T;
+          },
+): {
+    x: T;
+    y: T;
+} => {
+    if (typeof vector === 'object' && vector !== null) {
+        return vector as { x: T; y: T };
+    } else {
+        return { x: vector as T, y: vector as T };
+    }
+};

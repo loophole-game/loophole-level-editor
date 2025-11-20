@@ -15,7 +15,7 @@ export function OpenInterfacePanel() {
             })}
         >
             <Button variant="loophole" onClick={() => setInterfaceHidden(false)}>
-                <SidebarOpenIcon />
+                <SidebarOpenIcon className="rotate-180" />
             </Button>
         </Panel>
     );

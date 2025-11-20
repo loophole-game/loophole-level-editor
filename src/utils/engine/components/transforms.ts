@@ -1,5 +1,6 @@
 import { Component } from '.';
 import type { Position } from '../types';
+import { vectorOrNumberToVector } from '../utils';
 
 export class C_Transform extends Component {
     #position: Position = { x: 0, y: 0 };
@@ -12,8 +13,11 @@ export class C_Transform extends Component {
     #worldMatrix: DOMMatrix = new DOMMatrix();
     #worldMatrixDirty: boolean = true;
 
-    constructor() {
+    constructor(position: number | Position, rotation: number, scale: number | Position) {
         super('Transform');
+        this.#position = vectorOrNumberToVector(position);
+        this.#rotation = rotation;
+        this.#scale = vectorOrNumberToVector(scale);
     }
 
     get position(): Readonly<Position> {

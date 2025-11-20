@@ -1,4 +1,4 @@
-import { C_Drawable } from '.';
+import { C_Drawable, type C_DrawableOptions } from '.';
 import {
     RENDER_CMD,
     RenderCommand,
@@ -6,6 +6,7 @@ import {
     type RenderStyle,
 } from '../systems/render';
 import type { Position } from '../types';
+import { vectorOrNumberToVector } from '../utils';
 
 const DEFAULT_ARROW_LENGTH = 1;
 const DEFAULT_ARROW_ANGLE = 45;
@@ -18,6 +19,11 @@ interface ArrowTip {
 
 type Tip = ArrowTip;
 
+interface LineOptions extends C_DrawableOptions {
+    start: Position;
+    end: Position;
+}
+
 export class C_Line extends C_Drawable {
     #start: Position;
     #end: Position;
@@ -25,11 +31,12 @@ export class C_Line extends C_Drawable {
     #startTip: Tip | null = null;
     #endTip: Tip | null = null;
 
-    constructor(name: string, start: Position, end: Position, style?: RenderStyle) {
-        super(name, { x: 0, y: 0 }, { x: 1, y: 1 }, style);
+    constructor(options: LineOptions) {
+        const { name, start, end, origin = 0, scale = 1, style } = options;
+        super({ name, origin, scale, style });
 
-        this.#start = { ...start };
-        this.#end = { ...end };
+        this.#start = vectorOrNumberToVector(start);
+        this.#end = vectorOrNumberToVector(end);
     }
 
     get start(): Position {

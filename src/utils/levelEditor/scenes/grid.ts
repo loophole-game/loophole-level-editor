@@ -32,7 +32,7 @@ export class E_TileHighlight extends Entity {
     #tile: E_Tile;
 
     constructor(tile: E_Tile) {
-        super('tile_highlight');
+        super({ name: 'tile_highlight' });
 
         this.#tile = tile;
     }
@@ -68,23 +68,32 @@ export class E_Tile extends Entity {
         this.#editor = editor;
         this.#entity = entity;
         this.#type = getLoopholeEntityExtendedType(entity);
-        this.#tileImage = new C_Image('tile-image', '', {
-            imageSmoothingEnabled: false,
+        this.#tileImage = new C_Image({
+            name: 'tile-image',
+            imageName: '',
+            style: {
+                imageSmoothingEnabled: false,
+            },
         }).setZIndex(10);
         this.#positionLerp = new C_LerpPosition(this, 20);
         this.addComponents(this.#tileImage, this.#positionLerp);
 
         this.#highlightEntity = new E_TileHighlight(this).setZIndex(-1);
-        this.#entityVisual = new E_EntityVisual('tile').setZIndex(-1);
+        this.#entityVisual = new E_EntityVisual({ mode: 'tile' }).setZIndex(-1);
         this.#pointerParent = new Entity('pointer_parent');
         this.#highlightEntity.addEntities(this.#entityVisual, this.#pointerParent);
 
         this.#pointerTarget = new C_PointerTarget();
         this.#pointerTarget.canInteract = false;
-        this.#highlightShape = new C_Shape('shape', 'RECT', {
-            fillStyle: 'white',
-            globalAlpha: 0,
-        }).setZIndex(1);
+        this.#highlightShape = new C_Shape({
+            name: 'shape',
+            shape: 'RECT',
+            style: {
+                fillStyle: 'white',
+                globalAlpha: 0,
+            },
+            zIndex: 1,
+        });
         this.#opacityLerp = new C_LerpOpacity(this.#highlightShape, 5);
         this.#pointerParent.addComponents(
             this.#pointerTarget,
@@ -266,33 +275,37 @@ export class GridScene extends Scene {
 
     override create() {
         this.#grids.push(
-            new E_InfiniteShape(
-                'grid',
-                new C_Shape(
-                    'dots',
-                    'ELLIPSE',
-                    { fillStyle: 'white', globalAlpha: 0.5 },
-                    1,
-                    DOT_GAP,
-                ),
-                TILE_SIZE,
-                0,
-                0.2,
-            ).setScale(DOT_SIZE),
-            new E_InfiniteShape(
-                'border',
-                new C_Shape('border', 'RECT', {
-                    fillStyle: '',
-                    strokeStyle: 'white',
-                    lineWidth: 4,
-                    globalAlpha: 0.5,
+            new E_InfiniteShape({
+                name: 'grid',
+                shape: new C_Shape({
+                    name: 'dots',
+                    shape: 'ELLIPSE',
+                    style: { fillStyle: 'white', globalAlpha: 0.5 },
+                    gap: DOT_GAP,
                 }),
-                SCREEN_BORDER_SIZE,
-                {
+                tileSize: TILE_SIZE,
+                zoomCullThresh: 0.2,
+                scale: DOT_SIZE,
+            }),
+            new E_InfiniteShape({
+                name: 'border',
+                shape: new C_Shape({
+                    name: 'border',
+                    shape: 'RECT',
+                    style: {
+                        fillStyle: '',
+                        strokeStyle: 'white',
+                        lineWidth: 4,
+                        globalAlpha: 0.5,
+                    },
+                }),
+                tileSize: SCREEN_BORDER_SIZE,
+                offset: {
                     x: SCREEN_BORDER_SIZE.x / 2,
                     y: SCREEN_BORDER_SIZE.y / 2,
                 },
-            ).setScale(SCREEN_BORDER_SIZE),
+                scale: SCREEN_BORDER_SIZE,
+            }),
         );
         this.addEntities(...this.#grids);
     }

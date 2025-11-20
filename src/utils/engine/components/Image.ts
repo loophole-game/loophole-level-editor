@@ -1,20 +1,25 @@
-import { C_Drawable } from '.';
+import { C_Drawable, type C_DrawableOptions } from '.';
 import {
     RENDER_CMD,
     RenderCommand,
     type DrawDataImage,
     type RenderCommandStream,
-    type RenderStyle,
 } from '../systems/render';
 import type { Position } from '../types';
+
+interface C_ImageOptions extends C_DrawableOptions {
+    imageName: string;
+    repeat?: Position;
+}
 
 export class C_Image extends C_Drawable {
     #imageName: string;
     #repeat: Position | null;
 
-    constructor(name: string, imageName: string, style?: RenderStyle, repeat?: Position) {
-        super(name, { x: 0.5, y: 0.5 }, { x: 1, y: 1 }, style);
+    constructor(options: C_ImageOptions) {
+        super(options);
 
+        const { imageName, repeat } = options;
         this.#imageName = imageName;
         this.#repeat = repeat ?? null;
     }

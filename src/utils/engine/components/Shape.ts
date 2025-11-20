@@ -3,40 +3,47 @@ import {
     RenderCommand,
     type DrawDataShape,
     type RenderCommandStream,
-    type RenderStyle,
 } from '../systems/render';
 import type { Position } from '../types';
-import { C_Drawable } from './index';
+import { vectorOrNumberToVector } from '../utils';
+import { C_Drawable, type C_DrawableOptions } from './index';
 
 export type Shape = 'RECT' | 'ELLIPSE';
+
+export interface C_ShapeOptions extends C_DrawableOptions {
+    shape: Shape;
+    repeat?: number | Position;
+    gap?: number | Position;
+}
 
 export class C_Shape extends C_Drawable {
     #shape: Shape;
     #repeat: Position | null;
     #gap: Position | null;
 
-    constructor(
-        name: string,
-        shape: Shape,
-        style?: RenderStyle,
-        repeat?: number | Position,
-        gap?: number | Position,
-    ) {
-        super(
-            name,
-            shape === 'ELLIPSE' ? { x: 0, y: 0 } : { x: 0.5, y: 0.5 },
-            { x: 1, y: 1 },
-            style,
-        );
+    constructor(options: C_ShapeOptions) {
+        const {
+            shape,
+            repeat,
+            gap,
+            origin = shape === 'ELLIPSE' ? { x: 0, y: 0 } : { x: 0.5, y: 0.5 },
+            scale = { x: 1, y: 1 },
+            ...rest
+        } = options;
+        super({
+            ...rest,
+            origin,
+            scale,
+        });
 
         this.#shape = shape;
         if (repeat !== undefined) {
-            this.#repeat = typeof repeat === 'number' ? { x: repeat, y: repeat } : repeat;
+            this.#repeat = vectorOrNumberToVector(repeat);
         } else {
             this.#repeat = null;
         }
         if (gap !== undefined) {
-            this.#gap = typeof gap === 'number' ? { x: gap, y: gap } : gap;
+            this.#gap = vectorOrNumberToVector(gap);
         } else {
             this.#gap = null;
         }

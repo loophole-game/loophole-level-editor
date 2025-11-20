@@ -1,6 +1,13 @@
 import type { Entity } from '../entities';
 import type { Camera, Position, Renderable } from '../types';
 import type { RenderCommandStream, RenderStyle } from '../systems/render';
+import { vectorOrNumberToVector } from '../utils';
+
+export interface ComponentOptions {
+    name: string;
+    enabled?: boolean;
+    zIndex?: number;
+}
 
 export abstract class Component implements Renderable {
     protected static _nextId: number = 1;
@@ -13,8 +20,14 @@ export abstract class Component implements Renderable {
 
     protected _entity: Entity | null = null;
 
-    constructor(name: string) {
+    constructor(options: string | ComponentOptions) {
+        const { name = `component-${this._id}`, ...rest } = (
+            typeof options === 'string' ? { name: options } : (options ?? {})
+        ) as ComponentOptions;
+
         this._name = name;
+        this._enabled = rest?.enabled ?? true;
+        this._zIndex = rest?.zIndex ?? 0;
     }
 
     get id(): number {
@@ -75,17 +88,26 @@ export abstract class Component implements Renderable {
     }
 }
 
+export interface C_DrawableOptions extends ComponentOptions {
+    origin?: number | Position;
+    scale?: number | Position;
+    style?: RenderStyle;
+}
+
 export abstract class C_Drawable extends Component {
     protected _origin: Position;
     protected _scale: Position;
     protected _style: RenderStyle;
 
-    constructor(name: string, origin: Position, scale: Position, style?: RenderStyle) {
-        super(name);
+    constructor(options: string | C_DrawableOptions) {
+        const optionsObj = (
+            typeof options === 'string' ? { name: options } : (options ?? {})
+        ) as C_DrawableOptions;
+        super(optionsObj);
 
-        this._origin = origin;
-        this._scale = scale;
-        this._style = style ?? {};
+        this._origin = vectorOrNumberToVector(optionsObj.origin ?? 0.5);
+        this._scale = vectorOrNumberToVector(optionsObj.scale ?? 1);
+        this._style = optionsObj.style ?? {};
     }
 
     get style(): RenderStyle {
@@ -101,7 +123,7 @@ export abstract class C_Drawable extends Component {
     }
 
     setOrigin(origin: number | Position): this {
-        this._origin = typeof origin === 'number' ? { x: origin, y: origin } : origin;
+        this._origin = vectorOrNumberToVector(origin);
         return this;
     }
 
@@ -110,7 +132,7 @@ export abstract class C_Drawable extends Component {
     }
 
     setScale(scale: number | Position): this {
-        this._scale = typeof scale === 'number' ? { x: scale, y: scale } : scale;
+        this._scale = vectorOrNumberToVector(scale);
         return this;
     }
 

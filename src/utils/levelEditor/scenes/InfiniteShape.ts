@@ -1,27 +1,29 @@
-import { Entity } from '../../engine/entities';
+import { Entity, type EntityOptions } from '../../engine/entities';
 import { C_Shape } from '../../engine/components/Shape';
 import type { Position } from '../../engine/types';
-import { zoomToScale } from '../../engine/utils';
+import { vectorOrNumberToVector, zoomToScale } from '../../engine/utils';
+
+interface E_InfiniteShapeOptions extends EntityOptions {
+    shape: C_Shape;
+    tileSize: number | Position;
+    zoomCullThresh?: number;
+    offset?: number | Position;
+}
 
 export class E_InfiniteShape extends Entity {
     #shape: C_Shape;
     #offset: Position;
     #tileSize: Position;
-    #zoomCullThresh: number;
+    #zoomCullThresh: number | null;
 
-    constructor(
-        name: string,
-        shape: C_Shape,
-        tileSize: number | Position,
-        offset: number | Position = 0,
-        zoomCullThresh: number = 0,
-    ) {
-        super(name);
+    constructor(options: E_InfiniteShapeOptions) {
+        super(options);
 
-        this.#shape = shape;
-        this.#tileSize = typeof tileSize === 'number' ? { x: tileSize, y: tileSize } : tileSize;
-        this.#offset = typeof offset === 'number' ? { x: offset, y: offset } : offset;
-        this.#zoomCullThresh = zoomCullThresh;
+        this.#shape = options.shape;
+        this.#tileSize = vectorOrNumberToVector(options.tileSize);
+        this.#offset =
+            options.offset !== undefined ? vectorOrNumberToVector(options.offset) : { x: 0, y: 0 };
+        this.#zoomCullThresh = options.zoomCullThresh ?? null;
 
         this.addComponents(this.#shape);
     }
@@ -31,7 +33,7 @@ export class E_InfiniteShape extends Entity {
 
         if (window.engine?.canvasSize) {
             const scale = zoomToScale(window.engine.camera.zoom);
-            if (scale >= this.#zoomCullThresh) {
+            if (this.#zoomCullThresh === null || scale >= this.#zoomCullThresh) {
                 const topLeft = window.engine.screenToWorld({ x: 0, y: 0 }),
                     bottomRight = window.engine.screenToWorld(window.engine.canvasSize);
                 const gridTopLeft = {

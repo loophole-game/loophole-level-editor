@@ -1,7 +1,7 @@
 import { C_Image } from '../engine/components/Image';
 import { C_Shape, type Shape } from '../engine/components/Shape';
 import { C_Line } from '../engine/components/Line';
-import { Entity } from '../engine/entities';
+import { Entity, type EntityOptions } from '../engine/entities';
 import {
     COLOR_PALETTE_METADATA,
     ENTITY_METADATA,
@@ -18,6 +18,10 @@ interface TimeMachineDecals {
     walls: E_EntityVisual[];
 }
 
+interface E_EntityVisualOptions extends EntityOptions {
+    mode: Mode;
+}
+
 export class E_EntityVisual extends Entity {
     #tileImage: C_Image;
     #tileShapes: C_Shape[] = [];
@@ -28,14 +32,19 @@ export class E_EntityVisual extends Entity {
 
     #timeMachineDecals: TimeMachineDecals | null = null;
 
-    constructor(mode: Mode) {
-        super('entity_visual');
-        this.#tileImage = new C_Image('entity_visual', '', {
-            imageSmoothingEnabled: false,
+    constructor(options: E_EntityVisualOptions) {
+        const { name = 'entity_visual', ...rest } = options;
+        super({ name, ...rest });
+        this.#tileImage = new C_Image({
+            name: `${name}-image`,
+            imageName: '',
+            style: {
+                imageSmoothingEnabled: false,
+            },
         });
-        this.addComponents(this.#tileImage);
+        this.addComponents(this.#tileImage, ...(options.components ?? []));
 
-        this.#mode = mode;
+        this.#mode = options.mode;
 
         window.engine?.addColorPaletteChangedListener(this.id.toString(), (palette) =>
             this.onColorPaletteChanged(palette),
@@ -124,7 +133,10 @@ export class E_EntityVisual extends Entity {
 
     #requestTileShapes(...shapes: Shape[]) {
         while (this.#tileShapes.length < shapes.length) {
-            const shape = new C_Shape('tile', 'RECT');
+            const shape = new C_Shape({
+                name: 'tile',
+                shape: 'RECT',
+            });
             this.#tileShapes.push(shape);
             this.addComponents(shape);
         }
@@ -143,31 +155,28 @@ export class E_EntityVisual extends Entity {
 
     #createTimeMachineDecals() {
         if (!this.#timeMachineDecals) {
-            const arrow = new C_Line(
-                'arrow',
-                { x: -0.2, y: 0 },
-                { x: 0.3, y: 0 },
-                { strokeStyle: 'white', lineWidth: 0.1, lineCap: 'round' },
-            ).setEndTip({
-                type: 'arrow',
-                length: 0.25,
-            });
+            const arrow = new C_Line({
+                name: 'arrow',
+                start: { x: -0.2, y: 0 },
+                end: { x: 0.3, y: 0 },
+                style: { strokeStyle: 'white', lineWidth: 0.1, lineCap: 'round' },
+            }).setEndTip({ type: 'arrow', length: 0.25 });
 
             const walls = [
-                new E_EntityVisual('tile')
+                new E_EntityVisual({ mode: 'tile' })
                     .setEntityType('ONE_WAY')
                     .setPosition({ x: -0.5, y: 0 })
                     .setZIndex(1),
-                new E_EntityVisual('tile')
+                new E_EntityVisual({ mode: 'tile' })
                     .setEntityType('ONE_WAY')
                     .setPosition({ x: 0.5, y: 0 })
                     .setZIndex(1),
-                new E_EntityVisual('tile')
+                new E_EntityVisual({ mode: 'tile' })
                     .setEntityType('WALL')
                     .setPosition({ x: 0, y: 0.5 })
                     .setRotation(90)
                     .setZIndex(1),
-                new E_EntityVisual('tile')
+                new E_EntityVisual({ mode: 'tile' })
                     .setEntityType('WALL')
                     .setPosition({ x: 0, y: -0.5 })
                     .setRotation(90)
