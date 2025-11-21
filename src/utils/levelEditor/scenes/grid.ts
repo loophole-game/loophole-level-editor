@@ -87,7 +87,10 @@ export class E_Tile extends Entity {
         this.#pointerParent = new Entity('pointer_parent');
         this.#highlightEntity.addEntities(this.#entityVisual, this.#pointerParent);
 
-        this.#pointerTarget = new C_PointerTarget();
+        this.#pointerTarget = new C_PointerTarget({
+            cursorOnHover: 'pointer',
+            cursorPriority: 5,
+        });
         this.#pointerTarget.canInteract = false;
         this.#highlightShape = new C_Shape({
             name: 'shape',

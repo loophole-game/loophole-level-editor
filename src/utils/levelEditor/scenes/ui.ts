@@ -38,6 +38,15 @@ const multiSelectIsActive = (editor: LevelEditor) => editor.getKey('Shift').down
 const cameraDragIsActive = (editor: LevelEditor) =>
     editor.getPointerButton(PointerButton.RIGHT).down;
 
+const CURSOR_PRIORITY = {
+    DEFAULT: 0,
+    TILE_HOVER: 5,
+    BRUSH: 10,
+    HANDLE_HOVER: 20,
+    DRAGGING: 30,
+    CAMERA_DRAG: 40,
+} as const;
+
 class E_TileCursor extends Entity {
     #editor: LevelEditor;
     #entityVisual: E_EntityVisual;
@@ -93,6 +102,26 @@ class E_TileCursor extends Entity {
             isDraggingToPlace,
             setIsDraggingToPlace,
         } = getAppStore();
+
+        // Cursor management for brush mode
+        if (
+            this.#editor.pointerState.onScreen &&
+            !multiSelectIsActive(this.#editor) &&
+            !cameraDragIsActive(this.#editor) &&
+            !isMovingTiles &&
+            brushEntityType
+        ) {
+            // Show crosshair cursor in brush mode
+            if (isDraggingToPlace) {
+                this.#editor.requestCursor('tile-cursor-dragging', 'grabbing', CURSOR_PRIORITY.DRAGGING);
+            } else {
+                this.#editor.requestCursor('tile-cursor', 'crosshair', CURSOR_PRIORITY.BRUSH);
+            }
+        } else {
+            this.#editor.cancelCursorRequest('tile-cursor');
+            this.#editor.cancelCursorRequest('tile-cursor-dragging');
+        }
+
         if (
             this.#editor.pointerState.onScreen &&
             !multiSelectIsActive(this.#editor) &&
@@ -343,6 +372,7 @@ class E_SelectionCursor extends Entity {
 
     #selectAllClickPosition: Position | null = null;
     #active: boolean = false;
+    #wasActive: boolean = false;
 
     constructor(editor: LevelEditor) {
         super('ms_cursor');
@@ -432,6 +462,16 @@ class E_SelectionCursor extends Entity {
         this.#opacityLerp.target = this.#active ? 0.25 : 0;
         this.#editor.pointerSystem.checkForOverlap = !this.#active;
 
+        // Cursor management for multi-select
+        if (this.#active !== this.#wasActive) {
+            if (this.#active) {
+                this.#editor.requestCursor('multi-select', 'crosshair', CURSOR_PRIORITY.BRUSH);
+            } else {
+                this.#editor.cancelCursorRequest('multi-select');
+            }
+            this.#wasActive = this.#active;
+        }
+
         return updated;
     }
 }
@@ -459,6 +499,7 @@ class E_DragCursor extends Entity {
     #dragAxis: DragAxis = 'both';
 
     #opacity = 0;
+    #wasHoveringHandle = false;
 
     constructor(editor: LevelEditor) {
         super('drag_handle');
@@ -536,6 +577,33 @@ class E_DragCursor extends Entity {
         const hasSelection = selectedTileArray.length > 0;
 
         const active = hasSelection && !brushEntityType;
+
+        // Cursor management for drag handles
+        const isHoveringHandle = active && this.#anyTargetHovered();
+        if (isHoveringHandle !== this.#wasHoveringHandle) {
+            if (isHoveringHandle) {
+                // Determine which handle is hovered and set appropriate cursor
+                if (this.#boxPointerTarget.isPointerHovered) {
+                    this.#editor.requestCursor('drag-handle-box', 'move', CURSOR_PRIORITY.HANDLE_HOVER);
+                } else if (this.#upPointerTarget.isPointerHovered) {
+                    this.#editor.requestCursor('drag-handle-up', 'ns-resize', CURSOR_PRIORITY.HANDLE_HOVER);
+                } else if (this.#rightPointerTarget.isPointerHovered) {
+                    this.#editor.requestCursor('drag-handle-right', 'ew-resize', CURSOR_PRIORITY.HANDLE_HOVER);
+                }
+            } else {
+                this.#editor.cancelCursorRequest('drag-handle-box');
+                this.#editor.cancelCursorRequest('drag-handle-up');
+                this.#editor.cancelCursorRequest('drag-handle-right');
+            }
+            this.#wasHoveringHandle = isHoveringHandle;
+        }
+
+        if (this.#isDragging) {
+            this.#editor.requestCursor('drag-dragging', 'grabbing', CURSOR_PRIORITY.DRAGGING);
+        } else {
+            this.#editor.cancelCursorRequest('drag-dragging');
+        }
+
         if (active) {
             const center = calculateSelectionCenter(selectedTileArray);
             this.#positionLerp.target = center;

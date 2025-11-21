@@ -1,24 +1,36 @@
 import { Component } from '.';
 import type { Position } from '../types';
 import { zoomToScale } from '../utils';
+import type { CursorType } from '../systems/cursor';
 
 interface PointerTargetOptions {
     onPointerEnter?: () => void;
     onPointerLeave?: () => void;
+    cursorOnHover?: CursorType;
+    cursorPriority?: number;
 }
 
 export class C_PointerTarget extends Component {
     #onPointerEnter?: PointerTargetOptions['onPointerEnter'];
     #onPointerLeave?: PointerTargetOptions['onPointerLeave'];
+    #cursorOnHover?: CursorType;
+    #cursorPriority: number;
 
     #canInteract: boolean = true;
     #isPointerHovered: boolean = false;
 
-    constructor({ onPointerEnter, onPointerLeave }: PointerTargetOptions = {}) {
+    constructor({
+        onPointerEnter,
+        onPointerLeave,
+        cursorOnHover,
+        cursorPriority = 5,
+    }: PointerTargetOptions = {}) {
         super(C_PointerTarget.name);
 
         this.#onPointerEnter = onPointerEnter;
         this.#onPointerLeave = onPointerLeave;
+        this.#cursorOnHover = cursorOnHover;
+        this.#cursorPriority = cursorPriority;
     }
 
     get isPointerHovered(): boolean {
@@ -92,8 +104,20 @@ export class C_PointerTarget extends Component {
         if (prevIsPointerHovered !== this.#isPointerHovered) {
             if (this.#isPointerHovered) {
                 this.#onPointerEnter?.();
+                if (this.#cursorOnHover && window.engine) {
+                    const cursorId = `pointer-target-${this.entity?.id}`;
+                    window.engine.requestCursor(
+                        cursorId,
+                        this.#cursorOnHover,
+                        this.#cursorPriority,
+                    );
+                }
             } else {
                 this.#onPointerLeave?.();
+                if (this.#cursorOnHover && window.engine) {
+                    const cursorId = `pointer-target-${this.entity?.id}`;
+                    window.engine.cancelCursorRequest(cursorId);
+                }
             }
         }
 

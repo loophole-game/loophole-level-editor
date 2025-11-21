@@ -197,6 +197,7 @@ export class PointerSystem extends System {
             if (buttonStates.some((state) => state.pressed) && !this.#dragStartMousePosition) {
                 this.#dragStartMousePosition = { ...this._engine.pointerState };
                 this.#dragStartCameraPosition = { ...this._engine.camera.position };
+                this._engine.requestCursor('camera-drag', 'grabbing', 40); // CURSOR_PRIORITY.CAMERA_DRAG
             }
 
             if (this._engine.pointerState.justMoved) {
@@ -220,6 +221,7 @@ export class PointerSystem extends System {
             if (buttonStates.some((state) => state.released) && this.#dragStartMousePosition) {
                 this.#dragStartMousePosition = null;
                 this.#dragStartCameraPosition = null;
+                this._engine.cancelCursorRequest('camera-drag');
             }
 
             if (this.#dragStartMousePosition) {
