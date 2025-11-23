@@ -13,6 +13,7 @@ interface TilePickerProps {
 export default function TilePicker({ className }: TilePickerProps) {
     const brushEntityType = useAppStore((state) => state.brushEntityType);
     const setBrushEntityType = useAppStore((state) => state.setBrushEntityType);
+    const lockedLayers = useAppStore((state) => state.lockedLayers);
     const currentLevel = useCurrentLevel();
     const colorPalette = currentLevel?.colorPalette ?? null;
 
@@ -25,9 +26,12 @@ export default function TilePicker({ className }: TilePickerProps) {
                             <Tooltip key={entityType}>
                                 <TooltipTrigger asChild>
                                     <button
-                                        draggable
+                                        draggable={
+                                            !lockedLayers[entityType as Loophole_ExtendedEntityType]
+                                        }
                                         className={cn(
                                             'relative size-16 aspect-square pixelated-image border-2 border-transparent p-1 rounded-lg transition-colors cursor-grab active:cursor-grabbing',
+                                            'disabled:opacity-50 disabled:cursor-not-allowed',
                                             {
                                                 'border-background': brushEntityType === entityType,
                                             },
@@ -43,6 +47,9 @@ export default function TilePicker({ className }: TilePickerProps) {
                                             e.dataTransfer.setData('entityType', entityType);
                                             e.dataTransfer.effectAllowed = 'copy';
                                         }}
+                                        disabled={
+                                            lockedLayers[entityType as Loophole_ExtendedEntityType]
+                                        }
                                     >
                                         <img
                                             src={
@@ -62,7 +69,9 @@ export default function TilePicker({ className }: TilePickerProps) {
                                         )}
                                     </button>
                                 </TooltipTrigger>
-                                <TooltipContent>{metadata.name}</TooltipContent>
+                                <TooltipContent className="pointer-events-none">
+                                    {metadata.name}
+                                </TooltipContent>
                             </Tooltip>
                         ),
                 )}

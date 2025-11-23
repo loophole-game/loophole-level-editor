@@ -180,6 +180,10 @@ export const useAppStore = create<AppStore>()(
                 setLockedLayer: (layer, locked) =>
                     set((state) => ({
                         lockedLayers: { ...state.lockedLayers, [layer]: locked },
+                        brushEntityType:
+                            locked && state.brushEntityType === layer
+                                ? null
+                                : state.brushEntityType,
 
                         selectedTiles: Object.fromEntries(
                             Object.entries(state.selectedTiles).filter(
