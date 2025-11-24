@@ -347,7 +347,7 @@ export class RenderSystem extends System {
 
     // Optimized style application - only update changed properties
     #applyStyleOptimized = (ctx: CanvasRenderingContext2D, style: RenderStyle) => {
-        // Apply all properties from DEFAULT_RENDER_STYLE first if not set in current style
+        // First apply all properties from DEFAULT_RENDER_STYLE with incoming style overrides
         for (const key in DEFAULT_RENDER_STYLE) {
             const styleKey = key as keyof RenderStyle;
             const value = style[styleKey] ?? DEFAULT_RENDER_STYLE[styleKey];
@@ -356,6 +356,19 @@ export class RenderSystem extends System {
                 (ctx as any)[key] = value;
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (this.#currentStyle as any)[styleKey] = value;
+            }
+        }
+        
+        // Then apply any additional properties from incoming style not in DEFAULT_RENDER_STYLE
+        for (const key in style) {
+            if (Object.prototype.hasOwnProperty.call(style, key) && !(key in DEFAULT_RENDER_STYLE)) {
+                const value = style[key as keyof RenderStyle];
+                if (value !== undefined && this.#currentStyle[key as keyof RenderStyle] !== value) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (ctx as any)[key] = value;
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (this.#currentStyle as any)[key] = value;
+                }
             }
         }
     };

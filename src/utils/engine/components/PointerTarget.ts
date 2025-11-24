@@ -82,8 +82,8 @@ export class C_PointerTarget extends Component {
             // Extract scene-space position, rotation, and scale
             const scenePosition = { x: this.#sceneMatrix.e, y: this.#sceneMatrix.f };
             const sceneRotation = Math.atan2(this.#sceneMatrix.b, this.#sceneMatrix.a) * (180 / Math.PI);
-            const sceneScaleX = Math.sqrt(this.#sceneMatrix.a * this.#sceneMatrix.a + this.#sceneMatrix.b * this.#sceneMatrix.b);
-            const sceneScaleY = Math.sqrt(this.#sceneMatrix.c * this.#sceneMatrix.c + this.#sceneMatrix.d * this.#sceneMatrix.d);
+            const sceneScaleX = Math.hypot(this.#sceneMatrix.a, this.#sceneMatrix.b);
+            const sceneScaleY = Math.hypot(this.#sceneMatrix.c, this.#sceneMatrix.d);
 
             // Translate point to be relative to the rectangle's center
             const dx = position.x - scenePosition.x;

@@ -79,6 +79,9 @@ export const vectorOrNumberToVector = <T>(
 /**
  * Check if a bounding box is visible within the camera viewport.
  * This is used for frustum culling to skip rendering off-screen entities.
+ * 
+ * Note: The camera.position represents the camera offset in screen space.
+ * Positive camera.position.x moves the view right, positive y moves down.
  */
 export const isBoxInView = (
     box: BoundingBox,
@@ -90,14 +93,18 @@ export const isBoxInView = (
     const scale = zoomToScale(camera.zoom);
     
     // Calculate the view bounds in world space
+    // The camera position is an offset applied in screen space
     const halfWidth = (canvasWidth / 2) / scale;
     const halfHeight = (canvasHeight / 2) / scale;
     
-    // Camera position is already in world coordinates
-    const viewLeft = -camera.position.x - halfWidth - padding;
-    const viewRight = -camera.position.x + halfWidth + padding;
-    const viewTop = -camera.position.y - halfHeight - padding;
-    const viewBottom = -camera.position.y + halfHeight + padding;
+    // View center in world space (camera position is negated for world bounds)
+    const viewCenterX = -camera.position.x / scale;
+    const viewCenterY = -camera.position.y / scale;
+    
+    const viewLeft = viewCenterX - halfWidth - padding;
+    const viewRight = viewCenterX + halfWidth + padding;
+    const viewTop = viewCenterY - halfHeight - padding;
+    const viewBottom = viewCenterY + halfHeight + padding;
     
     // Check if box intersects with view bounds
     return !(
