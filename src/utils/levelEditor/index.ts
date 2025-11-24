@@ -737,9 +737,12 @@ export class LevelEditor extends Engine {
             return tile;
         }
 
-        const newTile = new E_Tile(this, entity).setScale(TILE_SIZE);
+        const newTile = (this as LevelEditor).add(E_Tile, {
+            entity,
+            scene: GridScene.name,
+            scale: TILE_SIZE,
+        });
         this.#tiles[entity.tID] = newTile;
-        this.addSceneEntities(GridScene.name, newTile);
 
         return newTile;
     }

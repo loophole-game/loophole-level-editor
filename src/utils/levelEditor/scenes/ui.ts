@@ -10,7 +10,7 @@ import {
     loopholeRotationToDegrees,
     TILE_SIZE,
 } from '@/utils/utils';
-import { Entity } from '../../engine/entities';
+import { Entity, type EntityOptions } from '../../engine/entities';
 import { Scene } from '../../engine/systems/scene';
 import { getAppStore } from '@/utils/stores';
 import {
@@ -47,8 +47,7 @@ const CURSOR_PRIORITY = {
     CAMERA_DRAG: 40,
 } as const;
 
-class E_TileCursor extends Entity {
-    #editor: LevelEditor;
+class E_TileCursor extends Entity<LevelEditor> {
     #entityVisual: E_EntityVisual;
 
     #positionLerp: C_Lerp<Position>;
@@ -67,10 +66,10 @@ class E_TileCursor extends Entity {
 
     #prevBrushEntityType: Loophole_ExtendedEntityType | null = null;
 
-    constructor(editor: LevelEditor) {
-        super('cursor');
+    constructor(options: EntityOptions<LevelEditor>) {
+        super({ name: 'cursor', ...options });
 
-        this.#entityVisual = new E_EntityVisual({ mode: 'brush' });
+        this.#entityVisual = this.add(E_EntityVisual, { mode: 'brush' });
         this.#tileOpacityLerp = new C_Lerp({
             get: () => this.#entityVisual.opacity,
             set: (value: number) => {
@@ -79,9 +78,7 @@ class E_TileCursor extends Entity {
             speed: 4,
         });
         this.#entityVisual.addComponents(this.#tileOpacityLerp);
-        this.addEntities(this.#entityVisual);
 
-        this.#editor = editor;
         this.setZIndex(50);
         this.#positionLerp = new C_LerpPosition(this, 20);
         this.#tileRotationLerp = new C_LerpRotation(this, 1000);
@@ -105,27 +102,31 @@ class E_TileCursor extends Entity {
 
         // Cursor management for brush mode
         if (
-            this.#editor.pointerState.onScreen &&
-            !multiSelectIsActive(this.#editor) &&
-            !cameraDragIsActive(this.#editor) &&
+            this._engine.pointerState.onScreen &&
+            !multiSelectIsActive(this._engine) &&
+            !cameraDragIsActive(this._engine) &&
             !isMovingTiles &&
             brushEntityType
         ) {
             // Show crosshair cursor in brush mode
             if (isDraggingToPlace) {
-                this.#editor.requestCursor('tile-cursor-dragging', 'grabbing', CURSOR_PRIORITY.DRAGGING);
+                this._engine.requestCursor(
+                    'tile-cursor-dragging',
+                    'grabbing',
+                    CURSOR_PRIORITY.DRAGGING,
+                );
             } else {
-                this.#editor.requestCursor('tile-cursor', 'crosshair', CURSOR_PRIORITY.BRUSH);
+                this._engine.requestCursor('tile-cursor', 'crosshair', CURSOR_PRIORITY.BRUSH);
             }
         } else {
-            this.#editor.cancelCursorRequest('tile-cursor');
-            this.#editor.cancelCursorRequest('tile-cursor-dragging');
+            this._engine.cancelCursorRequest('tile-cursor');
+            this._engine.cancelCursorRequest('tile-cursor-dragging');
         }
 
         if (
-            this.#editor.pointerState.onScreen &&
-            !multiSelectIsActive(this.#editor) &&
-            !cameraDragIsActive(this.#editor) &&
+            this._engine.pointerState.onScreen &&
+            !multiSelectIsActive(this._engine) &&
+            !cameraDragIsActive(this._engine) &&
             !isMovingTiles &&
             brushEntityType
         ) {
@@ -143,8 +144,8 @@ class E_TileCursor extends Entity {
                 position: tilePosition,
                 edgeAlignment,
                 rotation,
-            } = this.#editor.calculateTilePositionFromWorld(
-                this.#editor.pointerState.worldPosition,
+            } = this._engine.calculateTilePositionFromWorld(
+                this._engine.pointerState.worldPosition,
                 brushEntityType,
             );
             const cursorPosition = {
@@ -174,7 +175,7 @@ class E_TileCursor extends Entity {
 
             let _brushEntityRotation = brushEntityRotation;
             let _brushEntityFlipDirection = brushEntityFlipDirection;
-            if (this.#editor.getKey('r').pressed) {
+            if (this._engine.getKey('r').pressed) {
                 if (hasRotation) {
                     _brushEntityRotation = degreesToLoopholeRotation(
                         loopholeRotationToDegrees(brushEntityRotation) + 90,
@@ -200,8 +201,8 @@ class E_TileCursor extends Entity {
                 this.setRotation(this.#targetRotation ?? 0);
             }
 
-            const leftButton = this.#editor.getPointerButton(PointerButton.LEFT);
-            const rightButton = this.#editor.getPointerButton(PointerButton.RIGHT);
+            const leftButton = this._engine.getPointerButton(PointerButton.LEFT);
+            const rightButton = this._engine.getPointerButton(PointerButton.RIGHT);
 
             if (leftButton.pressed && !isDraggingToPlace) {
                 setIsDraggingToPlace(true);
@@ -212,7 +213,7 @@ class E_TileCursor extends Entity {
                 this.#dragHash = v4();
 
                 // Place the first tile
-                const tiles = this.#editor.placeTile(
+                const tiles = this._engine.placeTile(
                     tilePosition,
                     brushEntityType,
                     edgeAlignment,
@@ -244,7 +245,7 @@ class E_TileCursor extends Entity {
                 this.#dragEdgeAlignment = null;
             } else if (leftButton.clicked && !isDraggingToPlace) {
                 // Single click (short click with minimal movement)
-                const tiles = this.#editor.placeTile(
+                const tiles = this._engine.placeTile(
                     tilePosition,
                     brushEntityType,
                     edgeAlignment,
@@ -252,12 +253,12 @@ class E_TileCursor extends Entity {
                     brushEntityFlipDirection,
                 );
                 setSelectedTiles(tiles);
-                this.#editor.capturePointerButtonClick(PointerButton.LEFT);
+                this._engine.capturePointerButtonClick(PointerButton.LEFT);
             }
 
             // Handle right click for removing tiles
             if (rightButton.clicked) {
-                this.#editor.removeTiles([
+                this._engine.removeTiles([
                     {
                         position: tilePosition,
                         positionType,
@@ -265,7 +266,7 @@ class E_TileCursor extends Entity {
                         edgeAlignment,
                     },
                 ]);
-                this.#editor.capturePointerButtonClick(PointerButton.RIGHT);
+                this._engine.capturePointerButtonClick(PointerButton.RIGHT);
             }
 
             this.#active = true;
@@ -276,7 +277,7 @@ class E_TileCursor extends Entity {
 
         this.#positionLerp.target = this.#targetPosition ?? this.position;
         this.#tileOpacityLerp.target =
-            this.#active && this.#editor.entityCount < MAX_ENTITY_COUNT ? 0.5 : 0;
+            this.#active && this._engine.entityCount < MAX_ENTITY_COUNT ? 0.5 : 0;
         if (!isDraggingToPlace) {
             const targetRotation = this.#targetRotation ?? this.rotation;
             if (this.#prevBrushEntityType !== brushEntityType) {
@@ -340,7 +341,7 @@ class E_TileCursor extends Entity {
         for (const pos of tilesToPlace) {
             const key = this.#getTileKey(pos, edgeAlignment);
             if (!this.#placedTileDuringDrag.has(key)) {
-                const tiles = this.#editor.placeTile(
+                const tiles = this._engine.placeTile(
                     pos,
                     brushEntityType,
                     edgeAlignment,
@@ -365,8 +366,7 @@ class E_TileCursor extends Entity {
     }
 }
 
-class E_SelectionCursor extends Entity {
-    #editor: LevelEditor;
+class E_SelectionCursor extends Entity<LevelEditor> {
     #shapeComp: C_Shape;
     #opacityLerp: C_Lerp<number>;
 
@@ -374,10 +374,9 @@ class E_SelectionCursor extends Entity {
     #active: boolean = false;
     #wasActive: boolean = false;
 
-    constructor(editor: LevelEditor) {
-        super('ms_cursor');
+    constructor(options: EntityOptions<LevelEditor>) {
+        super({ name: 'ms_cursor', ...options });
 
-        this.#editor = editor;
         this.#shapeComp = new C_Shape({
             name: 'rect',
             shape: 'RECT',
@@ -403,10 +402,10 @@ class E_SelectionCursor extends Entity {
 
     override update(deltaTime: number): boolean {
         let updated = super.update(deltaTime);
-        const pointerPosition = { ...this.#editor.pointerState.worldPosition };
+        const pointerPosition = { ...this._engine.pointerState.worldPosition };
 
         const { brushEntityType, setSelectedTiles, isMovingTiles } = getAppStore();
-        const leftButtonState = this.#editor.getPointerButton(PointerButton.LEFT);
+        const leftButtonState = this._engine.getPointerButton(PointerButton.LEFT);
         if (leftButtonState.pressed && !isMovingTiles) {
             this.#selectAllClickPosition = pointerPosition;
         } else if (leftButtonState.released || isMovingTiles) {
@@ -414,8 +413,8 @@ class E_SelectionCursor extends Entity {
         }
 
         if (
-            (multiSelectIsActive(this.#editor) || !brushEntityType) &&
-            !cameraDragIsActive(this.#editor) &&
+            (multiSelectIsActive(this._engine) || !brushEntityType) &&
+            !cameraDragIsActive(this._engine) &&
             !isMovingTiles
         ) {
             if (leftButtonState.clicked) {
@@ -443,7 +442,7 @@ class E_SelectionCursor extends Entity {
                 });
 
                 const hoveredTiles = (
-                    this.#editor.pointerSystem
+                    this._engine.pointerSystem
                         .getPointerTargetsWithinBox(topLeft, bottomRight)
                         .map((t) => t.entity?.parent)
                         .filter((e) => e?.typeString === E_TileHighlight.name) as E_TileHighlight[]
@@ -460,14 +459,14 @@ class E_SelectionCursor extends Entity {
         }
 
         this.#opacityLerp.target = this.#active ? 0.25 : 0;
-        this.#editor.pointerSystem.checkForOverlap = !this.#active;
+        this._engine.pointerSystem.checkForOverlap = !this.#active;
 
         // Cursor management for multi-select
         if (this.#active !== this.#wasActive) {
             if (this.#active) {
-                this.#editor.requestCursor('multi-select', 'crosshair', CURSOR_PRIORITY.BRUSH);
+                this._engine.requestCursor('multi-select', 'crosshair', CURSOR_PRIORITY.BRUSH);
             } else {
-                this.#editor.cancelCursorRequest('multi-select');
+                this._engine.cancelCursorRequest('multi-select');
             }
             this.#wasActive = this.#active;
         }
@@ -480,8 +479,7 @@ const HANDLE_ARROW_LENGTH = 3;
 
 type DragAxis = 'x' | 'y' | 'both';
 
-class E_DragCursor extends Entity {
-    #editor: LevelEditor;
+class E_DragCursor extends Entity<LevelEditor> {
     #upArrow: C_Line;
     #rightArrow: C_Line;
     #drawables: C_Drawable[];
@@ -501,10 +499,8 @@ class E_DragCursor extends Entity {
     #opacity = 0;
     #wasHoveringHandle = false;
 
-    constructor(editor: LevelEditor) {
-        super('drag_handle');
-
-        this.#editor = editor;
+    constructor(options: EntityOptions<LevelEditor>) {
+        super({ name: 'drag_handle', ...options });
 
         this.#upArrow = new C_Line({
             name: 'up-arrow',
@@ -545,13 +541,20 @@ class E_DragCursor extends Entity {
         this.#positionLerp = new C_LerpPosition(this, 30);
         this.opacity = 0;
 
-        this.addEntities(
-            new Entity({ name: 'up', components: [this.#upPointerTarget] })
-                .setPosition({ x: 0, y: -(HANDLE_ARROW_LENGTH + 0.5) / 2 })
-                .setScale({ x: 1, y: HANDLE_ARROW_LENGTH - 0.5 }),
-            new Entity({ name: 'up', components: [this.#rightPointerTarget] })
-                .setPosition({ x: (HANDLE_ARROW_LENGTH + 0.5) / 2, y: 0 })
-                .setScale({ x: HANDLE_ARROW_LENGTH - 0.5, y: 1 }),
+        this.add(
+            Entity,
+            {
+                name: 'up',
+                components: [this.#upPointerTarget],
+                position: { x: 0, y: -(HANDLE_ARROW_LENGTH + 0.5) / 2 },
+                scale: { x: 1, y: HANDLE_ARROW_LENGTH - 0.5 },
+            },
+            {
+                name: 'right',
+                components: [this.#rightPointerTarget],
+                position: { x: (HANDLE_ARROW_LENGTH + 0.5) / 2, y: 0 },
+                scale: { x: HANDLE_ARROW_LENGTH - 0.5, y: 1 },
+            },
         );
         this.addComponents(
             ...this.#drawables,
@@ -584,24 +587,36 @@ class E_DragCursor extends Entity {
             if (isHoveringHandle) {
                 // Determine which handle is hovered and set appropriate cursor
                 if (this.#boxPointerTarget.isPointerHovered) {
-                    this.#editor.requestCursor('drag-handle-box', 'move', CURSOR_PRIORITY.HANDLE_HOVER);
+                    this._engine.requestCursor(
+                        'drag-handle-box',
+                        'move',
+                        CURSOR_PRIORITY.HANDLE_HOVER,
+                    );
                 } else if (this.#upPointerTarget.isPointerHovered) {
-                    this.#editor.requestCursor('drag-handle-up', 'ns-resize', CURSOR_PRIORITY.HANDLE_HOVER);
+                    this._engine.requestCursor(
+                        'drag-handle-up',
+                        'ns-resize',
+                        CURSOR_PRIORITY.HANDLE_HOVER,
+                    );
                 } else if (this.#rightPointerTarget.isPointerHovered) {
-                    this.#editor.requestCursor('drag-handle-right', 'ew-resize', CURSOR_PRIORITY.HANDLE_HOVER);
+                    this._engine.requestCursor(
+                        'drag-handle-right',
+                        'ew-resize',
+                        CURSOR_PRIORITY.HANDLE_HOVER,
+                    );
                 }
             } else {
-                this.#editor.cancelCursorRequest('drag-handle-box');
-                this.#editor.cancelCursorRequest('drag-handle-up');
-                this.#editor.cancelCursorRequest('drag-handle-right');
+                this._engine.cancelCursorRequest('drag-handle-box');
+                this._engine.cancelCursorRequest('drag-handle-up');
+                this._engine.cancelCursorRequest('drag-handle-right');
             }
             this.#wasHoveringHandle = isHoveringHandle;
         }
 
         if (this.#isDragging) {
-            this.#editor.requestCursor('drag-dragging', 'grabbing', CURSOR_PRIORITY.DRAGGING);
+            this._engine.requestCursor('drag-dragging', 'grabbing', CURSOR_PRIORITY.DRAGGING);
         } else {
-            this.#editor.cancelCursorRequest('drag-dragging');
+            this._engine.cancelCursorRequest('drag-dragging');
         }
 
         if (active) {
@@ -613,7 +628,7 @@ class E_DragCursor extends Entity {
 
             if (
                 this.#anyTargetHovered() &&
-                this.#editor.pointerState[PointerButton.LEFT].pressed &&
+                this._engine.pointerState[PointerButton.LEFT].pressed &&
                 !this.#isDragging
             ) {
                 this.#dragAxis = this.#boxPointerTarget.isPointerHovered
@@ -622,18 +637,18 @@ class E_DragCursor extends Entity {
                       ? 'y'
                       : 'x';
                 this.#isDragging = true;
-                this.#dragStartPosition = { ...this.#editor.pointerState.worldPosition };
+                this.#dragStartPosition = { ...this._engine.pointerState.worldPosition };
                 this.#dragOffset = { x: 0, y: 0 };
                 this.#originalEntities.clear();
                 selectedTileArray.forEach((tile) => {
                     this.#originalEntities.set(tile.entity.tID, { ...tile.entity });
                 });
                 setIsMovingTiles(true);
-                this.#editor.capturePointerButtonClick(PointerButton.LEFT);
+                this._engine.capturePointerButtonClick(PointerButton.LEFT);
             }
 
             if (this.#isDragging) {
-                const currentPos = this.#editor.pointerState.worldPosition;
+                const currentPos = this._engine.pointerState.worldPosition;
                 if (this.#dragStartPosition) {
                     const deltaX =
                         this.#dragAxis !== 'y' ? currentPos.x - this.#dragStartPosition.x : 0;
@@ -648,14 +663,14 @@ class E_DragCursor extends Entity {
                     }
                 }
 
-                if (this.#editor.pointerState[PointerButton.LEFT].released) {
+                if (this._engine.pointerState[PointerButton.LEFT].released) {
                     this.#commitDrag();
                     this.#isDragging = false;
                     this.#dragStartPosition = null;
                     setIsMovingTiles(false);
                 }
 
-                if (this.#editor.getKey('Escape').pressed) {
+                if (this._engine.getKey('Escape').pressed) {
                     this.#cancelDrag(selectedTileArray);
                     this.#isDragging = false;
                     this.#dragStartPosition = null;
@@ -664,21 +679,21 @@ class E_DragCursor extends Entity {
             }
 
             if (!this.#isDragging && selectedTileArray.length > 0) {
-                if (this.#editor.getKey('r').pressed) {
+                if (this._engine.getKey('r').pressed) {
                     const center = this.#calculateSelectionCenterInt(selectedTileArray);
                     const entities = selectedTileArray.map((t) => t.entity);
-                    const newTiles = this.#editor.rotateEntities(
+                    const newTiles = this._engine.rotateEntities(
                         entities,
                         center,
-                        this.#editor.getKey('Shift').down ? -90 : 90,
+                        this._engine.getKey('Shift').down ? -90 : 90,
                     );
                     setSelectedTiles(newTiles);
                     newTiles.forEach((t) => t.syncVisualState());
-                } else if (this.#editor.getKey('x').pressed) {
+                } else if (this._engine.getKey('x').pressed) {
                     const oneWayEntities = selectedTileArray
                         .map((t) => t.entity)
                         .filter((e) => e.entityType === 'ONE_WAY');
-                    this.#editor.updateEntities(
+                    this._engine.updateEntities(
                         oneWayEntities,
                         oneWayEntities.map((e) => ({
                             flipDirection: !e.flipDirection,
@@ -805,7 +820,7 @@ class E_DragCursor extends Entity {
         }
 
         const originalEntities = Array.from(this.#originalEntities.values());
-        const newTiles = this.#editor.moveEntities(originalEntities, this.#dragOffset);
+        const newTiles = this._engine.moveEntities(originalEntities, this.#dragOffset);
         getAppStore().setSelectedTiles(newTiles);
         newTiles.forEach((t) => t.syncVisualState());
 
@@ -826,26 +841,24 @@ class E_DragCursor extends Entity {
 }
 
 export class UIScene extends Scene {
-    #editor: LevelEditor | null = null;
+    _engine: LevelEditor | null = null;
 
     override create(editor: LevelEditor) {
-        this.#editor = editor;
+        this._engine = editor;
 
-        this.addEntities(
-            new E_SelectionCursor(editor),
-            new E_TileCursor(editor),
-            new E_DragCursor(editor),
-        );
+        this.add(E_SelectionCursor);
+        this.add(E_TileCursor);
+        this.add(E_DragCursor);
     }
 
     override update(deltaTime: number): boolean {
-        if (!this.#editor) return false;
+        if (!this._engine) return false;
 
         let updated = false;
         const { brushEntityType, setBrushEntityType, selectedTiles, setSelectedTiles } =
             getAppStore();
 
-        if (this.#editor.getKey('Escape').pressed) {
+        if (this._engine.getKey('Escape').pressed) {
             if (brushEntityType) {
                 setBrushEntityType(null);
                 updated = true;
@@ -855,7 +868,7 @@ export class UIScene extends Scene {
             }
         }
 
-        if (!cameraDragIsActive(this.#editor)) {
+        if (!cameraDragIsActive(this._engine)) {
             updated = this.#updateKeyboardControls(deltaTime) || updated;
         }
 
@@ -863,56 +876,56 @@ export class UIScene extends Scene {
     }
 
     #updateKeyboardControls(deltaTime: number): boolean {
-        if (!this.#editor) return false;
+        if (!this._engine) return false;
 
         const { brushEntityType, setBrushEntityType, selectedTiles, setSelectedTiles } =
             getAppStore();
         let updated = false;
 
-        if (this.#editor.getKey('a').pressed && this.#editor.getKey('a').mod) {
-            setSelectedTiles(Object.values(this.#editor.tiles));
+        if (this._engine.getKey('a').pressed && this._engine.getKey('a').mod) {
+            setSelectedTiles(Object.values(this._engine.tiles));
         }
 
         const cameraOffset = {
             x:
-                (this.#editor.getKey('ArrowRight').downWithoutModAsNum ||
-                    this.#editor.getKey('d').downWithoutModAsNum) -
-                (this.#editor.getKey('ArrowLeft').downWithoutModAsNum ||
-                    this.#editor.getKey('a').downWithoutModAsNum),
+                (this._engine.getKey('ArrowRight').downWithoutModAsNum ||
+                    this._engine.getKey('d').downWithoutModAsNum) -
+                (this._engine.getKey('ArrowLeft').downWithoutModAsNum ||
+                    this._engine.getKey('a').downWithoutModAsNum),
             y:
-                (this.#editor.getKey('ArrowDown').downWithoutModAsNum ||
-                    this.#editor.getKey('s').downWithoutModAsNum) -
-                (this.#editor.getKey('ArrowUp').downWithoutModAsNum ||
-                    this.#editor.getKey('w').downWithoutModAsNum),
+                (this._engine.getKey('ArrowDown').downWithoutModAsNum ||
+                    this._engine.getKey('s').downWithoutModAsNum) -
+                (this._engine.getKey('ArrowUp').downWithoutModAsNum ||
+                    this._engine.getKey('w').downWithoutModAsNum),
         };
         if (cameraOffset.x !== 0 || cameraOffset.y !== 0) {
-            const camera = this.#editor.camera;
+            const camera = this._engine.camera;
             const offsetMagnitude = 500;
-            this.#editor.setCameraPosition({
+            this._engine.setCameraPosition({
                 x: camera.position.x - cameraOffset.x * offsetMagnitude * deltaTime,
                 y: camera.position.y - cameraOffset.y * offsetMagnitude * deltaTime,
             });
             updated = true;
         }
 
-        if (this.#editor.getKey('Backspace').pressed || this.#editor.getKey('Delete').pressed) {
-            this.#editor.removeEntities(Object.values(selectedTiles).map((t) => t.entity));
+        if (this._engine.getKey('Backspace').pressed || this._engine.getKey('Delete').pressed) {
+            this._engine.removeEntities(Object.values(selectedTiles).map((t) => t.entity));
             updated = true;
         }
 
-        const zKeyState = this.#editor.getKey('z');
-        const yKeyState = this.#editor.getKey('y');
+        const zKeyState = this._engine.getKey('z');
+        const yKeyState = this._engine.getKey('y');
         if (zKeyState.pressed && zKeyState.mod) {
-            this.#editor.undo();
+            this._engine.undo();
             updated = true;
         } else if (yKeyState.pressed && yKeyState.mod) {
-            this.#editor.redo();
+            this._engine.redo();
             updated = true;
         }
 
         const keys = Object.keys(ENTITY_METADATA) as Loophole_ExtendedEntityType[];
         for (let i = 0; i < Object.keys(ENTITY_METADATA).length; i++) {
-            if (this.#editor.getKey((i === 9 ? 0 : i + 1).toString()).pressed) {
+            if (this._engine.getKey((i === 9 ? 0 : i + 1).toString()).pressed) {
                 const newBrushEntityType = brushEntityType === keys[i] ? null : keys[i];
                 setBrushEntityType(newBrushEntityType);
                 updated = true;

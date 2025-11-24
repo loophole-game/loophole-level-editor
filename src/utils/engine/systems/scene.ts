@@ -1,16 +1,17 @@
 import { System } from '.';
 import type { Engine } from '..';
-import { Entity } from '../entities';
+import { Entity, type EntityOptions } from '../entities';
 
 const DEFAULT_SCENE_NAME = 'default-scene';
 
 export type AvailableScenes = Record<string, (name?: string) => Scene>;
 
-export class Scene {
+export class Scene<TEngine extends Engine = Engine> {
     protected static _nextId: number = 1;
     protected readonly _id: number = Scene._nextId++;
     protected readonly _name: string;
 
+    protected _engine: TEngine | null = null;
     #rootEntity: Entity | null = null;
 
     constructor(name?: string) {
@@ -25,12 +26,37 @@ export class Scene {
         return this._name;
     }
 
+    get engine(): Engine | null {
+        return this._engine;
+    }
+
     get rootEntity(): Readonly<Entity> | null {
         return this.#rootEntity;
     }
 
     set rootEntity(rootEntity: Entity | null) {
         this.#rootEntity = rootEntity;
+    }
+
+    add<
+        T extends Entity<TEngine>,
+        TOptions extends EntityOptions<TEngine> = EntityOptions<TEngine>,
+    >(ctor: new (options: TOptions) => T, options: Omit<TOptions, 'engine'>): T;
+    add<
+        T extends Entity<TEngine>,
+        TOptions extends EntityOptions<TEngine> = EntityOptions<TEngine>,
+    >(ctor: new (options: TOptions) => T, ...optionObjs: Omit<TOptions, 'engine'>[]): T[];
+    add<
+        T extends Entity<TEngine>,
+        TOptions extends EntityOptions<TEngine> = EntityOptions<TEngine>,
+    >(ctor: new (options: TOptions) => T, ...optionObjs: Omit<TOptions, 'engine'>[]): T | T[] {
+        const instances = (optionObjs.length > 0 ? optionObjs : [{}]).map((option) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const entity = new ctor({ ...option, engine: this._engine, scene: this.name } as any);
+            this.engine?.sceneSystem.registerEntities(this.name, entity);
+            return entity;
+        });
+        return instances.length === 1 ? instances[0] : instances;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -46,10 +72,6 @@ export class Scene {
     destroy(): void {
         return;
     }
-
-    addEntities(...entities: Entity[]): void {
-        this.#rootEntity?.addEntities(...entities);
-    }
 }
 
 export type SceneIdentifier = Scene | string | number | null;
@@ -61,6 +83,7 @@ export class SceneSystem extends System {
     #defaultScene: Scene | null = null;
 
     #queuedDestroyedScenes: Scene[] = [];
+    #isLoadingQueuedScenes: boolean = false;
 
     #worldRootEntity: Entity;
     #sceneRootEntities: Map<number, Entity> = new Map();
@@ -108,8 +131,8 @@ export class SceneSystem extends System {
         this.#queuedDestroyedScenes.push(sceneObject);
     }
 
-    addEntities(scene: SceneIdentifier, ...entities: Entity[]): void {
-        if (this.queuedActionsExist) {
+    registerEntities(scene: SceneIdentifier, ...entities: Entity[]): void {
+        if (this.queuedActionsExist && !this.#isLoadingQueuedScenes) {
             this.#performQueuedUpdate();
         }
 
@@ -125,11 +148,11 @@ export class SceneSystem extends System {
             throw new Error(`Scene root entity for ${sceneObject.name} not found`);
         }
 
-        rootEntity.addEntities(...entities);
+        entities.forEach((e) => (e.parent = rootEntity));
     }
 
     #findScene(scene: SceneIdentifier): Scene | null {
-        if (this.queuedActionsExist) {
+        if (this.queuedActionsExist && !this.#isLoadingQueuedScenes) {
             this.#performQueuedUpdate();
         }
 
@@ -148,8 +171,9 @@ export class SceneSystem extends System {
         this.#activeScenesByID.set(scene.id, scene);
         this.#activeScenesByName.set(scene.name, scene);
 
-        const rootEntity = new Entity(`scene-root-${scene.name}-${scene.id}`);
-        this.#worldRootEntity.addEntities(rootEntity);
+        const rootEntity = this.#worldRootEntity.add(Entity, {
+            name: `scene-root-${scene.name}-${scene.id}`,
+        });
         this.#sceneRootEntities.set(scene.id, rootEntity);
         if (!this.#defaultScene) {
             this.#defaultScene = scene;
@@ -160,6 +184,7 @@ export class SceneSystem extends System {
     }
 
     #performQueuedUpdate(): boolean {
+        this.#isLoadingQueuedScenes = true;
         this.#queuedNewScenes.forEach((scene) => {
             this.#makeSceneActive(scene);
         });
@@ -176,6 +201,7 @@ export class SceneSystem extends System {
             updated = true;
         });
         this.#queuedDestroyedScenes = [];
+        this.#isLoadingQueuedScenes = false;
 
         return updated;
     }

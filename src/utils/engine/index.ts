@@ -1,4 +1,5 @@
-import { Entity } from './entities';
+import { Entity, type EntityOptions } from './entities';
+import { Component, type ComponentOptions } from './components';
 import { RenderSystem } from './systems/render';
 import { type Camera, type CameraData, type Position } from './types';
 import type { AvailableScenes, Scene, SceneIdentifier } from './systems/scene';
@@ -108,7 +109,7 @@ export class Engine {
     protected _canvas: HTMLCanvasElement | null = null;
     protected _options: EngineOptions = { ...DEFAULT_ENGINE_OPTIONS };
 
-    protected _rootEntity: Entity;
+    protected _rootEntity: Entity<this>;
 
     protected _renderSystem: RenderSystem;
     protected _sceneSystem: SceneSystem;
@@ -136,7 +137,7 @@ export class Engine {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         window.engine = this as unknown as any;
 
-        this._rootEntity = new Entity('root');
+        this._rootEntity = new Entity({ name: 'root', engine: this });
         this._renderSystem = new RenderSystem(this);
         this._sceneSystem = new SceneSystem(this, this._rootEntity);
         this._keyboardSystem = new KeyboardSystem(this);
@@ -257,6 +258,10 @@ export class Engine {
         return this._cursorSystem;
     }
 
+    get sceneSystem(): SceneSystem {
+        return this._sceneSystem;
+    }
+
     requestCursor(id: string, type: CursorType, priority?: number): void {
         this._cursorSystem.requestCursor(id, type, priority);
     }
@@ -273,6 +278,57 @@ export class Engine {
         this._systems.push(system);
     }
 
+    add<T extends Entity<this>, TOptions extends EntityOptions<this> = EntityOptions<this>>(
+        ctor: new (options: TOptions) => T,
+        options: Omit<TOptions, 'engine'> & { scene?: string },
+    ): T;
+    add<T extends Entity<this>, TOptions extends EntityOptions<this> = EntityOptions<this>>(
+        ctor: new (options: TOptions) => T,
+        ...optionObjs: (Omit<TOptions, 'engine'> & { scene?: string })[]
+    ): T[];
+    add<T extends Entity<this>, TOptions extends EntityOptions<this> = EntityOptions<this>>(
+        ctor: new (options: TOptions) => T,
+        ...optionObjs: (Omit<TOptions, 'engine'> & { scene?: string })[]
+    ): T | T[] {
+        const instances = optionObjs.map((option) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const entity = new ctor({ ...option, engine: this } as any);
+            if (option.scene) {
+                this._sceneSystem.registerEntities(option.scene, entity);
+            } else {
+                entity.parent = this._rootEntity;
+            }
+
+            return entity;
+        });
+        return instances.length === 1 ? instances[0] : instances;
+    }
+
+    /**
+     * Factory method to create a single component with engine reference automatically injected.
+     * Usage: engine.addComponent(C_Shape, { ...options })
+     */
+    addComponent<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
+        ctor: new (options: TOptions) => T,
+        options: Omit<TOptions, 'engine'>,
+    ): T;
+    /**
+     * Factory method to create multiple components with engine reference automatically injected.
+     * Usage: engine.addComponent(C_Shape, { ...options1 }, { ...options2 })
+     */
+    addComponent<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
+        ctor: new (options: TOptions) => T,
+        ...optionObjs: Omit<TOptions, 'engine'>[]
+    ): T[];
+    addComponent<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
+        ctor: new (options: TOptions) => T,
+        ...optionObjs: Omit<TOptions, 'engine'>[]
+    ): T | T[] {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const instances = optionObjs.map((option) => new ctor({ ...option, engine: this } as any));
+        return instances.length === 1 ? instances[0] : instances;
+    }
+
     createScene(sceneID: string, name?: string): Scene | null {
         if (!this._options.scenes[sceneID]) {
             return null;
@@ -285,14 +341,6 @@ export class Engine {
 
     destroyScene(scene: SceneIdentifier): void {
         this._sceneSystem.destroyScene(scene);
-    }
-
-    addEntities(...entities: Entity[]): void {
-        this.addSceneEntities('', ...entities);
-    }
-
-    addSceneEntities(sceneName: string, ...entities: Entity[]): void {
-        this._sceneSystem.addEntities(sceneName, ...entities);
     }
 
     screenToWorld(position: Position): Position {

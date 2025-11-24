@@ -1,6 +1,7 @@
 import { C_Shape } from '../../engine/components/Shape';
-import { Entity } from '../../engine/entities';
+import { Entity, type EntityOptions } from '../../engine/entities';
 import { Scene } from '../../engine/systems/scene';
+import type { Engine } from '../../engine';
 import type { Loophole_EntityWithID, Loophole_ExtendedEntityType } from '../externalLevelSchema';
 import { C_PointerTarget } from '../../engine/components/PointerTarget';
 import { getAppStore, getSettingsStore } from '@/utils/stores';
@@ -28,13 +29,17 @@ const ACTIVE_TILE_OPACITY = 0.3;
 
 type TileVariant = 'default' | 'entrance' | 'exit' | 'explosion';
 
-export class E_TileHighlight extends Entity {
+interface E_TileHighlightOptions extends EntityOptions<LevelEditor> {
+    tile: E_Tile;
+}
+
+export class E_TileHighlight extends Entity<LevelEditor> {
     #tile: E_Tile;
 
-    constructor(tile: E_Tile) {
-        super({ name: 'tile_highlight' });
+    constructor(options: E_TileHighlightOptions) {
+        super({ name: 'tile_highlight', ...options });
 
-        this.#tile = tile;
+        this.#tile = options.tile;
     }
 
     get tile(): E_Tile {
@@ -42,8 +47,11 @@ export class E_TileHighlight extends Entity {
     }
 }
 
-export class E_Tile extends Entity {
-    #editor: LevelEditor;
+interface E_TileOptions extends EntityOptions<LevelEditor> {
+    entity: Loophole_EntityWithID;
+}
+
+export class E_Tile extends Entity<LevelEditor> {
     #entity: Loophole_EntityWithID;
     #type: Loophole_ExtendedEntityType;
     #variant: TileVariant = 'default';
@@ -62,12 +70,11 @@ export class E_Tile extends Entity {
     #highlightShape: C_Shape;
     #opacityLerp: C_Lerp<number>;
 
-    constructor(editor: LevelEditor, entity: Loophole_EntityWithID) {
-        super('tile');
+    constructor(options: E_TileOptions) {
+        super({ name: 'tile', ...options });
 
-        this.#editor = editor;
-        this.#entity = entity;
-        this.#type = getLoopholeEntityExtendedType(entity);
+        this.#entity = options.entity;
+        this.#type = getLoopholeEntityExtendedType(options.entity);
         this.#tileImage = new C_Image({
             name: 'tile-image',
             imageName: '',
@@ -79,13 +86,17 @@ export class E_Tile extends Entity {
         this.#positionLerp = new C_LerpPosition(this, 20);
         this.addComponents(this.#tileImage, this.#positionLerp);
 
-        this.#highlightEntity = new E_TileHighlight(this).setZIndex(-1);
-        this.#entityVisual = new E_EntityVisual({
+        this.#highlightEntity = this.add(
+            E_TileHighlight,
+            options.entity.entityType === 'EXPLOSION'
+                ? { tile: this, scene: GridScene.name }
+                : { tile: this },
+        ).setZIndex(-1);
+        this.#entityVisual = this.#highlightEntity.add(E_EntityVisual, {
             mode: 'tile',
             zIndex: -1,
         });
-        this.#pointerParent = new Entity('pointer_parent');
-        this.#highlightEntity.addEntities(this.#entityVisual, this.#pointerParent);
+        this.#pointerParent = this.#highlightEntity.add(Entity, { name: 'pointer_parent' });
 
         this.#pointerTarget = new C_PointerTarget({
             cursorOnHover: 'pointer',
@@ -108,12 +119,7 @@ export class E_Tile extends Entity {
             this.#opacityLerp,
         );
 
-        if (this.entity.entityType === 'EXPLOSION') {
-            this.#editor.addSceneEntities(GridScene.name, this.#highlightEntity);
-            this.#canBeReused = false;
-        } else {
-            this.addEntities(this.#highlightEntity);
-        }
+        this.#canBeReused = this.entity.entityType !== 'EXPLOSION';
     }
 
     get entity(): Loophole_EntityWithID {
@@ -165,8 +171,8 @@ export class E_Tile extends Entity {
         const hoveredByPointer = this.#pointerTarget.isPointerHovered && brushEntityType === null;
         const active = hoveredByPointer || selectedTiles[this.entity.tID] !== undefined;
 
-        if (hoveredByPointer && this.#editor.pointerState[PointerButton.LEFT].clicked) {
-            if (this.#editor.getKey('Meta').down || this.#editor.getKey('Control').down) {
+        if (hoveredByPointer && this._engine.pointerState[PointerButton.LEFT].clicked) {
+            if (this._engine.getKey('Meta').down || this._engine.getKey('Control').down) {
                 const newSelectedTiles = { ...selectedTiles };
                 if (this.entity.tID in newSelectedTiles) {
                     delete newSelectedTiles[this.entity.tID];
@@ -178,7 +184,7 @@ export class E_Tile extends Entity {
                 setSelectedTiles([this]);
             }
 
-            this.#editor.capturePointerButtonClick(PointerButton.LEFT);
+            this._engine.capturePointerButtonClick(PointerButton.LEFT);
         }
 
         this.#opacityLerp.target = active ? ACTIVE_TILE_OPACITY : 0;
@@ -247,22 +253,22 @@ export class E_Tile extends Entity {
     }
 
     #updatePosition() {
-        if (this.#entity.entityType === 'EXPLOSION' && this.#editor.canvasSize) {
+        if (this.#entity.entityType === 'EXPLOSION' && this._engine.canvasSize) {
             const isHorizontal =
                 this.#entity.direction === 'RIGHT' || this.#entity.direction === 'LEFT';
-            const scale = zoomToScale(this.#editor.camera.zoom);
+            const scale = zoomToScale(this._engine.camera.zoom);
             const length =
-                (isHorizontal ? this.#editor.canvasSize.y : this.#editor.canvasSize.x) / scale;
+                (isHorizontal ? this._engine.canvasSize.y : this._engine.canvasSize.x) / scale;
             this.#highlightEntity
                 .setScale(isHorizontal ? { x: TILE_SIZE, y: length } : { x: length, y: TILE_SIZE })
                 .setPosition(
                     isHorizontal
                         ? {
                               x: this.position.x,
-                              y: -this.#editor.camera.position.y / scale,
+                              y: -this._engine.camera.position.y / scale,
                           }
                         : {
-                              x: -this.#editor.camera.position.x / scale,
+                              x: -this._engine.camera.position.x / scale,
                               y: this.position.y,
                           },
                 );
@@ -281,41 +287,43 @@ const SCREEN_BORDER_SIZE = {
 export class GridScene extends Scene {
     #grids: Entity[] = [];
 
-    override create() {
+    override create(engine: Engine) {
         this.#grids.push(
-            new E_InfiniteShape({
-                name: 'grid',
-                shape: new C_Shape({
-                    name: 'dots',
-                    shape: 'ELLIPSE',
-                    style: { fillStyle: 'white', globalAlpha: 0.5 },
-                    gap: DOT_GAP,
-                }),
-                tileSize: TILE_SIZE,
-                zoomCullThresh: 0.2,
-                scale: DOT_SIZE,
-            }),
-            new E_InfiniteShape({
-                name: 'border',
-                shape: new C_Shape({
-                    name: 'border',
-                    shape: 'RECT',
-                    style: {
-                        fillStyle: '',
-                        strokeStyle: 'white',
-                        lineWidth: 4,
-                        globalAlpha: 0.5,
-                    },
-                }),
-                tileSize: SCREEN_BORDER_SIZE,
-                offset: {
-                    x: SCREEN_BORDER_SIZE.x / 2,
-                    y: SCREEN_BORDER_SIZE.y / 2,
+            ...engine.add(
+                E_InfiniteShape,
+                {
+                    name: 'grid',
+                    shape: new C_Shape({
+                        name: 'dots',
+                        shape: 'ELLIPSE',
+                        style: { fillStyle: 'white', globalAlpha: 0.5 },
+                        gap: DOT_GAP,
+                    }),
+                    tileSize: TILE_SIZE,
+                    zoomCullThresh: 0.2,
+                    scale: DOT_SIZE,
                 },
-                scale: SCREEN_BORDER_SIZE,
-            }),
+                {
+                    name: 'border',
+                    shape: new C_Shape({
+                        name: 'border',
+                        shape: 'RECT',
+                        style: {
+                            fillStyle: '',
+                            strokeStyle: 'white',
+                            lineWidth: 4,
+                            globalAlpha: 0.5,
+                        },
+                    }),
+                    tileSize: SCREEN_BORDER_SIZE,
+                    offset: {
+                        x: SCREEN_BORDER_SIZE.x / 2,
+                        y: SCREEN_BORDER_SIZE.y / 2,
+                    },
+                    scale: SCREEN_BORDER_SIZE,
+                },
+            ),
         );
-        this.addEntities(...this.#grids);
     }
 
     override update() {

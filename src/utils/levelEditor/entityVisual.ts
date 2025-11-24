@@ -10,6 +10,7 @@ import {
     WIRE_CORNER_SPRITE,
 } from '../utils';
 import type { Loophole_EntityWithID, Loophole_ExtendedEntityType } from './externalLevelSchema';
+import type { LevelEditor } from '.';
 
 type Mode = 'brush' | 'tile';
 type Variant = 'default' | 'entrance' | 'exit' | 'explosion';
@@ -19,12 +20,12 @@ interface TimeMachineDecals {
     walls: E_EntityVisual[];
 }
 
-interface E_EntityVisualOptions extends EntityOptions {
+interface E_EntityVisualOptions extends EntityOptions<LevelEditor> {
     mode: Mode;
     variant?: Variant;
 }
 
-export class E_EntityVisual extends Entity {
+export class E_EntityVisual extends Entity<LevelEditor> {
     #tileImage: C_Image;
     #tileShapes: C_Shape[] = [];
     #opacity: number = 0;
@@ -191,33 +192,39 @@ export class E_EntityVisual extends Entity {
             }).setEndTip({ type: 'arrow', length: 0.25 });
 
             const wallVariant = this.#variant === 'entrance' ? 'entrance' : 'default';
-            const walls = [
-                new E_EntityVisual({ mode: 'tile' })
-                    .setEntityType(this.#variant === 'entrance' ? 'WALL' : 'ONE_WAY')
-                    .setPosition({ x: -0.5, y: 0 })
-                    .setZIndex(1)
-                    .setVariant(wallVariant),
-                new E_EntityVisual({ mode: 'tile' })
-                    .setEntityType('ONE_WAY')
-                    .setPosition({ x: 0.5, y: 0 })
-                    .setZIndex(1)
-                    .setVariant(wallVariant),
-                new E_EntityVisual({ mode: 'tile' })
-                    .setEntityType('WALL')
-                    .setPosition({ x: 0, y: 0.5 })
-                    .setRotation(90)
-                    .setZIndex(1)
-                    .setVariant(wallVariant),
-                new E_EntityVisual({ mode: 'tile' })
-                    .setEntityType('WALL')
-                    .setPosition({ x: 0, y: -0.5 })
-                    .setRotation(90)
-                    .setZIndex(1)
-                    .setVariant(wallVariant),
-            ];
+            const walls = this.add(
+                E_EntityVisual,
+                {
+                    mode: 'tile',
+                    position: { x: -0.5, y: 0 },
+                    zIndex: 1,
+                },
+                {
+                    mode: 'tile',
+                    position: { x: 0.5, y: 0 },
+                    zIndex: 1,
+                },
+                {
+                    mode: 'tile',
+                    position: { x: 0, y: 0.5 },
+                    rotation: 90,
+                    zIndex: 1,
+                },
+                {
+                    mode: 'tile',
+                    position: { x: 0, y: -0.5 },
+                    rotation: 90,
+                    zIndex: 1,
+                },
+            );
+            walls[0]
+                .setEntityType(this.#variant === 'entrance' ? 'WALL' : 'ONE_WAY')
+                .setVariant(wallVariant);
+            walls[1].setEntityType('ONE_WAY').setVariant(wallVariant);
+            walls[2].setEntityType('WALL').setVariant(wallVariant);
+            walls[3].setEntityType('WALL').setVariant(wallVariant);
 
             this.addComponents(arrow);
-            this.addEntities(...walls);
             this.#timeMachineDecals = { arrow, walls };
         } else {
             this.#timeMachineDecals.arrow.setEnabled(true);

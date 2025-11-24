@@ -3,7 +3,10 @@ import type { Camera, Position, Renderable } from '../types';
 import type { RenderCommandStream, RenderStyle } from '../systems/render';
 import { vectorOrNumberToVector } from '../utils';
 
+import type { Engine } from '..';
+
 export interface ComponentOptions {
+    engine?: Engine;
     name: string;
     enabled?: boolean;
     zIndex?: number;
@@ -14,6 +17,7 @@ export abstract class Component implements Renderable {
     protected readonly _id: string = (Component._nextId++).toString();
     protected readonly _name: string;
 
+    protected _engine: Engine | null = null;
     protected _enabled: boolean = true;
 
     protected _zIndex: number = 0;
@@ -21,11 +25,14 @@ export abstract class Component implements Renderable {
     protected _entity: Entity | null = null;
 
     constructor(options: string | ComponentOptions) {
-        const { name = `component-${this._id}`, ...rest } = (
-            typeof options === 'string' ? { name: options } : (options ?? {})
-        ) as ComponentOptions;
+        const {
+            name = `component-${this._id}`,
+            engine,
+            ...rest
+        } = (typeof options === 'string' ? { name: options } : (options ?? {})) as ComponentOptions;
 
         this._name = name;
+        this._engine = engine ?? null;
         this._enabled = rest?.enabled ?? true;
         this._zIndex = rest?.zIndex ?? 0;
     }
@@ -36,6 +43,10 @@ export abstract class Component implements Renderable {
 
     get name(): string {
         return this._name;
+    }
+
+    get engine(): Engine | null {
+        return this._engine;
     }
 
     get enabled(): boolean {
