@@ -246,6 +246,14 @@ export class Engine {
         return this.#renderTime;
     }
 
+    get renderCommandCount(): number {
+        return this._renderSystem.commandCount;
+    }
+
+    get renderDrawCallCount(): number {
+        return this._renderSystem.drawCallCount;
+    }
+
     get pointerSystem(): PointerSystem {
         return this._pointerSystem;
     }

@@ -132,20 +132,39 @@ export type RenderCommandStream = RenderCommand[];
 export class RenderSystem extends System {
     // Cache for current style state to avoid redundant updates
     #currentStyle: Partial<RenderStyle> = {};
+    // Reusable render command stream to reduce allocations
+    #commandStream: RenderCommandStream = [];
+    // Performance metrics
+    #commandCount: number = 0;
+    #drawCallCount: number = 0;
 
     destroy(): void {
         this.#currentStyle = {};
+        this.#commandStream = [];
+    }
+
+    get commandCount(): number {
+        return this.#commandCount;
+    }
+
+    get drawCallCount(): number {
+        return this.#drawCallCount;
     }
 
     render(ctx: CanvasRenderingContext2D, rootEntity: Entity, camera: Camera) {
-        const stream: RenderCommandStream = [];
-        rootEntity.queueRenderCommands(stream, camera);
+        // Reuse stream array by clearing it
+        this.#commandStream.length = 0;
+        this.#commandCount = 0;
+        this.#drawCallCount = 0;
+        
+        rootEntity.queueRenderCommands(this.#commandStream, camera);
+        this.#commandCount = this.#commandStream.length;
 
         // Reset style tracking
         this.#currentStyle = {};
         this.#applyStyle(ctx, DEFAULT_RENDER_STYLE);
 
-        for (const command of stream) {
+        for (const command of this.#commandStream) {
             const { style: cmdStyle, data } = command;
 
             switch (command.cmd) {
@@ -183,6 +202,7 @@ export class RenderSystem extends System {
                             for (let i = 0; i < rx; i++) {
                                 for (let j = 0; j < ry; j++) {
                                     ctx.fillRect(x + i * gx, y + j * gy, w, h);
+                                    this.#drawCallCount++;
                                 }
                             }
                         }
@@ -202,6 +222,7 @@ export class RenderSystem extends System {
                             for (let i = 0; i < rx; i++) {
                                 for (let j = 0; j < ry; j++) {
                                     ctx.strokeRect(x + i * gx, y + j * gy, w, h);
+                                    this.#drawCallCount++;
                                 }
                             }
 
@@ -239,6 +260,7 @@ export class RenderSystem extends System {
                                 );
                                 if (fillStyle) {
                                     ctx.fill();
+                                    this.#drawCallCount++;
                                 }
                                 if (strokeStyle) {
                                     const m = ctx.getTransform();
@@ -250,6 +272,7 @@ export class RenderSystem extends System {
                                     const prevWidth = ctx.lineWidth;
                                     ctx.lineWidth = adjusted > 0 ? adjusted : 1;
                                     ctx.stroke();
+                                    this.#drawCallCount++;
                                     ctx.lineWidth = prevWidth;
                                 }
                                 ctx.closePath();
@@ -284,6 +307,7 @@ export class RenderSystem extends System {
                         ctx.lineTo(x2, y2);
                         ctx.stroke();
                         ctx.closePath();
+                        this.#drawCallCount++;
                     }
 
                     break;
@@ -304,6 +328,7 @@ export class RenderSystem extends System {
                             continue;
                         }
                         ctx.drawImage(image.image, x, y, w, h);
+                        this.#drawCallCount++;
                     }
                 }
             }
