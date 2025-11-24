@@ -130,17 +130,42 @@ export class RenderCommand {
 export type RenderCommandStream = RenderCommand[];
 
 export class RenderSystem extends System {
-    destroy(): void {}
+    // Cache for current style state to avoid redundant updates
+    #currentStyle: Partial<RenderStyle> = {};
+    // Reusable render command stream to reduce allocations
+    #commandStream: RenderCommandStream = [];
+    // Performance metrics
+    #commandCount: number = 0;
+    #drawCallCount: number = 0;
+
+    destroy(): void {
+        this.#currentStyle = {};
+        this.#commandStream = [];
+    }
+
+    get commandCount(): number {
+        return this.#commandCount;
+    }
+
+    get drawCallCount(): number {
+        return this.#drawCallCount;
+    }
 
     render(ctx: CanvasRenderingContext2D, rootEntity: Entity, camera: Camera) {
-        const stream: RenderCommandStream = [];
-        rootEntity.queueRenderCommands(stream, camera);
+        // Reuse stream array by clearing it
+        this.#commandStream.length = 0;
+        this.#commandCount = 0;
+        this.#drawCallCount = 0;
+        
+        rootEntity.queueRenderCommands(this.#commandStream, camera);
+        this.#commandCount = this.#commandStream.length;
 
+        // Reset style tracking
+        this.#currentStyle = {};
         this.#applyStyle(ctx, DEFAULT_RENDER_STYLE);
 
-        for (const command of stream) {
-            const { style: _style, data } = command;
-            const style = { ...DEFAULT_RENDER_STYLE, ..._style };
+        for (const command of this.#commandStream) {
+            const { style: cmdStyle, data } = command;
 
             switch (command.cmd) {
                 case RENDER_CMD.PUSH_TRANSFORM: {
@@ -156,6 +181,8 @@ export class RenderSystem extends System {
                 }
                 case RENDER_CMD.POP_TRANSFORM: {
                     ctx.restore();
+                    // Clear style cache after restore as context state changed
+                    this.#currentStyle = {};
 
                     break;
                 }
@@ -164,32 +191,38 @@ export class RenderSystem extends System {
                         continue;
                     }
 
-                    if (style.globalAlpha > 0) {
+                    const globalAlpha = cmdStyle.globalAlpha ?? DEFAULT_RENDER_STYLE.globalAlpha;
+                    if (globalAlpha > 0) {
                         const { x, y, w, h, rx = 1, ry = 1, gx = 1, gy = 1 } = data;
-                        this.#applyStyle(ctx, style);
+                        this.#applyStyleOptimized(ctx, cmdStyle);
 
                         // Fill first so stroke remains visible on top
-                        if (style.fillStyle) {
+                        const fillStyle = cmdStyle.fillStyle ?? DEFAULT_RENDER_STYLE.fillStyle;
+                        if (fillStyle) {
                             for (let i = 0; i < rx; i++) {
                                 for (let j = 0; j < ry; j++) {
                                     ctx.fillRect(x + i * gx, y + j * gy, w, h);
+                                    this.#drawCallCount++;
                                 }
                             }
                         }
 
                         // Draw strokes without scaling line width with transform
-                        if (style.strokeStyle && style.lineWidth && style.lineWidth > 0) {
+                        const strokeStyle = cmdStyle.strokeStyle ?? DEFAULT_RENDER_STYLE.strokeStyle;
+                        const lineWidth = cmdStyle.lineWidth ?? DEFAULT_RENDER_STYLE.lineWidth;
+                        if (strokeStyle && lineWidth && lineWidth > 0) {
                             const m = ctx.getTransform();
                             const scaleX = Math.hypot(m.a, m.b);
                             const scaleY = Math.hypot(m.c, m.d);
                             const denom = Math.max(scaleX || 1, scaleY || 1) || 1;
-                            const adjusted = style.lineWidth / denom;
+                            const adjusted = lineWidth / denom;
                             const prevWidth = ctx.lineWidth;
                             ctx.lineWidth = adjusted > 0 ? adjusted : 1;
 
                             for (let i = 0; i < rx; i++) {
                                 for (let j = 0; j < ry; j++) {
                                     ctx.strokeRect(x + i * gx, y + j * gy, w, h);
+                                    this.#drawCallCount++;
                                 }
                             }
 
@@ -204,9 +237,14 @@ export class RenderSystem extends System {
                         continue;
                     }
 
-                    if (style.globalAlpha > 0) {
+                    const globalAlpha = cmdStyle.globalAlpha ?? DEFAULT_RENDER_STYLE.globalAlpha;
+                    if (globalAlpha > 0) {
                         const { x, y, w, h, rx = 1, ry = 1, gx = 1, gy = 1 } = data;
-                        this.#applyStyle(ctx, style);
+                        this.#applyStyleOptimized(ctx, cmdStyle);
+
+                        const fillStyle = cmdStyle.fillStyle ?? DEFAULT_RENDER_STYLE.fillStyle;
+                        const strokeStyle = cmdStyle.strokeStyle ?? DEFAULT_RENDER_STYLE.strokeStyle;
+                        const lineWidth = cmdStyle.lineWidth ?? DEFAULT_RENDER_STYLE.lineWidth;
 
                         for (let i = 0; i < rx; i++) {
                             for (let j = 0; j < ry; j++) {
@@ -220,21 +258,21 @@ export class RenderSystem extends System {
                                     0,
                                     2 * Math.PI,
                                 );
-                                if (style.fillStyle) {
+                                if (fillStyle) {
                                     ctx.fill();
+                                    this.#drawCallCount++;
                                 }
-                                if (style.strokeStyle) {
+                                if (strokeStyle) {
                                     const m = ctx.getTransform();
                                     const scaleX = Math.hypot(m.a, m.b);
                                     const scaleY = Math.hypot(m.c, m.d);
                                     const denom = Math.max(scaleX || 1, scaleY || 1) || 1;
                                     const adjusted =
-                                        (style.lineWidth && style.lineWidth > 0
-                                            ? style.lineWidth
-                                            : 1) / denom;
+                                        (lineWidth && lineWidth > 0 ? lineWidth : 1) / denom;
                                     const prevWidth = ctx.lineWidth;
                                     ctx.lineWidth = adjusted > 0 ? adjusted : 1;
                                     ctx.stroke();
+                                    this.#drawCallCount++;
                                     ctx.lineWidth = prevWidth;
                                 }
                                 ctx.closePath();
@@ -249,23 +287,27 @@ export class RenderSystem extends System {
                         continue;
                     }
 
-                    if (style.globalAlpha > 0) {
+                    const globalAlpha = cmdStyle.globalAlpha ?? DEFAULT_RENDER_STYLE.globalAlpha;
+                    if (globalAlpha > 0) {
                         const { x1, y1, x2, y2 } = data;
-                        this.#applyStyle(ctx, style);
+                        this.#applyStyleOptimized(ctx, cmdStyle);
 
-                        const strokeColor = style.strokeStyle ? style.strokeStyle : style.fillStyle;
+                        const strokeStyle = cmdStyle.strokeStyle ?? DEFAULT_RENDER_STYLE.strokeStyle;
+                        const fillStyle = cmdStyle.fillStyle ?? DEFAULT_RENDER_STYLE.fillStyle;
+                        const strokeColor = strokeStyle ? strokeStyle : fillStyle;
                         if (strokeColor !== undefined) {
                             ctx.strokeStyle = strokeColor;
                         }
 
-                        ctx.lineWidth =
-                            style.lineWidth && style.lineWidth > 0 ? style.lineWidth : 1;
+                        const lineWidth = cmdStyle.lineWidth ?? DEFAULT_RENDER_STYLE.lineWidth;
+                        ctx.lineWidth = lineWidth && lineWidth > 0 ? lineWidth : 1;
 
                         ctx.beginPath();
                         ctx.moveTo(x1, y1);
                         ctx.lineTo(x2, y2);
                         ctx.stroke();
                         ctx.closePath();
+                        this.#drawCallCount++;
                     }
 
                     break;
@@ -277,14 +319,16 @@ export class RenderSystem extends System {
                         continue;
                     }
 
-                    if (style.globalAlpha > 0) {
+                    const globalAlpha = cmdStyle.globalAlpha ?? DEFAULT_RENDER_STYLE.globalAlpha;
+                    if (globalAlpha > 0) {
                         const { x, y, w, h, img: imageName } = data;
-                        this.#applyStyle(ctx, style);
+                        this.#applyStyleOptimized(ctx, cmdStyle);
                         const image = this._engine.getImage(imageName);
                         if (!image) {
                             continue;
                         }
                         ctx.drawImage(image.image, x, y, w, h);
+                        this.#drawCallCount++;
                     }
                 }
             }
@@ -296,7 +340,36 @@ export class RenderSystem extends System {
             if (value !== undefined) {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (ctx as any)[key] = value;
+                this.#currentStyle[key as keyof RenderStyle] = value;
             }
         });
+    };
+
+    // Optimized style application - only update changed properties
+    #applyStyleOptimized = (ctx: CanvasRenderingContext2D, style: RenderStyle) => {
+        // First apply all properties from DEFAULT_RENDER_STYLE with incoming style overrides
+        for (const key in DEFAULT_RENDER_STYLE) {
+            const styleKey = key as keyof RenderStyle;
+            const value = style[styleKey] ?? DEFAULT_RENDER_STYLE[styleKey];
+            if (value !== undefined && this.#currentStyle[styleKey] !== value) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (ctx as any)[key] = value;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (this.#currentStyle as any)[styleKey] = value;
+            }
+        }
+        
+        // Then apply any additional properties from incoming style not in DEFAULT_RENDER_STYLE
+        for (const key in style) {
+            if (Object.prototype.hasOwnProperty.call(style, key) && !(key in DEFAULT_RENDER_STYLE)) {
+                const value = style[key as keyof RenderStyle];
+                if (value !== undefined && this.#currentStyle[key as keyof RenderStyle] !== value) {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (ctx as any)[key] = value;
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    (this.#currentStyle as any)[key] = value;
+                }
+            }
+        }
     };
 }
