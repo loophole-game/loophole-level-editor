@@ -390,12 +390,8 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
 
     #sortChildren(): void {
         this._children.sort(this.#sortByZIndex);
-        // Only sort children that are also marked dirty
         this._children.forEach((child) => {
-            if (child.#childrenZIndexDirty) {
-                child.#sortChildren();
-                child.#childrenZIndexDirty = false;
-            }
+            child.#sortChildren();
         });
     }
 

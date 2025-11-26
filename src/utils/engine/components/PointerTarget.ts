@@ -18,10 +18,6 @@ export class C_PointerTarget extends Component {
 
     #canInteract: boolean = true;
     #isPointerHovered: boolean = false;
-    
-    // Cache for matrix calculations to avoid creating new objects every frame
-    #cameraMatrix: DOMMatrix = new DOMMatrix();
-    #sceneMatrix: DOMMatrix = new DOMMatrix();
 
     constructor({
         onPointerEnter,
@@ -66,24 +62,19 @@ export class C_PointerTarget extends Component {
             // Compute scene-space matrix by removing camera transform from the entity's world matrix
             const camera = window.engine.camera;
             const scale = zoomToScale(camera.zoom);
-            
-            // Reuse cached matrix objects instead of creating new ones
-            this.#cameraMatrix.a = scale;
-            this.#cameraMatrix.b = 0;
-            this.#cameraMatrix.c = 0;
-            this.#cameraMatrix.d = scale;
-            this.#cameraMatrix.e = 0;
-            this.#cameraMatrix.f = 0;
-            this.#cameraMatrix.rotateSelf(camera.rotation);
-            this.#cameraMatrix.translateSelf(camera.position.x, camera.position.y);
-            
-            this.#sceneMatrix = this.#cameraMatrix.inverse().multiply(transform.worldMatrix as DOMMatrix);
+            const cameraMatrix = new DOMMatrix()
+                .translate(camera.position.x, camera.position.y)
+                .rotate(camera.rotation)
+                .scale(scale, scale);
+            const sceneMatrix = cameraMatrix.inverse().multiply(transform.worldMatrix as DOMMatrix);
 
             // Extract scene-space position, rotation, and scale
-            const scenePosition = { x: this.#sceneMatrix.e, y: this.#sceneMatrix.f };
-            const sceneRotation = Math.atan2(this.#sceneMatrix.b, this.#sceneMatrix.a) * (180 / Math.PI);
-            const sceneScaleX = Math.hypot(this.#sceneMatrix.a, this.#sceneMatrix.b);
-            const sceneScaleY = Math.hypot(this.#sceneMatrix.c, this.#sceneMatrix.d);
+            const scenePosition = { x: sceneMatrix.e, y: sceneMatrix.f };
+            const sceneRotation = Math.atan2(sceneMatrix.b, sceneMatrix.a) * (180 / Math.PI);
+            const sceneScale = {
+                x: Math.sqrt(sceneMatrix.a * sceneMatrix.a + sceneMatrix.b * sceneMatrix.b),
+                y: Math.sqrt(sceneMatrix.c * sceneMatrix.c + sceneMatrix.d * sceneMatrix.d),
+            };
 
             // Translate point to be relative to the rectangle's center
             const dx = position.x - scenePosition.x;
@@ -97,8 +88,8 @@ export class C_PointerTarget extends Component {
             const rotatedY = dx * sinTheta + dy * cosTheta;
 
             // Check bounds (rectangle centered at 0,0)
-            const halfWidth = sceneScaleX / 2;
-            const halfHeight = sceneScaleY / 2;
+            const halfWidth = sceneScale.x / 2;
+            const halfHeight = sceneScale.y / 2;
 
             if (
                 rotatedX >= -halfWidth &&
@@ -152,21 +143,14 @@ export class C_PointerTarget extends Component {
         // Compute scene-space matrix by removing camera transform from the entity's world matrix
         const camera = window.engine.camera;
         const scale = zoomToScale(camera.zoom);
-        
-        // Reuse cached matrix objects
-        this.#cameraMatrix.a = scale;
-        this.#cameraMatrix.b = 0;
-        this.#cameraMatrix.c = 0;
-        this.#cameraMatrix.d = scale;
-        this.#cameraMatrix.e = 0;
-        this.#cameraMatrix.f = 0;
-        this.#cameraMatrix.rotateSelf(camera.rotation);
-        this.#cameraMatrix.translateSelf(camera.position.x, camera.position.y);
-        
-        this.#sceneMatrix = this.#cameraMatrix.inverse().multiply(transform.worldMatrix as DOMMatrix);
+        const cameraMatrix = new DOMMatrix()
+            .translate(camera.position.x, camera.position.y)
+            .rotate(camera.rotation)
+            .scale(scale, scale);
+        const sceneMatrix = cameraMatrix.inverse().multiply(transform.worldMatrix as DOMMatrix);
 
         // Extract scene-space position
-        const scenePosition = { x: this.#sceneMatrix.e, y: this.#sceneMatrix.f };
+        const scenePosition = { x: sceneMatrix.e, y: sceneMatrix.f };
 
         // Use worldScale directly, which properly accounts for parent scale
         const worldScale = transform.worldScale;
