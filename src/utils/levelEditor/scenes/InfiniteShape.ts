@@ -1,28 +1,27 @@
 import { Entity, type EntityOptions } from '../../engine/entities';
 import { C_Shape } from '../../engine/components/Shape';
-import type { Position } from '../../engine/types';
-import { vectorOrNumberToVector, zoomToScale } from '../../engine/utils';
+import { zoomToScale } from '../../engine/utils';
+import { Vector, type VectorConstructor } from '@/utils/engine/math';
 
 interface E_InfiniteShapeOptions extends EntityOptions {
     shape: C_Shape;
-    tileSize: number | Position;
+    tileSize: VectorConstructor;
     zoomCullThresh?: number;
-    offset?: number | Position;
+    offset?: VectorConstructor;
 }
 
 export class E_InfiniteShape extends Entity {
     #shape: C_Shape;
-    #offset: Position;
-    #tileSize: Position;
+    #offset: Vector;
+    #tileSize: Vector;
     #zoomCullThresh: number | null;
 
     constructor(options: E_InfiniteShapeOptions) {
         super(options);
 
         this.#shape = options.shape;
-        this.#tileSize = vectorOrNumberToVector(options.tileSize);
-        this.#offset =
-            options.offset !== undefined ? vectorOrNumberToVector(options.offset) : { x: 0, y: 0 };
+        this.#tileSize = new Vector(options.tileSize);
+        this.#offset = new Vector(options.offset ?? 0);
         this.#zoomCullThresh = options.zoomCullThresh ?? null;
 
         this.addComponents(this.#shape);

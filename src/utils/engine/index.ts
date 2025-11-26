@@ -1,7 +1,7 @@
 import { Entity, type EntityOptions } from './entities';
 import { Component, type ComponentOptions } from './components';
 import { RenderSystem } from './systems/render';
-import { type Camera, type CameraData, type Position } from './types';
+import { type Camera, type CameraData } from './types';
 import type { AvailableScenes, Scene, SceneIdentifier } from './systems/scene';
 import { SceneSystem } from './systems/scene';
 import {
@@ -16,6 +16,7 @@ import type { System } from './systems';
 import { DEFAULT_CAMERA_OPTIONS } from './utils';
 import { CameraSystem } from './systems/camera';
 import { CursorSystem, type CursorType } from './systems/cursor';
+import { Vector, type IVector } from './math';
 
 type BrowserEvent =
     | 'mousemove'
@@ -152,12 +153,14 @@ export class Engine {
         this.addBrowserEventHandler('mouseup', (_, data) =>
             this.#setPointerButtonDown(data.button, false),
         );
-        this.addBrowserEventHandler('mousemove', (_, data) => this.#setPointerPosition(data));
+        this.addBrowserEventHandler('mousemove', (_, data) =>
+            this.#setPointerPosition(new Vector(data.x, data.y)),
+        );
         this.addBrowserEventHandler('mouseenter', (_, data) =>
-            this.#setPointerOnScreen(true, data),
+            this.#setPointerOnScreen(true, new Vector(data.x, data.y)),
         );
         this.addBrowserEventHandler('mouseleave', (_, data) =>
-            this.#setPointerOnScreen(false, data),
+            this.#setPointerOnScreen(false, new Vector(data.x, data.y)),
         );
         this.addBrowserEventHandler('mousewheel', (_, { delta }) =>
             this.#setPointerScrollDelta(delta),
@@ -194,12 +197,12 @@ export class Engine {
         this.#forceRender = true;
     }
 
-    get canvasSize(): Position | null {
+    get canvasSize(): Vector | null {
         if (!this._canvas) {
             return null;
         }
 
-        return { x: this._canvas.width, y: this._canvas.height };
+        return new Vector(this._canvas.width, this._canvas.height);
     }
 
     get options(): Readonly<EngineOptions> {
@@ -343,7 +346,7 @@ export class Engine {
         this._sceneSystem.destroyScene(scene);
     }
 
-    screenToWorld(position: Position): Position {
+    screenToWorld(position: IVector<number>): IVector<number> {
         if (!this._canvas) {
             return position;
         }
@@ -351,15 +354,16 @@ export class Engine {
         const screenToWorldMatrix = this.worldToScreenMatrix.inverse();
         const p = screenToWorldMatrix.transformPoint(new DOMPoint(position.x, position.y));
 
-        return { x: p.x, y: p.y };
+        return new Vector(p.x, p.y);
     }
 
-    worldToScreen(position: Position): Position {
+    worldToScreen(position: IVector<number>): IVector<number> {
         if (!this._canvas) {
             return position;
         }
 
-        return this.worldToScreenMatrix.transformPoint(new DOMPoint(position.x, position.y));
+        const p = this.worldToScreenMatrix.transformPoint(new DOMPoint(position.x, position.y));
+        return new Vector(p.x, p.y);
     }
 
     getKey(keyCode: string): Readonly<KeyboardKeyState> {
@@ -384,7 +388,7 @@ export class Engine {
         this._cameraSystem.setCameraZoom(camera.zoom);
     }
 
-    setCameraPosition(position: Position): void {
+    setCameraPosition(position: IVector<number>): void {
         this._cameraSystem.setCameraPosition(position);
     }
 
@@ -392,7 +396,7 @@ export class Engine {
         this._cameraSystem.setCameraZoom(zoom);
     }
 
-    zoomCamera(delta: number, focalPoint?: Position): void {
+    zoomCamera(delta: number, focalPoint?: IVector<number>): void {
         this._cameraSystem.zoomCamera(delta, focalPoint);
     }
 
@@ -560,12 +564,12 @@ export class Engine {
         return this._keyboardSystem.keyStateChange(key, down, ctrl, meta, shift, alt);
     }
 
-    #setPointerPosition(position: Position): void {
-        this._pointerSystem.pointerPosition = position;
+    #setPointerPosition(position: IVector<number>): void {
+        this._pointerSystem.pointerPosition.set(position);
     }
 
-    #setPointerOnScreen(onScreen: boolean, position: Position): void {
-        this._pointerSystem.pointerPosition = position;
+    #setPointerOnScreen(onScreen: boolean, position: IVector<number>): void {
+        this._pointerSystem.pointerPosition.set(position);
         this._pointerSystem.pointerOnScreen = onScreen;
     }
 

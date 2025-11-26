@@ -1,27 +1,27 @@
 import { C_Drawable, type C_DrawableOptions } from '.';
+import { Vector, type VectorConstructor } from '../math';
 import {
     RENDER_CMD,
     RenderCommand,
     type DrawDataImage,
     type RenderCommandStream,
 } from '../systems/render';
-import type { Position } from '../types';
 
 interface C_ImageOptions extends C_DrawableOptions {
     imageName: string;
-    repeat?: Position;
+    repeat?: VectorConstructor;
 }
 
 export class C_Image extends C_Drawable {
     #imageName: string;
-    #repeat: Position | null;
+    #repeat: Vector | null;
 
     constructor(options: C_ImageOptions) {
         super(options);
 
         const { imageName, repeat } = options;
         this.#imageName = imageName;
-        this.#repeat = repeat ?? null;
+        this.#repeat = repeat ? new Vector(repeat) : null;
     }
 
     get imageName(): string {
@@ -32,12 +32,12 @@ export class C_Image extends C_Drawable {
         this.#imageName = imageName;
     }
 
-    get repeat(): Position | null {
+    get repeat(): Vector | null {
         return this.#repeat;
     }
 
-    set repeat(repeat: Position | null) {
-        this.#repeat = repeat;
+    set repeat(repeat: VectorConstructor | null) {
+        this.#repeat = repeat ? new Vector(repeat) : null;
     }
 
     override queueRenderCommands(out: RenderCommandStream): void {

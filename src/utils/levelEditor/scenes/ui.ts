@@ -22,10 +22,9 @@ import {
     type Loophole_Rotation,
 } from '../externalLevelSchema';
 import { PointerButton } from '@/utils/engine/systems/pointer';
-import type { Position } from '@/utils/engine/types';
+import { Vector, type IVector } from '@/utils/engine/math';
 import type { LevelEditor } from '..';
 import { C_Lerp, C_LerpPosition, C_LerpRotation } from '@/utils/engine/components/Lerp';
-import { positionsEqual } from '@/utils/engine/utils';
 import { C_Shape } from '@/utils/engine/components/Shape';
 import { E_Tile, E_TileHighlight } from './grid';
 import { C_PointerTarget } from '@/utils/engine/components/PointerTarget';
@@ -50,15 +49,15 @@ const CURSOR_PRIORITY = {
 class E_TileCursor extends Entity<LevelEditor> {
     #entityVisual: E_EntityVisual;
 
-    #positionLerp: C_Lerp<Position>;
+    #positionLerp: C_Lerp<IVector<number>>;
     #tileOpacityLerp: C_Lerp<number>;
     #tileRotationLerp: C_Lerp<number>;
 
-    #targetPosition: Position | null = null;
+    #targetPosition: IVector<number> | null = null;
     #targetRotation: number | null = null;
     #active: boolean = false;
 
-    #dragStartTilePosition: Position | null = null;
+    #dragStartTilePosition: Vector | null = null;
     #placedTileDuringDrag: Set<string> = new Set();
     #dragPositionType: 'CELL' | 'EDGE' | null = null;
     #dragEdgeAlignment: Loophole_EdgeAlignment | null = null;
@@ -80,7 +79,7 @@ class E_TileCursor extends Entity<LevelEditor> {
         this.#entityVisual.addComponents(this.#tileOpacityLerp);
 
         this.setZIndex(50);
-        this.#positionLerp = new C_LerpPosition(this, 20);
+        this.#positionLerp = new C_LerpPosition<IVector<number>>(this, 20);
         this.#tileRotationLerp = new C_LerpRotation(this, 1000);
         this.addComponents(this.#positionLerp, this.#tileRotationLerp);
     }
@@ -206,7 +205,7 @@ class E_TileCursor extends Entity<LevelEditor> {
 
             if (leftButton.pressed && !isDraggingToPlace) {
                 setIsDraggingToPlace(true);
-                this.#dragStartTilePosition = { ...tilePosition };
+                this.#dragStartTilePosition = new Vector(tilePosition);
                 this.#placedTileDuringDrag.clear();
                 this.#dragPositionType = positionType;
                 this.#dragEdgeAlignment = edgeAlignment;
@@ -291,7 +290,7 @@ class E_TileCursor extends Entity<LevelEditor> {
     }
 
     #handleDragPlacement(
-        currentTilePosition: Position,
+        currentTilePosition: IVector<number>,
         brushEntityType: Loophole_ExtendedEntityType,
         brushEntityRotation: Loophole_Rotation,
         brushEntityFlipDirection: boolean,
@@ -299,7 +298,7 @@ class E_TileCursor extends Entity<LevelEditor> {
         if (!this.#dragStartTilePosition || !this.#dragPositionType) return;
 
         // Calculate the tiles to place based on positionType
-        const tilesToPlace: Position[] = [];
+        const tilesToPlace: IVector<number>[] = [];
 
         if (this.#dragPositionType === 'CELL') {
             const startX = Math.min(this.#dragStartTilePosition.x, currentTilePosition.x);
@@ -361,7 +360,7 @@ class E_TileCursor extends Entity<LevelEditor> {
         }
     }
 
-    #getTileKey(position: Position, edgeAlignment: Loophole_EdgeAlignment | null): string {
+    #getTileKey(position: IVector<number>, edgeAlignment: Loophole_EdgeAlignment | null): string {
         return `${position.x},${position.y},${edgeAlignment ?? 'NONE'}`;
     }
 }
@@ -370,7 +369,7 @@ class E_SelectionCursor extends Entity<LevelEditor> {
     #shapeComp: C_Shape;
     #opacityLerp: C_Lerp<number>;
 
-    #selectAllClickPosition: Position | null = null;
+    #selectAllClickPosition: Vector | null = null;
     #active: boolean = false;
     #wasActive: boolean = false;
 
@@ -402,12 +401,12 @@ class E_SelectionCursor extends Entity<LevelEditor> {
 
     override update(deltaTime: number): boolean {
         let updated = super.update(deltaTime);
-        const pointerPosition = { ...this._engine.pointerState.worldPosition };
+        const pointerPosition = new Vector(this._engine.pointerState.worldPosition);
 
         const { brushEntityType, setSelectedTiles, isMovingTiles } = getAppStore();
         const leftButtonState = this._engine.getPointerButton(PointerButton.LEFT);
         if (leftButtonState.pressed && !isMovingTiles) {
-            this.#selectAllClickPosition = pointerPosition;
+            this.#selectAllClickPosition = new Vector(pointerPosition);
         } else if (leftButtonState.released || isMovingTiles) {
             this.#selectAllClickPosition = null;
         }
@@ -422,9 +421,9 @@ class E_SelectionCursor extends Entity<LevelEditor> {
             } else if (
                 leftButtonState.down &&
                 this.#selectAllClickPosition &&
-                !positionsEqual(pointerPosition, this.#selectAllClickPosition)
+                !pointerPosition.equals(this.#selectAllClickPosition)
             ) {
-                let topLeft: Position, bottomRight: Position;
+                let topLeft: IVector<number>, bottomRight: IVector<number>;
                 if (
                     pointerPosition.x < this.#selectAllClickPosition.x ||
                     pointerPosition.y < this.#selectAllClickPosition.y
@@ -484,14 +483,14 @@ class E_DragCursor extends Entity<LevelEditor> {
     #rightArrow: C_Line;
     #drawables: C_Drawable[];
     #opacityLerp: C_Lerp<number>;
-    #positionLerp: C_LerpPosition;
+    #positionLerp: C_LerpPosition<Vector>;
 
     #boxPointerTarget: C_PointerTarget;
     #upPointerTarget: C_PointerTarget;
     #rightPointerTarget: C_PointerTarget;
 
     #isDragging: boolean = false;
-    #dragStartPosition: Position | null = null;
+    #dragStartPosition: Vector | null = null;
     #originalEntities: Map<string, Loophole_EntityWithID> = new Map();
     #dragOffset: Loophole_Int2 = { x: 0, y: 0 };
     #dragAxis: DragAxis = 'both';
@@ -637,7 +636,7 @@ class E_DragCursor extends Entity<LevelEditor> {
                       ? 'y'
                       : 'x';
                 this.#isDragging = true;
-                this.#dragStartPosition = { ...this._engine.pointerState.worldPosition };
+                this.#dragStartPosition = new Vector(this._engine.pointerState.worldPosition);
                 this.#dragOffset = { x: 0, y: 0 };
                 this.#originalEntities.clear();
                 selectedTileArray.forEach((tile) => {
@@ -748,7 +747,7 @@ class E_DragCursor extends Entity<LevelEditor> {
         );
     }
 
-    #calculateSelectionCenter(tiles: E_Tile[]): Position {
+    #calculateSelectionCenter(tiles: E_Tile[]): IVector<number> {
         if (tiles.length === 0) {
             return { x: 0, y: 0 };
         }
@@ -789,7 +788,7 @@ class E_DragCursor extends Entity<LevelEditor> {
 
             const newEntity = { ...originalEntity };
 
-            let newPosition: Position;
+            let newPosition: IVector<number>;
             if ('edgePosition' in newEntity) {
                 newPosition = {
                     x: newEntity.edgePosition.cell.x + this.#dragOffset.x,

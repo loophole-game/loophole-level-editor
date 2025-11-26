@@ -1,8 +1,9 @@
 import type { Component } from '../components';
 import { RENDER_CMD, RenderCommand, type RenderCommandStream } from '../systems/render';
-import type { Camera, Position, RecursiveArray, Renderable } from '../types';
+import type { Camera, RecursiveArray, Renderable } from '../types';
+import { Vector, type IVector } from '../math';
 import { C_Transform } from '../components/transforms';
-import { vectorOrNumberToVector, zoomToScale } from '../utils';
+import { zoomToScale } from '../utils';
 import type { Engine } from '..';
 
 interface ScaleToCamera {
@@ -17,8 +18,8 @@ export interface EntityOptions<TEngine extends Engine = Engine> {
     children?: Entity<TEngine>[];
     enabled?: boolean;
     zIndex?: number;
-    position?: number | Position;
-    scale?: number | Position;
+    position?: number | IVector<number> | Vector;
+    scale?: number | IVector<number> | Vector;
     rotation?: number;
     scaleToCamera?: boolean | ScaleToCamera;
 }
@@ -51,15 +52,17 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         this._enabled = rest?.enabled ?? true;
         this._zIndex = rest?.zIndex ?? 0;
         this._scaleToCamera = rest?.scaleToCamera
-            ? vectorOrNumberToVector(rest.scaleToCamera)
+            ? typeof rest.scaleToCamera === 'boolean'
+                ? { x: rest.scaleToCamera, y: rest.scaleToCamera }
+                : rest.scaleToCamera
             : { x: false, y: false };
         this._children = rest?.children ?? [];
         this._components = rest?.components ?? [];
         this._components.push(
             (this._transform = new C_Transform(
-                vectorOrNumberToVector(rest?.position ?? { x: 0, y: 0 }),
+                rest?.position ?? 0,
                 rest?.rotation ?? 0,
-                vectorOrNumberToVector(rest?.scale ?? { x: 1, y: 1 }),
+                rest?.scale ?? 1,
             )),
         );
         this._components.forEach((component) => {
@@ -94,15 +97,15 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         return this._transform;
     }
 
-    get position(): Readonly<Position> {
+    get position(): Readonly<Vector> {
         return this._transform.position;
     }
 
-    get worldPosition(): Readonly<Position> {
+    get worldPosition(): Readonly<Vector> {
         return this._transform.worldPosition;
     }
 
-    get scale(): Readonly<Position> {
+    get scale(): Readonly<Vector> {
         return this._transform.scale;
     }
 
@@ -217,10 +220,12 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
 
         if (this._scaleToCamera.x || this._scaleToCamera.y) {
             const scale = zoomToScale(engine.camera.zoom);
-            this.transform.setScaleMult({
-                x: this._scaleToCamera.x ? 1 / scale : 1,
-                y: this._scaleToCamera.y ? 1 / scale : 1,
-            });
+            this.transform.setScaleMult(
+                new Vector(
+                    this._scaleToCamera.x ? 1 / scale : 1,
+                    this._scaleToCamera.y ? 1 / scale : 1,
+                ),
+            );
         }
     }
 
@@ -239,18 +244,14 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         return this;
     }
 
-    setPosition(newPosition: number | Position): this {
-        this._transform.setPosition(
-            typeof newPosition === 'number' ? { x: newPosition, y: newPosition } : newPosition,
-        );
+    setPosition(newPosition: number | IVector<number> | Vector): this {
+        this._transform.setPosition(newPosition);
 
         return this;
     }
 
-    setScale(newScale: number | Position): this {
-        this._transform.setScale(
-            typeof newScale === 'number' ? { x: newScale, y: newScale } : newScale,
-        );
+    setScale(newScale: number | IVector<number> | Vector): this {
+        this._transform.setScale(newScale);
 
         return this;
     }
@@ -261,13 +262,13 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         return this;
     }
 
-    translate(delta: Position): this {
+    translate(delta: Vector): this {
         this._transform.translate(delta);
 
         return this;
     }
 
-    scaleBy(delta: Position): this {
+    scaleBy(delta: Vector): this {
         this._transform.scaleBy(delta);
 
         return this;

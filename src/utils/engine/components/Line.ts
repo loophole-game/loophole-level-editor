@@ -5,8 +5,7 @@ import {
     type RenderCommandStream,
     type RenderStyle,
 } from '../systems/render';
-import type { Position } from '../types';
-import { vectorOrNumberToVector } from '../utils';
+import { Vector, type VectorConstructor } from '../math';
 
 const DEFAULT_ARROW_LENGTH = 1;
 const DEFAULT_ARROW_ANGLE = 45;
@@ -20,13 +19,13 @@ interface ArrowTip {
 type Tip = ArrowTip;
 
 interface LineOptions extends C_DrawableOptions {
-    start: Position;
-    end: Position;
+    start: VectorConstructor;
+    end: VectorConstructor;
 }
 
 export class C_Line extends C_Drawable {
-    #start: Position;
-    #end: Position;
+    #start: Vector;
+    #end: Vector;
 
     #startTip: Tip | null = null;
     #endTip: Tip | null = null;
@@ -35,31 +34,31 @@ export class C_Line extends C_Drawable {
         const { name, start, end, origin = 0, scale = 1, style } = options;
         super({ name, origin, scale, style });
 
-        this.#start = vectorOrNumberToVector(start);
-        this.#end = vectorOrNumberToVector(end);
+        this.#start = new Vector(start);
+        this.#end = new Vector(end);
     }
 
-    get start(): Position {
+    get start(): Vector {
         return this.#start;
     }
 
-    get end(): Position {
+    get end(): Vector {
         return this.#end;
     }
 
-    setStart(start: Position): this {
-        this.#start = { ...start };
+    setStart(start: Vector): this {
+        this.#start.set(start);
         return this;
     }
 
-    setEnd(end: Position): this {
-        this.#end = { ...end };
+    setEnd(end: Vector): this {
+        this.#end.set(end);
         return this;
     }
 
-    setPoints(start: Position, end: Position): this {
-        this.#start = { ...start };
-        this.#end = { ...end };
+    setPoints(start: Vector, end: Vector): this {
+        this.#start.set(start);
+        this.#end.set(end);
         return this;
     }
 
@@ -78,7 +77,7 @@ export class C_Line extends C_Drawable {
             return;
         }
 
-        if (this.#start.x === this.#end.x && this.#start.y === this.#end.y) {
+        if (this.#start.equals(this.#end)) {
             return;
         }
 
@@ -95,7 +94,7 @@ export class C_Line extends C_Drawable {
         this.#drawTip(this.#endTip, this.#end, 1, out);
     }
 
-    #drawTip(tip: Tip | null, origin: Position, angMult: number, out: RenderCommandStream) {
+    #drawTip(tip: Tip | null, origin: Vector, angMult: number, out: RenderCommandStream) {
         if (tip?.type === 'arrow') {
             const { length = DEFAULT_ARROW_LENGTH } = tip;
             let { angle = DEFAULT_ARROW_ANGLE } = tip;

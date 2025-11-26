@@ -1,9 +1,5 @@
+import type { IVector } from './math';
 import type { RenderCommandStream } from './systems/render';
-
-export interface Position {
-    x: number;
-    y: number;
-}
 
 export interface BoundingBox {
     x1: number;
@@ -25,7 +21,7 @@ export interface ButtonState {
 export interface CameraData {
     zoom: number;
     rotation: number;
-    position: Position;
+    position: IVector<number>;
 }
 export interface CameraMetadata {
     dirty: boolean;

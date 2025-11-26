@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { Engine } from '../../utils/engine';
-import type { Position } from '../../utils/engine/types';
 import type { PointerButton } from '../../utils/engine/systems/pointer';
 import { getAppStore } from '../../utils/stores';
 import type { Loophole_ExtendedEntityType } from '../../utils/levelEditor/externalLevelSchema';
 import type { LevelEditor } from '../../utils/levelEditor';
+import type { IVector } from '@/utils/engine/math';
 
-const calculateCanvasSize = (width: number, height: number, aspectRatio?: number): Position => {
+const calculateCanvasSize = (
+    width: number,
+    height: number,
+    aspectRatio?: number,
+): IVector<number> => {
     if (aspectRatio) {
         if (width / height > aspectRatio) {
             width = height * aspectRatio;
@@ -32,7 +36,7 @@ export function EngineCanvas({
     ...rest
 }: EngineCanvasProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [canvasSize, setCanvasSize] = useState<Position>(
+    const [canvasSize, setCanvasSize] = useState<IVector<number>>(
         calculateCanvasSize(window.innerWidth, window.innerHeight, aspectRatio),
     );
     const [engineReady, setEngineReady] = useState(false);

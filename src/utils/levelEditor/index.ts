@@ -40,8 +40,7 @@ import {
 } from '../utils';
 import { v4 } from 'uuid';
 import { getAppStore } from '../stores';
-import { positionsEqual } from '../engine/utils';
-import type { Position } from '../engine/types';
+import { Vector, type IVector } from '../engine/math';
 
 const MAX_STASHED_TILES = 10_000;
 
@@ -218,24 +217,23 @@ export class LevelEditor extends Engine {
     }
 
     calculateTilePositionFromWorld(
-        worldPosition: { x: number; y: number },
+        worldPosition: IVector<number>,
         entityType: Loophole_ExtendedEntityType,
     ): {
         position: Loophole_Int2;
         edgeAlignment: Loophole_EdgeAlignment | null;
         rotation: number;
     } {
-        let tilePosition: Position = { x: 0, y: 0 },
-            cursorPosition: Position = { x: 0, y: 0 };
+        let cursorPosition: Vector;
         let edgeAlignment: Loophole_EdgeAlignment | null = null;
         let rotation: number = 0;
 
         const { positionType } = ENTITY_METADATA[entityType];
         if (positionType === 'CELL') {
-            cursorPosition = {
-                x: Math.round(worldPosition.x / TILE_SIZE),
-                y: Math.round(worldPosition.y / TILE_SIZE),
-            };
+            cursorPosition = new Vector(
+                Math.round(worldPosition.x / TILE_SIZE),
+                Math.round(worldPosition.y / TILE_SIZE),
+            );
             rotation = 0;
         } else {
             const cellX = Math.round(worldPosition.x / TILE_SIZE);
@@ -244,32 +242,28 @@ export class LevelEditor extends Engine {
             const localY = worldPosition.y - cellY * TILE_SIZE;
 
             if (Math.abs(localX) > Math.abs(localY)) {
-                cursorPosition = {
-                    x: localX > 0 ? cellX + 0.5 : cellX - 0.5,
-                    y: cellY,
-                };
+                cursorPosition = new Vector(localX > 0 ? cellX + 0.5 : cellX - 0.5, cellY);
                 edgeAlignment = 'RIGHT';
                 rotation = loopholeRotationToDegrees('RIGHT');
             } else {
-                cursorPosition = {
-                    x: cellX,
-                    y: localY > 0 ? cellY + 0.5 : cellY - 0.5,
-                };
+                cursorPosition = new Vector(cellX, localY > 0 ? cellY + 0.5 : cellY - 0.5);
                 edgeAlignment = 'TOP';
                 rotation = loopholeRotationToDegrees('UP');
             }
         }
 
-        tilePosition = loopholePositionToEnginePosition(cursorPosition);
-        tilePosition = {
-            x: Math.floor(tilePosition.x),
-            y: Math.floor(tilePosition.y),
+        const tilePosition = loopholePositionToEnginePosition({
+            x: cursorPosition.x,
+            y: cursorPosition.y,
+        });
+        tilePosition.floorMut();
+
+        const position: Loophole_Int2 = {
+            x: Math.max(MIN_POSITION.x, Math.min(MAX_POSITION.x, tilePosition.x)),
+            y: Math.max(MIN_POSITION.y, Math.min(MAX_POSITION.y, tilePosition.y)),
         };
 
-        tilePosition.x = Math.max(MIN_POSITION.x, Math.min(MAX_POSITION.x, tilePosition.x));
-        tilePosition.y = Math.max(MIN_POSITION.y, Math.min(MAX_POSITION.y, tilePosition.y));
-
-        return { position: tilePosition, edgeAlignment, rotation };
+        return { position, edgeAlignment, rotation };
     }
 
     handleDrop(
@@ -277,7 +271,10 @@ export class LevelEditor extends Engine {
         screenY: number,
         entityType: Loophole_ExtendedEntityType,
     ): E_Tile[] {
-        const worldPosition = this.screenToWorld({ x: screenX, y: screenY });
+        const worldPosition = this.screenToWorld({
+            x: screenX,
+            y: screenY,
+        });
         const { position, edgeAlignment } = this.calculateTilePositionFromWorld(
             worldPosition,
             entityType,
@@ -417,7 +414,7 @@ export class LevelEditor extends Engine {
 
     moveEntities(
         entities: Loophole_EntityWithID[],
-        offset: { x: number; y: number },
+        offset: IVector<number>,
         hash?: string | null,
     ): E_Tile[] {
         const group: EditActionGroup = {
@@ -501,7 +498,7 @@ export class LevelEditor extends Engine {
 
     rotateEntities(
         entities: Loophole_EntityWithID[],
-        centerPosition: Position,
+        centerPosition: IVector<number>,
         rotation: 90 | -90,
         hash?: string | null,
     ): E_Tile[] {
@@ -553,10 +550,10 @@ export class LevelEditor extends Engine {
                 } else if ('startPosition' in entity) {
                     const currentDegrees = loopholeRotationToDegrees(entity.direction);
                     const newDegrees = (currentDegrees + rotation + 360) % 360;
-                    const cellPos: Position = {
-                        x: Math.round(centerPosition.x),
-                        y: Math.round(centerPosition.y),
-                    };
+                    const cellPos = new Vector(
+                        Math.round(centerPosition.x),
+                        Math.round(centerPosition.y),
+                    );
                     newEntity = {
                         ...entity,
                         startPosition:
@@ -834,7 +831,11 @@ export class LevelEditor extends Engine {
         }
 
         if (this.#level) {
-            if (positionType === 'CELL' && positionsEqual(position, this.#level.exitPosition)) {
+            if (
+                positionType === 'CELL' &&
+                position.x === this.#level.exitPosition.x &&
+                position.y === this.#level.exitPosition.y
+            ) {
                 return true;
             }
 
@@ -851,28 +852,18 @@ export class LevelEditor extends Engine {
     }
 
     #overlapsTimeMachine(
-        position: Position,
+        position: Loophole_Int2,
         alignment: Loophole_EdgeAlignment | null,
-        timeMachinePos: Position,
+        timeMachinePos: Loophole_Int2,
     ) {
         return (
-            positionsEqual(position, timeMachinePos) ||
+            (position.x === timeMachinePos.x && position.y === timeMachinePos.y) ||
             (alignment === 'RIGHT' &&
-                positionsEqual(
-                    {
-                        x: position.x + 1,
-                        y: position.y,
-                    },
-                    timeMachinePos,
-                )) ||
+                position.x + 1 === timeMachinePos.x &&
+                position.y === timeMachinePos.y) ||
             (alignment === 'TOP' &&
-                positionsEqual(
-                    {
-                        x: position.x,
-                        y: position.y + 1,
-                    },
-                    timeMachinePos,
-                ))
+                position.x === timeMachinePos.x &&
+                position.y + 1 === timeMachinePos.y)
         );
     }
 }

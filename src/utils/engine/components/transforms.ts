@@ -1,34 +1,30 @@
 import { Component } from '.';
-import type { Position } from '../types';
-import { vectorOrNumberToVector } from '../utils';
+import { Vector, type VectorConstructor } from '../math';
 
 export class C_Transform extends Component {
-    #position: Position = { x: 0, y: 0 };
+    #position: Vector = new Vector(0, 0);
     #rotation: number = 0;
-    #scale: Position = { x: 1, y: 1 };
-    #scaleMult: Position = { x: 1, y: 1 };
+    #scale: Vector = new Vector(1, 1);
+    #scaleMult: Vector = new Vector(1, 1);
     #localMatrix: DOMMatrix = new DOMMatrix();
     #localMatrixDirty: boolean = true;
 
     #worldMatrix: DOMMatrix = new DOMMatrix();
     #worldMatrixDirty: boolean = true;
 
-    constructor(position: number | Position, rotation: number, scale: number | Position) {
+    constructor(position: VectorConstructor, rotation: number, scale: VectorConstructor) {
         super('Transform');
-        this.#position = vectorOrNumberToVector(position);
+        this.#position = new Vector(position);
         this.#rotation = rotation;
-        this.#scale = vectorOrNumberToVector(scale);
+        this.#scale = new Vector(scale);
     }
 
-    get position(): Readonly<Position> {
+    get position(): Readonly<Vector> {
         return this.#position;
     }
 
-    get worldPosition(): Readonly<Position> {
-        return {
-            x: this.worldMatrix.e,
-            y: this.#worldMatrix.f,
-        };
+    get worldPosition(): Readonly<Vector> {
+        return new Vector(this.worldMatrix.e, this.#worldMatrix.f);
     }
 
     get rotation(): number {
@@ -40,20 +36,20 @@ export class C_Transform extends Component {
         return Math.atan2(matrix.b, matrix.a) * (180 / Math.PI);
     }
 
-    get scale(): Readonly<Position> {
+    get scale(): Readonly<Vector> {
         return this.#scale;
     }
 
-    get scaleMult(): Readonly<Position> {
+    get scaleMult(): Readonly<Vector> {
         return this.#scaleMult;
     }
 
-    get worldScale(): Readonly<Position> {
+    get worldScale(): Readonly<Vector> {
         const matrix = this.worldMatrix;
-        return {
-            x: Math.sqrt(matrix.a * matrix.a + matrix.b * matrix.b),
-            y: Math.sqrt(matrix.c * matrix.c + matrix.d * matrix.d),
-        };
+        return new Vector(
+            Math.sqrt(matrix.a * matrix.a + matrix.b * matrix.b),
+            Math.sqrt(matrix.c * matrix.c + matrix.d * matrix.d),
+        );
     }
 
     get localMatrix(): Readonly<DOMMatrix> {
@@ -72,9 +68,12 @@ export class C_Transform extends Component {
         return this.#worldMatrix;
     }
 
-    setPosition(position: Position): void {
-        if (position.x !== this.#position.x || position.y !== this.#position.y) {
-            this.#position = { ...position };
+    setPosition(position: VectorConstructor): void {
+        const x = typeof position === 'number' ? position : position.x;
+        const y = typeof position === 'number' ? position : position.y;
+        if (x !== this.#position.x || y !== this.#position.y) {
+            this.#position.x = x;
+            this.#position.y = y;
             this.#markLocalDirty();
         }
     }
@@ -86,36 +85,36 @@ export class C_Transform extends Component {
         }
     }
 
-    setScale(scale: Position): void {
-        if (scale.x !== this.#scale.x || scale.y !== this.#scale.y) {
-            this.#scale = { ...scale };
+    setScale(scale: VectorConstructor): void {
+        const x = typeof scale === 'number' ? scale : scale.x;
+        const y = typeof scale === 'number' ? scale : scale.y;
+        if (x !== this.#scale.x || y !== this.#scale.y) {
+            this.#scale.x = x;
+            this.#scale.y = y;
             this.#markLocalDirty();
         }
     }
 
-    setScaleMult(scaleMult: Position): void {
-        if (scaleMult.x !== this.#scaleMult.x || scaleMult.y !== this.#scaleMult.y) {
-            this.#scaleMult = { ...scaleMult };
+    setScaleMult(scaleMult: VectorConstructor): void {
+        const x = typeof scaleMult === 'number' ? scaleMult : scaleMult.x;
+        const y = typeof scaleMult === 'number' ? scaleMult : scaleMult.y;
+        if (x !== this.#scaleMult.x || y !== this.#scaleMult.y) {
+            this.#scaleMult.x = x;
+            this.#scaleMult.y = y;
             this.#markLocalDirty();
         }
     }
 
-    translate(delta: Position): void {
-        this.setPosition({
-            x: this.#position.x + delta.x,
-            y: this.#position.y + delta.y,
-        });
+    translate(delta: VectorConstructor): void {
+        this.setPosition(this.#position.add(delta));
     }
 
     rotate(delta: number): void {
         this.setRotation(this.#rotation + delta);
     }
 
-    scaleBy(delta: Position): void {
-        this.setScale({
-            x: this.#scale.x * delta.x,
-            y: this.#scale.y * delta.y,
-        });
+    scaleBy(delta: VectorConstructor): void {
+        this.setScale(this.#scale.mul(delta));
     }
 
     #computeLocalMatrix() {

@@ -1,16 +1,8 @@
-import type { BoundingBox, Camera, Position } from './types';
+import type { BoundingBox, Camera } from './types';
+import { type IVector } from './math';
 
 export const lerp = (from: number, to: number, t: number): number => {
     return from + (to - from) * t;
-};
-
-export const positionsEqual = (a: Position, b: Position) => a.x === b.x && a.y === b.y;
-
-export const lerpPosition = (from: Position, to: Position, t: number): Position => {
-    return {
-        x: lerp(from.x, to.x, t),
-        y: lerp(from.y, to.y, t),
-    };
 };
 
 export const isMac = navigator.platform.toUpperCase().includes('MAC');
@@ -30,7 +22,7 @@ export const scaleToZoom = (scale: number): number => {
     return Math.log2(scale);
 };
 
-export const calculateBoundingBox = (positions: Position[]): BoundingBox => {
+export const calculateBoundingBox = (positions: IVector<number>[]): BoundingBox => {
     if (positions.length === 0) {
         return {
             x1: 0,
@@ -56,22 +48,4 @@ export const calculateBoundingBox = (positions: Position[]): BoundingBox => {
     }
 
     return box;
-};
-
-export const vectorOrNumberToVector = <T>(
-    vector:
-        | T
-        | {
-              x: T;
-              y: T;
-          },
-): {
-    x: T;
-    y: T;
-} => {
-    if (typeof vector === 'object' && vector !== null) {
-        return vector as { x: T; y: T };
-    } else {
-        return { x: vector as T, y: vector as T };
-    }
 };

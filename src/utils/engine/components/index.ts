@@ -1,7 +1,7 @@
 import type { Entity } from '../entities';
-import type { Camera, Position, Renderable } from '../types';
+import type { Camera, Renderable } from '../types';
+import { Vector, type VectorConstructor } from '../math';
 import type { RenderCommandStream, RenderStyle } from '../systems/render';
-import { vectorOrNumberToVector } from '../utils';
 
 import type { Engine } from '..';
 
@@ -100,14 +100,14 @@ export abstract class Component implements Renderable {
 }
 
 export interface C_DrawableOptions extends ComponentOptions {
-    origin?: number | Position;
-    scale?: number | Position;
+    origin?: VectorConstructor;
+    scale?: VectorConstructor;
     style?: RenderStyle;
 }
 
 export abstract class C_Drawable extends Component {
-    protected _origin: Position;
-    protected _scale: Position;
+    protected _origin: Vector;
+    protected _scale: Vector;
     protected _style: RenderStyle;
 
     constructor(options: string | C_DrawableOptions) {
@@ -116,8 +116,8 @@ export abstract class C_Drawable extends Component {
         ) as C_DrawableOptions;
         super(optionsObj);
 
-        this._origin = vectorOrNumberToVector(optionsObj.origin ?? 0.5);
-        this._scale = vectorOrNumberToVector(optionsObj.scale ?? 1);
+        this._origin = new Vector(optionsObj.origin ?? 0.5);
+        this._scale = new Vector(optionsObj.scale ?? 1);
         this._style = optionsObj.style ?? {};
     }
 
@@ -129,21 +129,21 @@ export abstract class C_Drawable extends Component {
         this._style = { ...this._style, ...style };
     }
 
-    get origin(): Readonly<Position> {
+    get origin(): Readonly<Vector> {
         return this._origin;
     }
 
-    setOrigin(origin: number | Position): this {
-        this._origin = vectorOrNumberToVector(origin);
+    setOrigin(origin: VectorConstructor): this {
+        this._origin.set(origin);
         return this;
     }
 
-    get scale(): Readonly<Position> {
+    get scale(): Readonly<Vector> {
         return this._scale;
     }
 
-    setScale(scale: number | Position): this {
-        this._scale = vectorOrNumberToVector(scale);
+    setScale(scale: VectorConstructor): this {
+        this._scale.set(scale);
         return this;
     }
 

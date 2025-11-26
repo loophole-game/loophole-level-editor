@@ -1,8 +1,7 @@
 import { Component } from '.';
-import type { Position } from '../types';
-import { positionsEqual } from '../utils';
+import { type IVector } from '../math';
 
-type LerpValueType = number | Position;
+type LerpValueType = number | IVector<number>;
 
 interface LerpOptions<T extends LerpValueType> {
     get: () => T;
@@ -45,7 +44,7 @@ export class C_Lerp<T extends LerpValueType> extends Component {
 
             currentValue = this.#lerp(currentValue, this.#targetValue, deltaTime) as T;
         } else if (typeof currentValue === 'object' && typeof this.#targetValue === 'object') {
-            if (positionsEqual(currentValue, this.#targetValue)) {
+            if (currentValue.x === this.#targetValue.x && currentValue.y === this.#targetValue.y) {
                 return false;
             }
 
@@ -160,15 +159,15 @@ interface PositionLerpOptions {
     type?: 'linear' | 'fractional';
 }
 
-export class C_LerpPosition extends C_Lerp<Position> {
+export class C_LerpPosition<V extends IVector<number>> extends C_Lerp<V> {
     constructor(
-        target: { position: Position; setPosition?: (value: Position) => void },
+        target: { position: V; setPosition?: (value: V) => void },
         speed: number,
         options?: Omit<PositionLerpOptions, 'speed'>,
     ) {
         super({
-            get: () => ({ ...target.position }),
-            set: (value: Position) => {
+            get: () => target.position,
+            set: (value: V) => {
                 if (target.setPosition) {
                     target.setPosition(value);
                 } else {

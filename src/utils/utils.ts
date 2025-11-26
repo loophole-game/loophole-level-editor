@@ -25,7 +25,8 @@ import type {
     Loophole_Int,
     Loophole_Level,
 } from './levelEditor/externalLevelSchema';
-import type { CameraData, Position } from './engine/types';
+import type { CameraData } from './engine/types';
+import { Vector, type IVector } from './engine/math';
 import type { E_Tile } from './levelEditor/scenes/grid';
 import { calculateBoundingBox, scaleToZoom } from './engine/utils';
 
@@ -112,11 +113,11 @@ export const getLoopholeEntityPosition = (entity: Loophole_Entity): Loophole_Int
 export const loopholePositionToEnginePosition = (
     position: Loophole_Int2,
     edgeAlignment?: Loophole_EdgeAlignment | null,
-): Position => {
-    return {
-        x: position.x + (edgeAlignment === 'RIGHT' ? 0.5 : 0),
-        y: position.y + (edgeAlignment === 'TOP' ? 0.5 : 0),
-    };
+): Vector => {
+    return new Vector(
+        position.x + (edgeAlignment === 'RIGHT' ? 0.5 : 0),
+        position.y + (edgeAlignment === 'TOP' ? 0.5 : 0),
+    );
 };
 
 export const getLoopholeEntityEdgeAlignment = (
@@ -557,17 +558,14 @@ export const getLoopholeExplosionStartPosition = (
         : position.y;
 };
 
-export const calculateSelectionCenter = (tiles: E_Tile[]): Position => {
+export const calculateSelectionCenter = (tiles: E_Tile[]): Vector => {
     const box = calculateBoundingBox(
         tiles.map((t) =>
             t.entity.entityType === 'EXPLOSION' ? t.highlightEntity.position : t.position,
         ),
     );
 
-    return {
-        x: (box.x1 + box.x2) / 2,
-        y: (box.y1 + box.y2) / 2,
-    };
+    return new Vector((box.x1 + box.x2) / 2, (box.y1 + box.y2) / 2);
 };
 
 export const WIRE_CORNER_SPRITE = 'WireCorner';
@@ -651,7 +649,7 @@ export const DEFAULT_LEVEL_NAME = 'Untitled Level';
 const LEVEL_CAMERA_PADDING = 4;
 
 export const calculateLevelCameraTarget = (level: Loophole_InternalLevel): CameraData => {
-    const entityPositions = [
+    const entityPositions: IVector<number>[] = [
         ...[...level.entities, ...level.explosions, level.entrance].map((e) =>
             getLoopholeEntityPosition(e),
         ),
@@ -668,19 +666,16 @@ export const calculateLevelCameraTarget = (level: Loophole_InternalLevel): Camer
     boundingBox.y1 *= TILE_SIZE;
     boundingBox.y2 *= TILE_SIZE;
 
-    const boundingSize = {
-        x: boundingBox.x2 - boundingBox.x1,
-        y: boundingBox.y2 - boundingBox.y1,
-    };
-    const screenSize = {
-        x: window.innerWidth,
-        y: window.innerHeight,
-    };
+    const boundingSize = new Vector(
+        boundingBox.x2 - boundingBox.x1,
+        boundingBox.y2 - boundingBox.y1,
+    );
+    const screenSize = new Vector(window.innerWidth, window.innerHeight);
 
-    const targetPosition = {
-        x: -(boundingBox.x1 + boundingBox.x2) / 2,
-        y: -(boundingBox.y1 + boundingBox.y2) / 2,
-    };
+    const targetPosition = new Vector(
+        -(boundingBox.x1 + boundingBox.x2) / 2,
+        -(boundingBox.y1 + boundingBox.y2) / 2,
+    );
 
     const scaleX = screenSize.x / boundingSize.x;
     const scaleY = screenSize.y / boundingSize.y;

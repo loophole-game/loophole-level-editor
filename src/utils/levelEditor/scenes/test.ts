@@ -2,8 +2,8 @@ import { C_Shape } from '../../engine/components/Shape';
 import { Entity } from '../../engine/entities';
 import { PointerButton } from '../../engine/systems/pointer';
 import { Scene } from '../../engine/systems/scene';
-import { type Position } from '../../engine/types';
 import type { Engine } from '../../engine';
+import type { IVector } from '@/utils/engine/math';
 
 const NUM_BOXES = 50;
 
@@ -115,7 +115,7 @@ export class TestScene extends Scene {
             .setScale({ x: 300, y: 300 });
     }
 
-    #generateNestedBoxes(count: number, pattern: Position[], engine: Engine): Entity {
+    #generateNestedBoxes(count: number, pattern: IVector<number>[], engine: Engine): Entity {
         let currEntity: Entity | null = null;
         let root: Entity | null = null;
         for (let i = 0; i < count; i++) {

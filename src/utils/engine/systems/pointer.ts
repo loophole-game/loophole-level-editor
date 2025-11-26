@@ -1,6 +1,7 @@
 import { System } from '.';
 import { C_PointerTarget } from '../components/PointerTarget';
-import { type ButtonState, type Position } from '../types';
+import { Vector, type IVector, type VectorConstructor } from '../math';
+import type { ButtonState } from '../types';
 
 const MAX_DISTANCE_DURING_CLICK = 10;
 
@@ -15,24 +16,24 @@ export const PointerButton = {
 } as const;
 export type PointerButton = (typeof PointerButton)[keyof typeof PointerButton];
 
-export interface PointerState extends Position, Record<PointerButton, PointerButtonState> {
+export interface PointerState extends Record<PointerButton, PointerButtonState> {
     scrollDelta: number;
     justMoved: boolean;
     onScreen: boolean;
     justMovedOnScreen: boolean;
     justMovedOffScreen: boolean;
-    worldPosition: Position;
-    clickStartPosition: Position | null;
-    clickEndPosition: Position | null;
+    position: Vector;
+    worldPosition: Vector;
+    clickStartPosition: Vector | null;
+    clickEndPosition: Vector | null;
 }
 
 export class PointerSystem extends System {
     #pointerState: PointerState = {
         scrollDelta: 0,
         justMoved: false,
-        x: 0,
-        y: 0,
-        worldPosition: { x: 0, y: 0 },
+        position: new Vector(0),
+        worldPosition: new Vector(0),
         clickStartPosition: null,
         clickEndPosition: null,
         onScreen: false,
@@ -65,8 +66,8 @@ export class PointerSystem extends System {
     };
     #lastPointerState: PointerState = { ...this.#pointerState };
 
-    #dragStartMousePosition: Position | null = null;
-    #dragStartCameraPosition: Position | null = null;
+    #dragStartMousePosition: Vector | null = null;
+    #dragStartCameraPosition: Vector | null = null;
 
     #checkForOverlap: boolean = true;
 
@@ -74,16 +75,12 @@ export class PointerSystem extends System {
         return this.#pointerState;
     }
 
-    get pointerPosition(): Readonly<Position> {
-        return {
-            x: this.#pointerState.x,
-            y: this.#pointerState.y,
-        };
+    get pointerPosition(): Vector {
+        return this.#pointerState.position;
     }
 
-    set pointerPosition(position: Position) {
-        this.#pointerState.x = position.x;
-        this.#pointerState.y = position.y;
+    set pointerPosition(position: VectorConstructor) {
+        this.#pointerState.position.set(position);
         this.#pointerState.justMovedOnScreen = !this.#pointerState.onScreen;
         this.#pointerState.justMovedOffScreen = false;
         this.#pointerState.justMoved = true;
@@ -94,11 +91,8 @@ export class PointerSystem extends System {
         this.#pointerState.scrollDelta = delta;
     }
 
-    get pointerWorldPosition(): Readonly<Position> {
-        return {
-            x: this.#pointerState.worldPosition.x,
-            y: this.#pointerState.worldPosition.y,
-        };
+    get pointerWorldPosition(): Readonly<IVector<number>> {
+        return this.#pointerState.worldPosition.extract();
     }
 
     get pointerOnScreen(): boolean {
@@ -130,9 +124,9 @@ export class PointerSystem extends System {
             downAsNum: down ? 1 : 0,
             downTime: 0,
         };
-        const position = { x: this.#pointerState.x, y: this.#pointerState.y };
+        const position = this.#pointerState.position;
         if (down) {
-            this.#pointerState.clickStartPosition = position;
+            this.#pointerState.clickStartPosition = position.clone();
             this.#pointerState.clickEndPosition = null;
         } else {
             this.#pointerState.clickEndPosition = position;
@@ -141,9 +135,11 @@ export class PointerSystem extends System {
 
     update(deltaTime: number): boolean {
         this.#pointerState.justMoved =
-            this.#pointerState.x !== this.#lastPointerState.x ||
-            this.#pointerState.y !== this.#lastPointerState.y;
-        this.#pointerState.worldPosition = this._engine.screenToWorld(this.#pointerState);
+            this.#pointerState.position.x !== this.#lastPointerState.position.x ||
+            this.#pointerState.position.y !== this.#lastPointerState.position.y;
+        this.#pointerState.worldPosition.set(
+            this._engine.screenToWorld(this.#pointerState.position),
+        );
         Object.values(PointerButton).forEach((button: PointerButton) => {
             this.#pointerState[button].pressed =
                 this.#pointerState[button].down && !this.#lastPointerState[button].down;
@@ -156,9 +152,8 @@ export class PointerSystem extends System {
                 this.#pointerState.clickStartPosition &&
                 this.#pointerState.clickEndPosition
             ) {
-                const distanceTraveled = Math.hypot(
-                    this.#pointerState.clickEndPosition.x - this.#pointerState.clickStartPosition.x,
-                    this.#pointerState.clickEndPosition.y - this.#pointerState.clickStartPosition.y,
+                const distanceTraveled = this.#pointerState.clickEndPosition.distanceTo(
+                    this.#pointerState.clickStartPosition,
                 );
                 if (distanceTraveled <= MAX_DISTANCE_DURING_CLICK) {
                     this.#pointerState[button].clicked = true;
@@ -195,8 +190,8 @@ export class PointerSystem extends System {
                 (btn) => this.#pointerState[btn],
             );
             if (buttonStates.some((state) => state.pressed) && !this.#dragStartMousePosition) {
-                this.#dragStartMousePosition = { ...this._engine.pointerState };
-                this.#dragStartCameraPosition = { ...this._engine.camera.position };
+                this.#dragStartMousePosition = this._engine.pointerState.position.clone();
+                this.#dragStartCameraPosition?.set(this._engine.camera.position);
                 this._engine.requestCursor('camera-drag', 'grabbing', 40); // CURSOR_PRIORITY.CAMERA_DRAG
             }
 
@@ -206,14 +201,10 @@ export class PointerSystem extends System {
                     this.#dragStartMousePosition &&
                     this.#dragStartCameraPosition
                 ) {
-                    const screenDelta = {
-                        x: this._engine.pointerState.x - this.#dragStartMousePosition.x,
-                        y: this._engine.pointerState.y - this.#dragStartMousePosition.y,
-                    };
-                    this._engine.setCameraPosition({
-                        x: this.#dragStartCameraPosition.x + screenDelta.x,
-                        y: this.#dragStartCameraPosition.y + screenDelta.y,
-                    });
+                    const screenDelta = this._engine.pointerState.position.sub(
+                        this.#dragStartMousePosition,
+                    );
+                    this._engine.setCameraPosition(this.#dragStartCameraPosition.add(screenDelta));
                     this._engine.cameraTarget = null;
                 }
             }
@@ -237,7 +228,10 @@ export class PointerSystem extends System {
         this.#dragStartCameraPosition = null;
     }
 
-    getPointerTargetsWithinBox(topLeft: Position, bottomRight: Position): C_PointerTarget[] {
+    getPointerTargetsWithinBox(
+        topLeft: IVector<number>,
+        bottomRight: IVector<number>,
+    ): C_PointerTarget[] {
         const pointerTargets = this.#getAllPointerTargets();
 
         return pointerTargets.filter((target) => target.checkIfWithinBox(topLeft, bottomRight));

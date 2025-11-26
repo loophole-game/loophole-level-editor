@@ -4,30 +4,29 @@ import {
     type DrawDataShape,
     type RenderCommandStream,
 } from '../systems/render';
-import type { Position } from '../types';
-import { vectorOrNumberToVector } from '../utils';
+import { Vector, type VectorConstructor } from '../math';
 import { C_Drawable, type C_DrawableOptions } from './index';
 
 export type Shape = 'RECT' | 'ELLIPSE';
 
 export interface C_ShapeOptions extends C_DrawableOptions {
     shape: Shape;
-    repeat?: number | Position;
-    gap?: number | Position;
+    repeat?: VectorConstructor;
+    gap?: VectorConstructor;
 }
 
 export class C_Shape extends C_Drawable {
     #shape: Shape;
-    #repeat: Position | null;
-    #gap: Position | null;
+    #repeat: Vector | null;
+    #gap: Vector | null;
 
     constructor(options: C_ShapeOptions) {
         const {
             shape,
             repeat,
             gap,
-            origin = shape === 'ELLIPSE' ? { x: 0, y: 0 } : { x: 0.5, y: 0.5 },
-            scale = { x: 1, y: 1 },
+            origin = shape === 'ELLIPSE' ? new Vector(0, 0) : new Vector(0.5, 0.5),
+            scale = new Vector(1, 1),
             ...rest
         } = options;
         super({
@@ -37,16 +36,8 @@ export class C_Shape extends C_Drawable {
         });
 
         this.#shape = shape;
-        if (repeat !== undefined) {
-            this.#repeat = vectorOrNumberToVector(repeat);
-        } else {
-            this.#repeat = null;
-        }
-        if (gap !== undefined) {
-            this.#gap = vectorOrNumberToVector(gap);
-        } else {
-            this.#gap = null;
-        }
+        this.#repeat = repeat !== undefined ? new Vector(repeat) : null;
+        this.#gap = gap !== undefined ? new Vector(gap) : null;
     }
 
     get shape(): Shape {
@@ -55,23 +46,23 @@ export class C_Shape extends C_Drawable {
 
     set shape(shape: Shape) {
         this.#shape = shape;
-        this.setOrigin(shape === 'ELLIPSE' ? { x: 0, y: 0 } : { x: 0.5, y: 0.5 });
+        this.setOrigin(shape === 'ELLIPSE' ? new Vector(0, 0) : new Vector(0.5, 0.5));
     }
 
-    get repeat(): Position | null {
+    get repeat(): Vector | null {
         return this.#repeat;
     }
 
-    set repeat(repeat: Position | null) {
-        this.#repeat = repeat;
+    set repeat(repeat: VectorConstructor | null) {
+        this.#repeat = repeat !== null ? new Vector(repeat) : null;
     }
 
-    get gap(): Position | null {
+    get gap(): Vector | null {
         return this.#gap;
     }
 
-    set gap(gap: Position | null) {
-        this.#gap = gap;
+    set gap(gap: VectorConstructor | null) {
+        this.#gap = gap !== null ? new Vector(gap) : null;
     }
 
     override queueRenderCommands(out: RenderCommandStream): void {

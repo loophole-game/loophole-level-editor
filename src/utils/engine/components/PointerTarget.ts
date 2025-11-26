@@ -1,5 +1,5 @@
 import { Component } from '.';
-import type { Position } from '../types';
+import { Vector, type IVector } from '../math';
 import { zoomToScale } from '../utils';
 import type { CursorType } from '../systems/cursor';
 
@@ -49,7 +49,7 @@ export class C_PointerTarget extends Component {
         this.#canInteract = canInteract;
     }
 
-    checkIfPointerOver(position: Position): boolean {
+    checkIfPointerOver(position: Vector): boolean {
         if (!this.enabled || !this.entity?.enabled || !this.#canInteract) {
             return false;
         }
@@ -69,33 +69,29 @@ export class C_PointerTarget extends Component {
             const sceneMatrix = cameraMatrix.inverse().multiply(transform.worldMatrix as DOMMatrix);
 
             // Extract scene-space position, rotation, and scale
-            const scenePosition = { x: sceneMatrix.e, y: sceneMatrix.f };
+            const scenePosition = new Vector(sceneMatrix.e, sceneMatrix.f);
             const sceneRotation = Math.atan2(sceneMatrix.b, sceneMatrix.a) * (180 / Math.PI);
-            const sceneScale = {
-                x: Math.sqrt(sceneMatrix.a * sceneMatrix.a + sceneMatrix.b * sceneMatrix.b),
-                y: Math.sqrt(sceneMatrix.c * sceneMatrix.c + sceneMatrix.d * sceneMatrix.d),
-            };
+            const sceneScale = new Vector(
+                Math.sqrt(sceneMatrix.a * sceneMatrix.a + sceneMatrix.b * sceneMatrix.b),
+                Math.sqrt(sceneMatrix.c * sceneMatrix.c + sceneMatrix.d * sceneMatrix.d),
+            );
 
             // Translate point to be relative to the rectangle's center
-            const dx = position.x - scenePosition.x;
-            const dy = position.y - scenePosition.y;
+            const delta = position.sub(scenePosition);
 
             // Rotate point in opposite (-rotation) around the center
             const theta = (-sceneRotation * Math.PI) / 180; // Convert degrees to radians, negate for undoing entity rotation
-            const cosTheta = Math.cos(theta);
-            const sinTheta = Math.sin(theta);
-            const rotatedX = dx * cosTheta - dy * sinTheta;
-            const rotatedY = dx * sinTheta + dy * cosTheta;
+            const rotated = delta.rotate(theta);
 
             // Check bounds (rectangle centered at 0,0)
             const halfWidth = sceneScale.x / 2;
             const halfHeight = sceneScale.y / 2;
 
             if (
-                rotatedX >= -halfWidth &&
-                rotatedX <= halfWidth &&
-                rotatedY >= -halfHeight &&
-                rotatedY <= halfHeight
+                rotated.x >= -halfWidth &&
+                rotated.x <= halfWidth &&
+                rotated.y >= -halfHeight &&
+                rotated.y <= halfHeight
             ) {
                 this.#isPointerHovered = true;
             }
@@ -124,7 +120,7 @@ export class C_PointerTarget extends Component {
         return this.#isPointerHovered;
     }
 
-    checkIfWithinBox(topLeft: Position, bottomRight: Position): boolean {
+    checkIfWithinBox(topLeft: IVector<number>, bottomRight: IVector<number>): boolean {
         if (!this.enabled || !this.entity?.enabled || !this.#canInteract) {
             return false;
         }
@@ -150,7 +146,7 @@ export class C_PointerTarget extends Component {
         const sceneMatrix = cameraMatrix.inverse().multiply(transform.worldMatrix as DOMMatrix);
 
         // Extract scene-space position
-        const scenePosition = { x: sceneMatrix.e, y: sceneMatrix.f };
+        const scenePosition = new Vector(sceneMatrix.e, sceneMatrix.f);
 
         // Use worldScale directly, which properly accounts for parent scale
         const worldScale = transform.worldScale;
@@ -165,17 +161,20 @@ export class C_PointerTarget extends Component {
 
         // Define corners relative to center (unrotated)
         const corners = [
-            { x: -halfWidth, y: -halfHeight }, // Top-left
-            { x: halfWidth, y: -halfHeight }, // Top-right
-            { x: halfWidth, y: halfHeight }, // Bottom-right
-            { x: -halfWidth, y: halfHeight }, // Bottom-left
+            new Vector(-halfWidth, -halfHeight), // Top-left
+            new Vector(halfWidth, -halfHeight), // Top-right
+            new Vector(halfWidth, halfHeight), // Bottom-right
+            new Vector(-halfWidth, halfHeight), // Bottom-left
         ];
 
         // Rotate corners and translate to scene position
-        const rotatedCorners = corners.map((corner) => ({
-            x: scenePosition.x + (corner.x * cosTheta - corner.y * sinTheta),
-            y: scenePosition.y + (corner.x * sinTheta + corner.y * cosTheta),
-        }));
+        const rotatedCorners = corners.map(
+            (corner) =>
+                new Vector(
+                    scenePosition.x + (corner.x * cosTheta - corner.y * sinTheta),
+                    scenePosition.y + (corner.x * sinTheta + corner.y * cosTheta),
+                ),
+        );
 
         // Find the axis-aligned bounding box of the rotated entity
         const entityLeft = Math.min(...rotatedCorners.map((c) => c.x));

@@ -21,9 +21,9 @@ import {
     TILE_SIZE,
 } from '@/utils/utils';
 import { C_Lerp, C_LerpOpacity, C_LerpPosition } from '@/utils/engine/components/Lerp';
-import type { Position } from '@/utils/engine/types';
 import { E_InfiniteShape } from './InfiniteShape';
 import { E_EntityVisual } from '../entityVisual';
+import type { Vector } from '@/utils/engine/math';
 
 const ACTIVE_TILE_OPACITY = 0.3;
 
@@ -60,7 +60,7 @@ export class E_Tile extends Entity<LevelEditor> {
     #canBeReused: boolean = true;
 
     #tileImage: C_Image;
-    #positionLerp: C_Lerp<Position>;
+    #positionLerp: C_Lerp<Vector>;
 
     #entityVisual: E_EntityVisual;
 
@@ -227,10 +227,7 @@ export class E_Tile extends Entity<LevelEditor> {
         this.setScale(tileScaleOverride * TILE_SIZE);
         this.setRotation(getLoopholeEntityDegreeRotation(this.#entity));
 
-        const newPosition = {
-            x: enginePosition.x * TILE_SIZE,
-            y: enginePosition.y * TILE_SIZE,
-        };
+        const newPosition = enginePosition.mul(TILE_SIZE);
         this.#positionLerp.target = newPosition;
         if (!this.#initialized) {
             this.setPosition(newPosition);
