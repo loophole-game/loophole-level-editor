@@ -1,4 +1,4 @@
-import type { Component } from '../components';
+import type { Component, ComponentOptions } from '../components';
 import { RENDER_CMD, RenderCommand, type RenderCommandStream } from '../systems/render';
 import type { Camera, RecursiveArray, Renderable } from '../types';
 import { Vector, type IVector } from '../math';
@@ -14,14 +14,15 @@ interface ScaleToCamera {
 export interface EntityOptions<TEngine extends Engine = Engine> {
     engine: TEngine;
     name?: string;
-    components?: Component[];
-    children?: Entity<TEngine>[];
     enabled?: boolean;
     zIndex?: number;
     position?: number | IVector<number> | Vector;
     scale?: number | IVector<number> | Vector;
     rotation?: number;
     scaleToCamera?: boolean | ScaleToCamera;
+    scene?: string;
+    components?: Component<TEngine>[];
+    children?: Entity<TEngine>[];
 }
 
 export class Entity<TEngine extends Engine = Engine> implements Renderable {
@@ -36,13 +37,13 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
     protected _zIndex: number = 0;
 
     protected _parent: Entity<TEngine> | null = null;
-    protected _transform: C_Transform;
+    protected _transform: C_Transform<TEngine>;
     protected _scaleToCamera: ScaleToCamera = { x: false, y: false };
 
     protected _children: Entity<TEngine>[] = [];
     #childrenZIndexDirty: boolean = false;
 
-    protected _components: Component[];
+    protected _components: Component<TEngine>[] = [];
     #componentsZIndexDirty: boolean = false;
 
     constructor(options: EntityOptions<TEngine>) {
@@ -56,17 +57,17 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
                 ? { x: rest.scaleToCamera, y: rest.scaleToCamera }
                 : rest.scaleToCamera
             : { x: false, y: false };
-        this._children = rest?.children ?? [];
         this._components = rest?.components ?? [];
-        this._components.push(
-            (this._transform = new C_Transform(
-                rest?.position ?? 0,
-                rest?.rotation ?? 0,
-                rest?.scale ?? 1,
-            )),
-        );
+        this._children = rest?.children ?? [];
+
+        this._transform = this.addComponents(C_Transform<TEngine>, {
+            position: rest?.position ?? 0,
+            rotation: rest?.rotation ?? 0,
+            scale: rest?.scale ?? 1,
+        });
+
         this._components.forEach((component) => {
-            component.entity = this as Entity<TEngine>;
+            component.entity = this;
         });
         this._children.forEach((child) => {
             child.parent = this;
@@ -147,21 +148,21 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         return this._children;
     }
 
-    add<
+    addEntities<
         T extends Entity<TEngine>,
         TOptions extends EntityOptions<TEngine> = EntityOptions<TEngine>,
     >(
         ctor: new (options: TOptions) => T,
         options: Omit<TOptions, 'engine'> & { scene?: string },
     ): T;
-    add<
+    addEntities<
         T extends Entity<TEngine>,
         TOptions extends EntityOptions<TEngine> = EntityOptions<TEngine>,
     >(
         ctor: new (options: TOptions) => T,
         ...optionObjs: (Omit<TOptions, 'engine'> & { scene?: string })[]
     ): T[];
-    add<
+    addEntities<
         T extends Entity<TEngine>,
         TOptions extends EntityOptions<TEngine> = EntityOptions<TEngine>,
     >(
@@ -175,6 +176,28 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
             return entity;
         });
         return instances.length === 1 ? instances[0] : instances;
+    }
+
+    addComponents<
+        T extends Component<TEngine>,
+        TOptions extends ComponentOptions<TEngine> = ComponentOptions<TEngine>,
+    >(ctor: new (options: TOptions) => T, options: Omit<TOptions, 'engine'>): T;
+    addComponents<
+        T extends Component<TEngine>,
+        TOptions extends ComponentOptions<TEngine> = ComponentOptions<TEngine>,
+    >(ctor: new (options: TOptions) => T, ...optionObjs: Omit<TOptions, 'engine'>[]): T[];
+    addComponents<
+        T extends Component<TEngine>,
+        TOptions extends ComponentOptions<TEngine> = ComponentOptions<TEngine>,
+    >(ctor: new (options: TOptions) => T, ...optionObjs: Omit<TOptions, 'engine'>[]): T | T[] {
+        const components = optionObjs.map((option) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const component = new ctor({ ...option, engine: this._engine } as any);
+            component.entity = this;
+            this._components.push(component);
+            return component;
+        });
+        return components.length === 1 ? components[0] : components;
     }
 
     registerChild(child: Entity<TEngine>): void {
@@ -300,26 +323,16 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         return this;
     }
 
-    addComponents(...components: Component[]): this {
-        for (const component of components) {
-            this._components.push(component);
-            component.entity = this;
-        }
-        this.componentsZIndexDirty = true;
-
-        return this;
-    }
-
     removeComponents(...components: Component[]): this {
         this._components = this._components.filter((c) => components.every((ic) => c.id !== ic.id));
         return this;
     }
 
-    hasComponent(component: Component): boolean {
+    hasComponent(component: Component<TEngine>): boolean {
         return this._components.includes(component);
     }
 
-    getComponent(typeString: string): Component | null {
+    getComponent(typeString: string): Component<TEngine> | null {
         return this._components.find((c) => c.name === typeString) ?? null;
     }
 

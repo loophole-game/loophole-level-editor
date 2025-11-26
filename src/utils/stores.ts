@@ -134,7 +134,13 @@ export const useAppStore = create<AppStore>()(
                 },
 
                 brushEntityType: null,
-                setBrushEntityType: (entityType) => set({ brushEntityType: entityType }),
+                setBrushEntityType: (entityType) =>
+                    set((state) => ({
+                        brushEntityType:
+                            entityType && state.lockedLayers[entityType]
+                                ? state.brushEntityType
+                                : entityType,
+                    })),
                 brushEntityRotation: 'RIGHT',
                 setBrushEntityRotation: (rotation) => set({ brushEntityRotation: rotation }),
                 brushEntityFlipDirection: false,

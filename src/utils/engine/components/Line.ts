@@ -6,6 +6,7 @@ import {
     type RenderStyle,
 } from '../systems/render';
 import { Vector, type VectorConstructor } from '../math';
+import type { Engine } from '..';
 
 const DEFAULT_ARROW_LENGTH = 1;
 const DEFAULT_ARROW_ANGLE = 45;
@@ -18,24 +19,27 @@ interface ArrowTip {
 
 type Tip = ArrowTip;
 
-interface LineOptions extends C_DrawableOptions {
+interface C_LineOptions<TEngine extends Engine = Engine> extends C_DrawableOptions<TEngine> {
     start: VectorConstructor;
     end: VectorConstructor;
+    startTip?: Tip;
+    endTip?: Tip;
 }
 
-export class C_Line extends C_Drawable {
+export class C_Line<TEngine extends Engine = Engine> extends C_Drawable<TEngine> {
     #start: Vector;
     #end: Vector;
 
     #startTip: Tip | null = null;
     #endTip: Tip | null = null;
 
-    constructor(options: LineOptions) {
-        const { name, start, end, origin = 0, scale = 1, style } = options;
-        super({ name, origin, scale, style });
+    constructor(options: C_LineOptions<TEngine>) {
+        super(options);
 
-        this.#start = new Vector(start);
-        this.#end = new Vector(end);
+        this.#start = new Vector(options.start);
+        this.#end = new Vector(options.end);
+        this.#startTip = options.startTip ?? null;
+        this.#endTip = options.endTip ?? null;
     }
 
     get start(): Vector {

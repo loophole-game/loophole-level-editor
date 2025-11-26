@@ -1,9 +1,9 @@
 import type { Engine } from '..';
 
-export abstract class System {
-    protected _engine: Engine;
+export abstract class System<TEngine extends Engine = Engine> {
+    protected _engine: TEngine;
 
-    constructor(engine: Engine) {
+    constructor(engine: TEngine) {
         this._engine = engine;
         this._engine.addSystem(this);
     }

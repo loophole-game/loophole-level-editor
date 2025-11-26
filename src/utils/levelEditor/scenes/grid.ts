@@ -75,7 +75,7 @@ export class E_Tile extends Entity<LevelEditor> {
 
         this.#entity = options.entity;
         this.#type = getLoopholeEntityExtendedType(options.entity);
-        this.#tileImage = new C_Image({
+        this.#tileImage = this.addComponents(C_Image<LevelEditor>, {
             name: 'tile-image',
             imageName: '',
             style: {
@@ -83,27 +83,29 @@ export class E_Tile extends Entity<LevelEditor> {
             },
             zIndex: 10,
         });
-        this.#positionLerp = new C_LerpPosition(this, 20);
-        this.addComponents(this.#tileImage, this.#positionLerp);
+        this.#positionLerp = this.addComponents(C_LerpPosition<Vector, LevelEditor>, {
+            target: this,
+            speed: 20,
+        });
 
-        this.#highlightEntity = this.add(
+        this.#highlightEntity = this.addEntities(
             E_TileHighlight,
             options.entity.entityType === 'EXPLOSION'
                 ? { tile: this, scene: GridScene.name }
                 : { tile: this },
         ).setZIndex(-1);
-        this.#entityVisual = this.#highlightEntity.add(E_EntityVisual, {
+        this.#entityVisual = this.#highlightEntity.addEntities(E_EntityVisual, {
             mode: 'tile',
             zIndex: -1,
         });
-        this.#pointerParent = this.#highlightEntity.add(Entity, { name: 'pointer_parent' });
+        this.#pointerParent = this.#highlightEntity.addEntities(Entity, { name: 'pointer_parent' });
 
-        this.#pointerTarget = new C_PointerTarget({
+        this.#pointerTarget = this.#pointerParent.addComponents(C_PointerTarget<LevelEditor>, {
             cursorOnHover: 'pointer',
             cursorPriority: 5,
         });
         this.#pointerTarget.canInteract = false;
-        this.#highlightShape = new C_Shape({
+        this.#highlightShape = this.#pointerParent.addComponents(C_Shape<LevelEditor>, {
             name: 'shape',
             shape: 'RECT',
             style: {
@@ -112,12 +114,10 @@ export class E_Tile extends Entity<LevelEditor> {
             },
             zIndex: 1,
         });
-        this.#opacityLerp = new C_LerpOpacity(this.#highlightShape, 5);
-        this.#pointerParent.addComponents(
-            this.#pointerTarget,
-            this.#highlightShape,
-            this.#opacityLerp,
-        );
+        this.#opacityLerp = this.#pointerParent.addComponents(C_LerpOpacity<LevelEditor>, {
+            target: this.#highlightShape,
+            speed: 5,
+        });
 
         this.#canBeReused = this.entity.entityType !== 'EXPLOSION';
     }
@@ -287,22 +287,22 @@ export class GridScene extends Scene {
     override create(engine: Engine) {
         this.#grids.push(
             ...engine.add(
-                E_InfiniteShape,
+                E_InfiniteShape<LevelEditor>,
                 {
                     name: 'grid',
-                    shape: new C_Shape({
+                    shapeOptions: {
                         name: 'dots',
                         shape: 'ELLIPSE',
                         style: { fillStyle: 'white', globalAlpha: 0.5 },
                         gap: DOT_GAP,
-                    }),
+                    },
                     tileSize: TILE_SIZE,
                     zoomCullThresh: 0.2,
                     scale: DOT_SIZE,
                 },
                 {
                     name: 'border',
-                    shape: new C_Shape({
+                    shapeOptions: {
                         name: 'border',
                         shape: 'RECT',
                         style: {
@@ -311,7 +311,7 @@ export class GridScene extends Scene {
                             lineWidth: 4,
                             globalAlpha: 0.5,
                         },
-                    }),
+                    },
                     tileSize: SCREEN_BORDER_SIZE,
                     offset: {
                         x: SCREEN_BORDER_SIZE.x / 2,

@@ -1,5 +1,5 @@
 import { C_Shape } from '../../engine/components/Shape';
-import { Entity } from '../../engine/entities';
+import { Entity, type EntityOptions } from '../../engine/entities';
 import { PointerButton } from '../../engine/systems/pointer';
 import { Scene } from '../../engine/systems/scene';
 import type { Engine } from '../../engine';
@@ -14,14 +14,14 @@ export class TestScene extends Scene {
         this.#rotatingBox = this.#generateNestedBoxes(NUM_BOXES, [{ x: 0, y: 0 }], engine)
             .setScale({ x: 200, y: 200 })
             .rotate(45);
-        this.#rotatingBox.add(
+        this.#rotatingBox.addEntities(
             Entity,
             {
                 name: 'Top Left',
                 scale: 0.25,
                 position: { x: -0.5, y: -0.5 },
                 components: [
-                    engine.addComponent(C_Shape, {
+                    engine.createComponent(C_Shape<Engine>, {
                         name: 'Dot',
                         shape: 'ELLIPSE',
                         style: { fillStyle: 'yellow' },
@@ -33,7 +33,7 @@ export class TestScene extends Scene {
                 scale: 0.25,
                 position: { x: 0.5, y: -0.5 },
                 components: [
-                    engine.addComponent(C_Shape, {
+                    engine.createComponent(C_Shape<Engine>, {
                         name: 'Dot',
                         shape: 'ELLIPSE',
                         style: { fillStyle: 'green' },
@@ -45,7 +45,7 @@ export class TestScene extends Scene {
                 scale: 0.25,
                 position: { x: -0.5, y: 0.5 },
                 components: [
-                    engine.addComponent(C_Shape, {
+                    engine.createComponent(C_Shape<Engine>, {
                         name: 'Dot',
                         shape: 'ELLIPSE',
                         style: { fillStyle: 'blue' },
@@ -57,7 +57,7 @@ export class TestScene extends Scene {
                 scale: 0.25,
                 position: 0.5,
                 components: [
-                    engine.addComponent(C_Shape, {
+                    engine.createComponent(C_Shape<Engine>, {
                         name: 'Dot',
                         shape: 'ELLIPSE',
                         style: { fillStyle: 'purple' },
@@ -69,7 +69,7 @@ export class TestScene extends Scene {
                 scale: 1.25,
                 zIndex: -1,
                 components: [
-                    engine.addComponent(C_Shape, {
+                    engine.createComponent(C_Shape<Engine>, {
                         name: 'Dot',
                         shape: 'ELLIPSE',
                         style: { fillStyle: 'orange' },
@@ -80,7 +80,7 @@ export class TestScene extends Scene {
                 name: 'Center Above',
                 scale: 0.02,
                 components: [
-                    engine.addComponent(C_Shape, {
+                    engine.createComponent(C_Shape<Engine>, {
                         name: 'Dot',
                         shape: 'ELLIPSE',
                         style: { fillStyle: 'white' },
@@ -120,24 +120,24 @@ export class TestScene extends Scene {
         let root: Entity | null = null;
         for (let i = 0; i < count; i++) {
             const frame = pattern[i % pattern.length];
-            const entity = (currEntity || engine)
-                .add(Entity, {
-                    name: `Nested Box Level ${i + 1}`,
-                    components: [
-                        engine.addComponent(C_Shape, {
-                            name: `Box Level ${i + 1}`,
-                            shape: 'RECT',
-                            style: {
-                                fillStyle: `hsl(${(i * 40) % 360}, 70%, 50%)`,
-                                lineWidth: 0.1,
-                            },
-                        }),
-                    ],
-                    scene: this.name,
-                })
-                .setScale({ x: 0.75, y: 0.75 })
-                .setPosition(frame)
-                .rotate(12 * (i % 2 === 0 ? 1 : -1));
+            const entityOptions: Omit<EntityOptions, 'engine'> = {
+                name: `Nested Box Level ${i + 1}`,
+                scene: this.name,
+                position: frame,
+                scale: 0.75,
+                rotation: 12 * (i % 2 === 0 ? 1 : -1),
+            };
+            const entity: Entity = currEntity
+                ? currEntity.addEntities(Entity, entityOptions)
+                : engine.add(Entity, entityOptions);
+            entity.addComponents(C_Shape<Engine>, {
+                name: `Box Level ${i + 1}`,
+                shape: 'RECT',
+                style: {
+                    fillStyle: `hsl(${(i * 40) % 360}, 70%, 50%)`,
+                    lineWidth: 0.1,
+                },
+            });
             if (!currEntity) {
                 root = entity;
             }

@@ -1,30 +1,31 @@
 import { Entity, type EntityOptions } from '../../engine/entities';
-import { C_Shape } from '../../engine/components/Shape';
+import { C_Shape, type C_ShapeOptions } from '../../engine/components/Shape';
 import { zoomToScale } from '../../engine/utils';
 import { Vector, type VectorConstructor } from '@/utils/engine/math';
+import type { Engine } from '@/utils/engine';
 
-interface E_InfiniteShapeOptions extends EntityOptions {
-    shape: C_Shape;
+export interface E_InfiniteShapeOptions<TEngine extends Engine = Engine>
+    extends EntityOptions<TEngine> {
+    shapeOptions: Omit<C_ShapeOptions<TEngine>, 'engine'>;
     tileSize: VectorConstructor;
     zoomCullThresh?: number;
     offset?: VectorConstructor;
 }
 
-export class E_InfiniteShape extends Entity {
+export class E_InfiniteShape<TEngine extends Engine = Engine> extends Entity<TEngine> {
     #shape: C_Shape;
     #offset: Vector;
     #tileSize: Vector;
     #zoomCullThresh: number | null;
 
-    constructor(options: E_InfiniteShapeOptions) {
-        super(options);
+    constructor(options: E_InfiniteShapeOptions<TEngine>) {
+        const { name = 'infinite_shape', ...rest } = options;
+        super({ name, ...rest });
 
-        this.#shape = options.shape;
+        this.#shape = this.addComponents(C_Shape<TEngine>, options.shapeOptions);
         this.#tileSize = new Vector(options.tileSize);
         this.#offset = new Vector(options.offset ?? 0);
         this.#zoomCullThresh = options.zoomCullThresh ?? null;
-
-        this.addComponents(this.#shape);
     }
 
     override update(deltaTime: number) {

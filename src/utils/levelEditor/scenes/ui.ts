@@ -49,7 +49,7 @@ const CURSOR_PRIORITY = {
 class E_TileCursor extends Entity<LevelEditor> {
     #entityVisual: E_EntityVisual;
 
-    #positionLerp: C_Lerp<IVector<number>>;
+    #positionLerp: C_LerpPosition<Vector>;
     #tileOpacityLerp: C_Lerp<number>;
     #tileRotationLerp: C_Lerp<number>;
 
@@ -68,20 +68,24 @@ class E_TileCursor extends Entity<LevelEditor> {
     constructor(options: EntityOptions<LevelEditor>) {
         super({ name: 'cursor', ...options });
 
-        this.#entityVisual = this.add(E_EntityVisual, { mode: 'brush' });
-        this.#tileOpacityLerp = new C_Lerp({
+        this.#entityVisual = this.addEntities(E_EntityVisual, { mode: 'brush' });
+        this.#tileOpacityLerp = this.#entityVisual.addComponents(C_Lerp<number, LevelEditor>, {
             get: () => this.#entityVisual.opacity,
             set: (value: number) => {
                 this.#entityVisual.opacity = value;
             },
             speed: 4,
         });
-        this.#entityVisual.addComponents(this.#tileOpacityLerp);
 
         this.setZIndex(50);
-        this.#positionLerp = new C_LerpPosition<IVector<number>>(this, 20);
-        this.#tileRotationLerp = new C_LerpRotation(this, 1000);
-        this.addComponents(this.#positionLerp, this.#tileRotationLerp);
+        this.#positionLerp = this.addComponents(C_LerpPosition<Vector, LevelEditor>, {
+            target: this,
+            speed: 20,
+        });
+        this.#tileRotationLerp = this.addComponents(C_LerpRotation<LevelEditor>, {
+            target: this,
+            speed: 1000,
+        });
     }
 
     override update(deltaTime: number): boolean {
@@ -274,7 +278,7 @@ class E_TileCursor extends Entity<LevelEditor> {
             this.#active = false;
         }
 
-        this.#positionLerp.target = this.#targetPosition ?? this.position;
+        this.#positionLerp.target.set(this.#targetPosition || this.position);
         this.#tileOpacityLerp.target =
             this.#active && this._engine.entityCount < MAX_ENTITY_COUNT ? 0.5 : 0;
         if (!isDraggingToPlace) {
@@ -376,23 +380,19 @@ class E_SelectionCursor extends Entity<LevelEditor> {
     constructor(options: EntityOptions<LevelEditor>) {
         super({ name: 'ms_cursor', ...options });
 
-        this.#shapeComp = new C_Shape({
+        this.#shapeComp = this.addComponents(C_Shape<LevelEditor>, {
             name: 'rect',
             shape: 'RECT',
-            style: {
-                fillStyle: 'blue',
-            },
+            style: { fillStyle: 'blue' },
             origin: 0,
         });
-        this.#opacityLerp = new C_Lerp<number>({
-            get: (() => this.#shapeComp.style.globalAlpha ?? 0).bind(this),
-            set: ((value: number) => {
+        this.#opacityLerp = this.addComponents(C_Lerp<number, LevelEditor>, {
+            get: () => this.#shapeComp.style.globalAlpha ?? 0,
+            set: (value: number) => {
                 this.#shapeComp.style.globalAlpha = value;
-            }).bind(this),
+            },
             speed: 5,
         });
-
-        this.addComponents(this.#shapeComp, this.#opacityLerp).setScale(0);
     }
 
     get active(): boolean {
@@ -501,69 +501,57 @@ class E_DragCursor extends Entity<LevelEditor> {
     constructor(options: EntityOptions<LevelEditor>) {
         super({ name: 'drag_handle', ...options });
 
-        this.#upArrow = new C_Line({
+        this.#upArrow = this.addComponents(C_Line<LevelEditor>, {
             name: 'up-arrow',
             start: { x: 0, y: -0.5 },
             end: { x: 0, y: -HANDLE_ARROW_LENGTH },
             style: { lineWidth: 0.15, fillStyle: 'blue' },
-        }).setEndTip({ type: 'arrow', length: 0.5 });
-        this.#rightArrow = new C_Line({
+            endTip: { type: 'arrow', length: 0.5 },
+        });
+        this.#rightArrow = this.addComponents(C_Line<LevelEditor>, {
             name: 'right-arrow',
             start: { x: 0.5, y: 0 },
             end: { x: HANDLE_ARROW_LENGTH, y: 0 },
             style: { lineWidth: 0.15, fillStyle: 'green' },
-        }).setEndTip({ type: 'arrow', length: 0.5 });
-        this.#drawables = [
-            this.#upArrow,
-            this.#rightArrow,
-            new C_Shape({
-                name: 'handle',
-                shape: 'RECT',
-                style: {
-                    fillStyle: '#FF5555',
-                    strokeStyle: 'red',
-                    lineWidth: 2,
-                },
-            }),
-        ];
+            endTip: { type: 'arrow', length: 0.5 },
+        });
+        const shape = this.addComponents(C_Shape<LevelEditor>, {
+            shape: 'RECT',
+            style: { fillStyle: '#FF5555', strokeStyle: 'red', lineWidth: 2 },
+        });
+        this.#drawables = [this.#upArrow, this.#rightArrow, shape];
 
-        this.#boxPointerTarget = new C_PointerTarget();
-        this.#upPointerTarget = new C_PointerTarget();
-        this.#rightPointerTarget = new C_PointerTarget();
-        this.#opacityLerp = new C_Lerp({
-            get: (() => this.#opacity).bind(this),
-            set: ((value: number) => {
+        this.#boxPointerTarget = this.addComponents(C_PointerTarget<LevelEditor>, {
+            cursorOnHover: 'move',
+            cursorPriority: CURSOR_PRIORITY.HANDLE_HOVER,
+        });
+
+        this.#opacityLerp = this.addComponents(C_Lerp<number, LevelEditor>, {
+            get: () => this.#opacity,
+            set: (value: number) => {
                 this.opacity = value;
-            }).bind(this),
+            },
             speed: 10,
         });
-        this.#positionLerp = new C_LerpPosition(this, 30);
+        this.#positionLerp = this.addComponents(C_LerpPosition<Vector, LevelEditor>, {
+            target: this,
+            speed: 30,
+        });
         this.opacity = 0;
 
-        this.add(
-            Entity,
-            {
-                name: 'up',
-                components: [this.#upPointerTarget],
-                position: { x: 0, y: -(HANDLE_ARROW_LENGTH + 0.5) / 2 },
-                scale: { x: 1, y: HANDLE_ARROW_LENGTH - 0.5 },
-            },
-            {
-                name: 'right',
-                components: [this.#rightPointerTarget],
-                position: { x: (HANDLE_ARROW_LENGTH + 0.5) / 2, y: 0 },
-                scale: { x: HANDLE_ARROW_LENGTH - 0.5, y: 1 },
-            },
-        );
-        this.addComponents(
-            ...this.#drawables,
-            this.#boxPointerTarget,
-            this.#opacityLerp,
-            this.#positionLerp,
-        )
-            .setZIndex(200)
-            .setScale(28)
-            .setScaleToCamera(true);
+        const upEntity = this.addEntities(Entity, {
+            name: 'up',
+            position: { x: 0, y: -(HANDLE_ARROW_LENGTH + 0.5) / 2 },
+            scale: { x: 1, y: HANDLE_ARROW_LENGTH - 0.5 },
+        });
+        this.#upPointerTarget = upEntity.addComponents(C_PointerTarget<LevelEditor>, {});
+
+        const rightEntity = this.addEntities(Entity, {
+            name: 'right',
+            position: { x: (HANDLE_ARROW_LENGTH + 0.5) / 2, y: 0 },
+            scale: { x: HANDLE_ARROW_LENGTH - 0.5, y: 1 },
+        });
+        this.#rightPointerTarget = rightEntity.addComponents(C_PointerTarget<LevelEditor>, {});
     }
 
     set opacity(opacity: number) {
@@ -845,9 +833,9 @@ export class UIScene extends Scene {
     override create(editor: LevelEditor) {
         this._engine = editor;
 
-        this.add(E_SelectionCursor);
+        this.add(E_SelectionCursor, { scale: 0 });
         this.add(E_TileCursor);
-        this.add(E_DragCursor);
+        this.add(E_DragCursor, { zIndex: 200, scale: 28, scaleToCamera: true });
     }
 
     override update(deltaTime: number): boolean {

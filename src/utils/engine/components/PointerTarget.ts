@@ -1,36 +1,33 @@
-import { Component } from '.';
+import { Component, type ComponentOptions } from '.';
 import { Vector, type IVector } from '../math';
 import { zoomToScale } from '../utils';
 import type { CursorType } from '../systems/cursor';
+import type { Engine } from '..';
 
-interface PointerTargetOptions {
+export interface C_PointerTargetOptions<TEngine extends Engine = Engine>
+    extends ComponentOptions<TEngine> {
     onPointerEnter?: () => void;
     onPointerLeave?: () => void;
     cursorOnHover?: CursorType;
     cursorPriority?: number;
 }
 
-export class C_PointerTarget extends Component {
-    #onPointerEnter?: PointerTargetOptions['onPointerEnter'];
-    #onPointerLeave?: PointerTargetOptions['onPointerLeave'];
+export class C_PointerTarget<TEngine extends Engine = Engine> extends Component<TEngine> {
+    #onPointerEnter?: C_PointerTargetOptions['onPointerEnter'];
+    #onPointerLeave?: C_PointerTargetOptions['onPointerLeave'];
     #cursorOnHover?: CursorType;
     #cursorPriority: number;
 
     #canInteract: boolean = true;
     #isPointerHovered: boolean = false;
 
-    constructor({
-        onPointerEnter,
-        onPointerLeave,
-        cursorOnHover,
-        cursorPriority = 5,
-    }: PointerTargetOptions = {}) {
-        super(C_PointerTarget.name);
+    constructor(options: C_PointerTargetOptions<TEngine>) {
+        super(options);
 
-        this.#onPointerEnter = onPointerEnter;
-        this.#onPointerLeave = onPointerLeave;
-        this.#cursorOnHover = cursorOnHover;
-        this.#cursorPriority = cursorPriority;
+        this.#onPointerEnter = options.onPointerEnter;
+        this.#onPointerLeave = options.onPointerLeave;
+        this.#cursorOnHover = options.cursorOnHover;
+        this.#cursorPriority = options.cursorPriority ?? 5;
     }
 
     get isPointerHovered(): boolean {

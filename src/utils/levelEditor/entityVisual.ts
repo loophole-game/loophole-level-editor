@@ -39,7 +39,7 @@ export class E_EntityVisual extends Entity<LevelEditor> {
     constructor(options: E_EntityVisualOptions) {
         const { name = 'entity_visual', ...rest } = options;
         super({ name, ...rest });
-        this.#tileImage = new C_Image({
+        this.#tileImage = this.addComponents(C_Image<LevelEditor>, {
             name: `${name}-image`,
             imageName: '',
             style: {
@@ -47,7 +47,6 @@ export class E_EntityVisual extends Entity<LevelEditor> {
             },
             zIndex: -1,
         });
-        this.addComponents(this.#tileImage, ...(options.components ?? []));
 
         this.#mode = options.mode;
         this.#variant = options.variant ?? 'default';
@@ -162,12 +161,11 @@ export class E_EntityVisual extends Entity<LevelEditor> {
 
     #requestTileShapes(...shapes: Shape[]) {
         while (this.#tileShapes.length < shapes.length) {
-            const shape = new C_Shape({
+            const shape = this.addComponents(C_Shape<LevelEditor>, {
                 name: 'tile',
                 shape: 'RECT',
             });
             this.#tileShapes.push(shape);
-            this.addComponents(shape);
         }
 
         for (let i = 0; i < shapes.length; i++) {
@@ -184,15 +182,16 @@ export class E_EntityVisual extends Entity<LevelEditor> {
 
     #createTimeMachineDecals() {
         if (!this.#timeMachineDecals) {
-            const arrow = new C_Line({
+            const arrow = this.addComponents(C_Line<LevelEditor>, {
                 name: 'arrow',
                 start: { x: -0.2, y: 0 },
                 end: { x: 0.3, y: 0 },
                 style: { strokeStyle: 'white', lineWidth: 0.1, lineCap: 'round' },
-            }).setEndTip({ type: 'arrow', length: 0.25 });
+                endTip: { type: 'arrow', length: 0.25 },
+            });
 
             const wallVariant = this.#variant === 'entrance' ? 'entrance' : 'default';
-            const walls = this.add(
+            const walls = this.addEntities(
                 E_EntityVisual,
                 {
                     mode: 'tile',
@@ -224,7 +223,6 @@ export class E_EntityVisual extends Entity<LevelEditor> {
             walls[2].setEntityType('WALL').setVariant(wallVariant);
             walls[3].setEntityType('WALL').setVariant(wallVariant);
 
-            this.addComponents(arrow);
             this.#timeMachineDecals = { arrow, walls };
         } else {
             this.#timeMachineDecals.arrow.setEnabled(true);

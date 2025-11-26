@@ -311,7 +311,7 @@ export class Engine {
      * Factory method to create a single component with engine reference automatically injected.
      * Usage: engine.addComponent(C_Shape, { ...options })
      */
-    addComponent<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
+    createComponent<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
         ctor: new (options: TOptions) => T,
         options: Omit<TOptions, 'engine'>,
     ): T;
@@ -319,11 +319,11 @@ export class Engine {
      * Factory method to create multiple components with engine reference automatically injected.
      * Usage: engine.addComponent(C_Shape, { ...options1 }, { ...options2 })
      */
-    addComponent<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
+    createComponent<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
         ctor: new (options: TOptions) => T,
         ...optionObjs: Omit<TOptions, 'engine'>[]
     ): T[];
-    addComponent<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
+    createComponent<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
         ctor: new (options: TOptions) => T,
         ...optionObjs: Omit<TOptions, 'engine'>[]
     ): T | T[] {

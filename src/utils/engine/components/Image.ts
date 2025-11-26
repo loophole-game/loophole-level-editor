@@ -1,4 +1,5 @@
 import { C_Drawable, type C_DrawableOptions } from '.';
+import type { Engine } from '..';
 import { Vector, type VectorConstructor } from '../math';
 import {
     RENDER_CMD,
@@ -7,16 +8,16 @@ import {
     type RenderCommandStream,
 } from '../systems/render';
 
-interface C_ImageOptions extends C_DrawableOptions {
+interface C_ImageOptions<TEngine extends Engine = Engine> extends C_DrawableOptions<TEngine> {
     imageName: string;
     repeat?: VectorConstructor;
 }
 
-export class C_Image extends C_Drawable {
+export class C_Image<TEngine extends Engine = Engine> extends C_Drawable<TEngine> {
     #imageName: string;
     #repeat: Vector | null;
 
-    constructor(options: C_ImageOptions) {
+    constructor(options: C_ImageOptions<TEngine>) {
         super(options);
 
         const { imageName, repeat } = options;

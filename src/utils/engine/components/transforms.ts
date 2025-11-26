@@ -1,7 +1,15 @@
-import { Component } from '.';
+import { Component, type ComponentOptions } from '.';
+import type { Engine } from '..';
 import { Vector, type VectorConstructor } from '../math';
 
-export class C_Transform extends Component {
+export interface C_TransformOptions<TEngine extends Engine = Engine>
+    extends ComponentOptions<TEngine> {
+    position: VectorConstructor;
+    rotation: number;
+    scale: VectorConstructor;
+}
+
+export class C_Transform<TEngine extends Engine = Engine> extends Component<TEngine> {
     #position: Vector = new Vector(0, 0);
     #rotation: number = 0;
     #scale: Vector = new Vector(1, 1);
@@ -12,11 +20,15 @@ export class C_Transform extends Component {
     #worldMatrix: DOMMatrix = new DOMMatrix();
     #worldMatrixDirty: boolean = true;
 
-    constructor(position: VectorConstructor, rotation: number, scale: VectorConstructor) {
-        super('Transform');
-        this.#position = new Vector(position);
-        this.#rotation = rotation;
-        this.#scale = new Vector(scale);
+    constructor(options: C_TransformOptions<TEngine>) {
+        const { name = 'transform', ...rest } = options;
+        super({
+            name,
+            ...rest,
+        });
+        this.#position = new Vector(options.position);
+        this.#rotation = options.rotation;
+        this.#scale = new Vector(options.scale);
     }
 
     get position(): Readonly<Vector> {

@@ -74,21 +74,25 @@ export class Scene<TEngine extends Engine = Engine> {
     }
 }
 
-export type SceneIdentifier = Scene | string | number | null;
+export type SceneIdentifier<TEngine extends Engine = Engine> =
+    | Scene<TEngine>
+    | string
+    | number
+    | null;
 
-export class SceneSystem extends System {
-    #queuedNewScenes: Scene[] = [];
-    #activeScenesByID: Map<number, Scene> = new Map();
-    #activeScenesByName: Map<string, Scene> = new Map();
-    #defaultScene: Scene | null = null;
+export class SceneSystem<TEngine extends Engine = Engine> extends System<TEngine> {
+    #queuedNewScenes: Scene<TEngine>[] = [];
+    #activeScenesByID: Map<number, Scene<TEngine>> = new Map();
+    #activeScenesByName: Map<string, Scene<TEngine>> = new Map();
+    #defaultScene: Scene<TEngine> | null = null;
 
-    #queuedDestroyedScenes: Scene[] = [];
+    #queuedDestroyedScenes: Scene<TEngine>[] = [];
     #isLoadingQueuedScenes: boolean = false;
 
-    #worldRootEntity: Entity;
-    #sceneRootEntities: Map<number, Entity> = new Map();
+    #worldRootEntity: Entity<TEngine>;
+    #sceneRootEntities: Map<number, Entity<TEngine>> = new Map();
 
-    constructor(engine: Engine, worldRootEntity: Entity) {
+    constructor(engine: TEngine, worldRootEntity: Entity<TEngine>) {
         super(engine);
 
         this.#worldRootEntity = worldRootEntity;
@@ -116,11 +120,11 @@ export class SceneSystem extends System {
         this.#queuedDestroyedScenes = [];
     }
 
-    createScene(scene: Scene): void {
+    createScene(scene: Scene<TEngine>): void {
         this.#queuedNewScenes.push(scene);
     }
 
-    destroyScene(scene: SceneIdentifier): void {
+    destroyScene(scene: SceneIdentifier<TEngine>): void {
         const sceneObject = this.#findScene(scene);
         if (!sceneObject) {
             return;
@@ -131,7 +135,7 @@ export class SceneSystem extends System {
         this.#queuedDestroyedScenes.push(sceneObject);
     }
 
-    registerEntities(scene: SceneIdentifier, ...entities: Entity[]): void {
+    registerEntities(scene: SceneIdentifier<TEngine>, ...entities: Entity<TEngine>[]): void {
         if (this.queuedActionsExist && !this.#isLoadingQueuedScenes) {
             this.#performQueuedUpdate();
         }
@@ -151,7 +155,7 @@ export class SceneSystem extends System {
         entities.forEach((e) => (e.parent = rootEntity));
     }
 
-    #findScene(scene: SceneIdentifier): Scene | null {
+    #findScene(scene: SceneIdentifier<TEngine>): Scene<TEngine> | null {
         if (this.queuedActionsExist && !this.#isLoadingQueuedScenes) {
             this.#performQueuedUpdate();
         }
@@ -167,11 +171,11 @@ export class SceneSystem extends System {
         );
     }
 
-    #makeSceneActive(scene: Scene): void {
+    #makeSceneActive(scene: Scene<TEngine>): void {
         this.#activeScenesByID.set(scene.id, scene);
         this.#activeScenesByName.set(scene.name, scene);
 
-        const rootEntity = this.#worldRootEntity.add(Entity, {
+        const rootEntity = this.#worldRootEntity.addEntities(Entity<TEngine>, {
             name: `scene-root-${scene.name}-${scene.id}`,
         });
         this.#sceneRootEntities.set(scene.id, rootEntity);

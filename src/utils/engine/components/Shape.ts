@@ -6,34 +6,25 @@ import {
 } from '../systems/render';
 import { Vector, type VectorConstructor } from '../math';
 import { C_Drawable, type C_DrawableOptions } from './index';
+import type { Engine } from '..';
 
 export type Shape = 'RECT' | 'ELLIPSE';
 
-export interface C_ShapeOptions extends C_DrawableOptions {
+export interface C_ShapeOptions<TEngine extends Engine = Engine>
+    extends C_DrawableOptions<TEngine> {
     shape: Shape;
     repeat?: VectorConstructor;
     gap?: VectorConstructor;
 }
 
-export class C_Shape extends C_Drawable {
+export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine> {
     #shape: Shape;
     #repeat: Vector | null;
     #gap: Vector | null;
 
-    constructor(options: C_ShapeOptions) {
-        const {
-            shape,
-            repeat,
-            gap,
-            origin = shape === 'ELLIPSE' ? new Vector(0, 0) : new Vector(0.5, 0.5),
-            scale = new Vector(1, 1),
-            ...rest
-        } = options;
-        super({
-            ...rest,
-            origin,
-            scale,
-        });
+    constructor(options: C_ShapeOptions<TEngine>) {
+        const { name = 'shape', shape, repeat, gap, ...rest } = options;
+        super({ name, ...rest });
 
         this.#shape = shape;
         this.#repeat = repeat !== undefined ? new Vector(repeat) : null;

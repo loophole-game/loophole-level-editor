@@ -5,40 +5,39 @@ import type { RenderCommandStream, RenderStyle } from '../systems/render';
 
 import type { Engine } from '..';
 
-export interface ComponentOptions {
-    engine?: Engine;
-    name: string;
+export interface ComponentOptions<TEngine extends Engine = Engine> {
+    engine: TEngine;
+    name?: string;
     enabled?: boolean;
     zIndex?: number;
 }
 
-export abstract class Component implements Renderable {
+export abstract class Component<TEngine extends Engine = Engine> implements Renderable {
     protected static _nextId: number = 1;
     protected readonly _id: string = (Component._nextId++).toString();
     protected readonly _name: string;
+    protected _engine: TEngine;
 
-    protected _engine: Engine | null = null;
     protected _enabled: boolean = true;
 
     protected _zIndex: number = 0;
 
     protected _entity: Entity | null = null;
 
-    constructor(options: string | ComponentOptions) {
-        const {
-            name = `component-${this._id}`,
-            engine,
-            ...rest
-        } = (typeof options === 'string' ? { name: options } : (options ?? {})) as ComponentOptions;
-
+    constructor(options: ComponentOptions<TEngine>) {
+        const { name = `component-${this._id}`, engine, ...rest } = options;
         this._name = name;
-        this._engine = engine ?? null;
+        this._engine = engine;
         this._enabled = rest?.enabled ?? true;
         this._zIndex = rest?.zIndex ?? 0;
     }
 
     get id(): string {
         return this._id;
+    }
+
+    get typeString(): string {
+        return this.constructor.name;
     }
 
     get name(): string {
@@ -55,10 +54,6 @@ export abstract class Component implements Renderable {
 
     get zIndex(): number {
         return this._zIndex;
-    }
-
-    get typeString(): string {
-        return this.constructor.name;
     }
 
     get entity(): Entity | null {
@@ -99,26 +94,25 @@ export abstract class Component implements Renderable {
     }
 }
 
-export interface C_DrawableOptions extends ComponentOptions {
+export interface C_DrawableOptions<TEngine extends Engine = Engine>
+    extends ComponentOptions<TEngine> {
     origin?: VectorConstructor;
     scale?: VectorConstructor;
     style?: RenderStyle;
 }
 
-export abstract class C_Drawable extends Component {
+export abstract class C_Drawable<TEngine extends Engine = Engine> extends Component<TEngine> {
     protected _origin: Vector;
     protected _scale: Vector;
     protected _style: RenderStyle;
 
-    constructor(options: string | C_DrawableOptions) {
-        const optionsObj = (
-            typeof options === 'string' ? { name: options } : (options ?? {})
-        ) as C_DrawableOptions;
-        super(optionsObj);
+    constructor(options: C_DrawableOptions<TEngine>) {
+        const { name = 'drawable', ...rest } = options;
+        super({ name, ...rest });
 
-        this._origin = new Vector(optionsObj.origin ?? 0.5);
-        this._scale = new Vector(optionsObj.scale ?? 1);
-        this._style = optionsObj.style ?? {};
+        this._origin = new Vector(options.origin ?? 0.5);
+        this._scale = new Vector(options.scale ?? 1);
+        this._style = options.style ?? {};
     }
 
     get style(): RenderStyle {
