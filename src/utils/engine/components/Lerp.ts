@@ -172,7 +172,7 @@ export class C_LerpPosition<
     TEngine extends Engine = Engine,
 > extends C_Lerp<V, TEngine> {
     constructor(options: PositionLerpOptions<V, TEngine>) {
-        const { name = 'position_lerp', target, ...rest } = options;
+        const { name = 'position_lerp', target, type = 'fractional', ...rest } = options;
         super({
             name,
             get: () => target.position,
@@ -183,6 +183,7 @@ export class C_LerpPosition<
                     target.position = value;
                 }
             },
+            type,
             ...rest,
         });
     }
