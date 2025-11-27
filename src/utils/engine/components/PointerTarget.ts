@@ -135,24 +135,25 @@ export class C_PointerTarget<TEngine extends Engine = Engine> extends Component<
 
         // Compute scene-space matrix by removing camera transform from the entity's world matrix
         const camera = window.engine.camera;
-        const scale = zoomToScale(camera.zoom);
+        const cameraScale = zoomToScale(camera.zoom);
         const cameraMatrix = new DOMMatrix()
             .translate(camera.position.x, camera.position.y)
             .rotate(camera.rotation)
-            .scale(scale, scale);
+            .scale(cameraScale, cameraScale);
         const sceneMatrix = cameraMatrix.inverse().multiply(transform.worldMatrix as DOMMatrix);
 
-        // Extract scene-space position
+        // Extract scene-space position, rotation, and scale from the matrix (camera transform removed)
         const scenePosition = new Vector(sceneMatrix.e, sceneMatrix.f);
-
-        // Use worldScale directly, which properly accounts for parent scale
-        const worldScale = transform.worldScale;
-        const worldRotation = transform.worldRotation;
+        const sceneRotation = Math.atan2(sceneMatrix.b, sceneMatrix.a) * (180 / Math.PI);
+        const sceneScale = new Vector(
+            Math.sqrt(sceneMatrix.a * sceneMatrix.a + sceneMatrix.b * sceneMatrix.b),
+            Math.sqrt(sceneMatrix.c * sceneMatrix.c + sceneMatrix.d * sceneMatrix.d),
+        );
 
         // Calculate the four corners of the rotated entity
-        const halfWidth = worldScale.x / 2;
-        const halfHeight = worldScale.y / 2;
-        const theta = (worldRotation * Math.PI) / 180; // Convert to radians
+        const halfWidth = sceneScale.x / 2;
+        const halfHeight = sceneScale.y / 2;
+        const theta = (sceneRotation * Math.PI) / 180; // Convert to radians
         const cosTheta = Math.cos(theta);
         const sinTheta = Math.sin(theta);
 

@@ -64,10 +64,14 @@ export class PointerSystem extends System {
             downTime: 0,
         },
     };
-    #lastPointerState: PointerState = { ...this.#pointerState };
+    #lastPointerState: PointerState = {
+        ...this.#pointerState,
+        position: new Vector(0),
+        worldPosition: new Vector(0),
+    };
 
-    #dragStartMousePosition: Vector | null = null;
-    #dragStartCameraPosition: Vector | null = null;
+    #dragStartMousePosition: IVector<number> | null = null;
+    #dragStartCameraPosition: IVector<number> | null = null;
 
     #checkForOverlap: boolean = true;
 
@@ -163,12 +167,16 @@ export class PointerSystem extends System {
             }
         });
 
+        const { position, worldPosition, ...restState } = this.#pointerState;
         this.#lastPointerState = {
-            ...this.#pointerState,
+            ...this.#lastPointerState,
+            ...restState,
             [PointerButton.LEFT]: { ...this.#pointerState[PointerButton.LEFT] },
             [PointerButton.MIDDLE]: { ...this.#pointerState[PointerButton.MIDDLE] },
             [PointerButton.RIGHT]: { ...this.#pointerState[PointerButton.RIGHT] },
         };
+        this.#lastPointerState.position.set(position);
+        this.#lastPointerState.worldPosition.set(worldPosition);
 
         this.#updateAllPointerTargets();
 
@@ -190,8 +198,8 @@ export class PointerSystem extends System {
                 (btn) => this.#pointerState[btn],
             );
             if (buttonStates.some((state) => state.pressed) && !this.#dragStartMousePosition) {
-                this.#dragStartMousePosition = this._engine.pointerState.position.clone();
-                this.#dragStartCameraPosition?.set(this._engine.camera.position);
+                this.#dragStartMousePosition = this._engine.pointerState.position.extract();
+                this.#dragStartCameraPosition = this._engine.camera.position;
                 this._engine.requestCursor('camera-drag', 'grabbing', 40); // CURSOR_PRIORITY.CAMERA_DRAG
             }
 
@@ -204,7 +212,9 @@ export class PointerSystem extends System {
                     const screenDelta = this._engine.pointerState.position.sub(
                         this.#dragStartMousePosition,
                     );
-                    this._engine.setCameraPosition(this.#dragStartCameraPosition.add(screenDelta));
+                    this._engine.setCameraPosition(
+                        new Vector(this.#dragStartCameraPosition).add(screenDelta),
+                    );
                     this._engine.cameraTarget = null;
                 }
             }

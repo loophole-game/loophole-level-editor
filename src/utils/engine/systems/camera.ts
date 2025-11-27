@@ -1,7 +1,7 @@
 import { System } from '.';
 import type { Engine } from '..';
 import type { Entity } from '../entities';
-import { Vector, type IVector } from '../math';
+import type { IVector } from '../math';
 import type { Camera, CameraData } from '../types';
 import { DEFAULT_CAMERA_OPTIONS, lerp, zoomToScale } from '../utils';
 
@@ -58,7 +58,7 @@ export class CameraSystem extends System {
         this.#worldToScreenMatrixDirty = dirty;
     }
 
-    setCameraPosition(position: IVector<number> | Vector): void {
+    setCameraPosition(position: IVector<number>): void {
         if (this.#camera.position.x !== position.x || this.#camera.position.y !== position.y) {
             this.#camera.position = { x: position.x, y: position.y };
             this.#worldToScreenMatrixDirty = true;
@@ -75,7 +75,7 @@ export class CameraSystem extends System {
         }
     }
 
-    zoomCamera(delta: number, focalPoint?: IVector<number> | Vector): void {
+    zoomCamera(delta: number, focalPoint?: IVector<number>): void {
         const oldZoom = this.#camera.zoom;
         const oldScale = zoomToScale(oldZoom);
         this.#camera.zoom += delta * this._engine.options.zoomSpeed;
