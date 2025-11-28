@@ -293,7 +293,7 @@ export class GridScene extends Scene {
                     shapeOptions: {
                         name: 'dots',
                         shape: 'ELLIPSE',
-                        style: { fillStyle: 'white', globalAlpha: 0.5 },
+                        style: { fillStyle: '#BBBBBB', globalAlpha: 0.5 },
                         gap: DOT_GAP,
                     },
                     tileSize: TILE_SIZE,
@@ -307,7 +307,7 @@ export class GridScene extends Scene {
                         shape: 'RECT',
                         style: {
                             fillStyle: '',
-                            strokeStyle: 'white',
+                            strokeStyle: '#BBBBBB',
                             lineWidth: 4,
                             globalAlpha: 0.5,
                         },

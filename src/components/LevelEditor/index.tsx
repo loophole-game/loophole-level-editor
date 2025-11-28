@@ -8,7 +8,7 @@ import { FPSCounter } from '../engine/FPSCounter';
 import { LayerButtons } from './LayerButtons';
 import { EntityInspector } from './EntityInspector';
 import type { Loophole_InternalLevel } from '@/utils/levelEditor/externalLevelSchema';
-import { COLOR_PALETTE_METADATA } from '@/utils/utils';
+import { COLOR_PALETTE_METADATA, Loophole_ColorPalette } from '@/utils/utils';
 import clsx from 'clsx';
 import { OpenInterfacePanel } from '../OpenInterfacePanel';
 import { ScrollArea } from '../ui/scroll-area';
@@ -30,10 +30,11 @@ export function LevelEditorComponent() {
     const prevLevelHash = useRef<number | null>(null);
     const currentLevel = useCurrentLevel();
 
-    const colorPaletteClass = currentLevel
-        ? COLOR_PALETTE_METADATA[currentLevel.colorPalette as keyof typeof COLOR_PALETTE_METADATA]
-              ?.class
-        : 'color-palette-one';
+    const colorPaletteClass =
+        COLOR_PALETTE_METADATA[
+            (currentLevel?.colorPalette ||
+                Loophole_ColorPalette.ONE) as keyof typeof COLOR_PALETTE_METADATA
+        ]?.class;
 
     useEffect(() => {
         const onLevelChanged = (updatedLevel: Loophole_InternalLevel) => {
