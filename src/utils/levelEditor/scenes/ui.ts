@@ -21,7 +21,7 @@ import {
     type Loophole_Int2,
     type Loophole_Rotation,
 } from '../externalLevelSchema';
-import { PointerButton } from '@/utils/engine/systems/pointer';
+import { PointerButton, type CursorType } from '@/utils/engine/systems/pointer';
 import { Vector, type IVector } from '@/utils/engine/math';
 import type { LevelEditor } from '..';
 import { C_Lerp, C_LerpPosition, C_LerpRotation } from '@/utils/engine/components/Lerp';
@@ -43,7 +43,6 @@ const CURSOR_PRIORITY = {
     BRUSH: 10,
     HANDLE_HOVER: 20,
     DRAGGING: 30,
-    CAMERA_DRAG: 40,
 } as const;
 
 class E_TileCursor extends Entity<LevelEditor> {
@@ -121,9 +120,6 @@ class E_TileCursor extends Entity<LevelEditor> {
             } else {
                 this._engine.requestCursor('tile-cursor', 'crosshair', CURSOR_PRIORITY.BRUSH);
             }
-        } else {
-            this._engine.cancelCursorRequest('tile-cursor');
-            this._engine.cancelCursorRequest('tile-cursor-dragging');
         }
 
         if (
@@ -278,7 +274,8 @@ class E_TileCursor extends Entity<LevelEditor> {
             this.#active = false;
         }
 
-        this.#positionLerp.target.set(this.#targetPosition || this.position);
+        const positionTarget = this.#targetPosition || this.position;
+        this.#positionLerp.target = new Vector(positionTarget);
         this.#tileOpacityLerp.target =
             this.#active && this._engine.entityCount < MAX_ENTITY_COUNT ? 0.5 : 0;
         if (!isDraggingToPlace) {
@@ -464,8 +461,6 @@ class E_SelectionCursor extends Entity<LevelEditor> {
         if (this.#active !== this.#wasActive) {
             if (this.#active) {
                 this._engine.requestCursor('multi-select', 'crosshair', CURSOR_PRIORITY.BRUSH);
-            } else {
-                this._engine.cancelCursorRequest('multi-select');
             }
             this.#wasActive = this.#active;
         }
@@ -496,7 +491,6 @@ class E_DragCursor extends Entity<LevelEditor> {
     #dragAxis: DragAxis = 'both';
 
     #opacity = 0;
-    #wasHoveringHandle = false;
 
     constructor(options: EntityOptions<LevelEditor>) {
         super({ name: 'drag_handle', ...options });
@@ -544,14 +538,20 @@ class E_DragCursor extends Entity<LevelEditor> {
             position: { x: 0, y: -(HANDLE_ARROW_LENGTH + 0.5) / 2 },
             scale: { x: 1, y: HANDLE_ARROW_LENGTH - 0.5 },
         });
-        this.#upPointerTarget = upEntity.addComponents(C_PointerTarget<LevelEditor>, {});
+        this.#upPointerTarget = upEntity.addComponents(C_PointerTarget<LevelEditor>, {
+            cursorOnHover: 'ns-resize',
+            cursorPriority: CURSOR_PRIORITY.HANDLE_HOVER,
+        });
 
         const rightEntity = this.addEntities(Entity, {
             name: 'right',
             position: { x: (HANDLE_ARROW_LENGTH + 0.5) / 2, y: 0 },
             scale: { x: HANDLE_ARROW_LENGTH - 0.5, y: 1 },
         });
-        this.#rightPointerTarget = rightEntity.addComponents(C_PointerTarget<LevelEditor>, {});
+        this.#rightPointerTarget = rightEntity.addComponents(C_PointerTarget<LevelEditor>, {
+            cursorOnHover: 'ew-resize',
+            cursorPriority: CURSOR_PRIORITY.HANDLE_HOVER,
+        });
     }
 
     set opacity(opacity: number) {
@@ -569,41 +569,17 @@ class E_DragCursor extends Entity<LevelEditor> {
         const active = hasSelection && !brushEntityType;
 
         // Cursor management for drag handles
-        const isHoveringHandle = active && this.#anyTargetHovered();
-        if (isHoveringHandle !== this.#wasHoveringHandle) {
-            if (isHoveringHandle) {
-                // Determine which handle is hovered and set appropriate cursor
-                if (this.#boxPointerTarget.isPointerHovered) {
-                    this._engine.requestCursor(
-                        'drag-handle-box',
-                        'move',
-                        CURSOR_PRIORITY.HANDLE_HOVER,
-                    );
-                } else if (this.#upPointerTarget.isPointerHovered) {
-                    this._engine.requestCursor(
-                        'drag-handle-up',
-                        'ns-resize',
-                        CURSOR_PRIORITY.HANDLE_HOVER,
-                    );
-                } else if (this.#rightPointerTarget.isPointerHovered) {
-                    this._engine.requestCursor(
-                        'drag-handle-right',
-                        'ew-resize',
-                        CURSOR_PRIORITY.HANDLE_HOVER,
-                    );
-                }
-            } else {
-                this._engine.cancelCursorRequest('drag-handle-box');
-                this._engine.cancelCursorRequest('drag-handle-up');
-                this._engine.cancelCursorRequest('drag-handle-right');
-            }
-            this.#wasHoveringHandle = isHoveringHandle;
-        }
-
+        let cursorType: CursorType | null = null;
         if (this.#isDragging) {
-            this._engine.requestCursor('drag-dragging', 'grabbing', CURSOR_PRIORITY.DRAGGING);
-        } else {
-            this._engine.cancelCursorRequest('drag-dragging');
+            cursorType =
+                this.#dragAxis === 'x'
+                    ? 'ew-resize'
+                    : this.#dragAxis === 'y'
+                      ? 'ns-resize'
+                      : 'move';
+        }
+        if (cursorType) {
+            this._engine.requestCursor('drag-handle', cursorType, CURSOR_PRIORITY.HANDLE_HOVER);
         }
 
         if (active) {

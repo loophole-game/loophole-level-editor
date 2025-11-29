@@ -7,6 +7,7 @@ import { SceneSystem } from './systems/scene';
 import {
     PointerButton,
     PointerSystem,
+    type CursorType,
     type PointerButtonState,
     type PointerState,
 } from './systems/pointer';
@@ -15,7 +16,6 @@ import { KeyboardSystem, type KeyboardKeyState } from './systems/keyboard';
 import type { System } from './systems';
 import { DEFAULT_CAMERA_OPTIONS } from './utils';
 import { CameraSystem } from './systems/camera';
-import { CursorSystem, type CursorType } from './systems/cursor';
 import { Vector, type IVector } from './math';
 
 type BrowserEvent =
@@ -118,7 +118,6 @@ export class Engine {
     protected _pointerSystem: PointerSystem;
     protected _imageSystem: ImageSystem;
     protected _cameraSystem: CameraSystem;
-    protected _cursorSystem: CursorSystem;
 
     protected _systems: System[] = [];
 
@@ -145,7 +144,6 @@ export class Engine {
         this._pointerSystem = new PointerSystem(this);
         this._imageSystem = new ImageSystem(this);
         this._cameraSystem = new CameraSystem(this, this._rootEntity, this._options.cameraStart);
-        this._cursorSystem = new CursorSystem(this);
 
         this.addBrowserEventHandler('mousedown', (_, data) =>
             this.#setPointerButtonDown(data.button, true),
@@ -193,7 +191,7 @@ export class Engine {
     set canvas(canvas: HTMLCanvasElement | null) {
         this._canvas = canvas;
         this._cameraSystem.worldToScreenMatrixDirty = true;
-        this._cursorSystem.setCanvas(canvas);
+        this._pointerSystem.canvas = canvas;
         this.#forceRender = true;
     }
 
@@ -257,20 +255,12 @@ export class Engine {
         return this._cameraSystem;
     }
 
-    get cursorSystem(): CursorSystem {
-        return this._cursorSystem;
-    }
-
     get sceneSystem(): SceneSystem {
         return this._sceneSystem;
     }
 
     requestCursor(id: string, type: CursorType, priority?: number): void {
-        this._cursorSystem.requestCursor(id, type, priority);
-    }
-
-    cancelCursorRequest(id: string): void {
-        this._cursorSystem.cancelCursorRequest(id);
+        this._pointerSystem.requestCursor(id, type, priority);
     }
 
     forceRender(): void {
@@ -307,18 +297,10 @@ export class Engine {
         return instances.length === 1 ? instances[0] : instances;
     }
 
-    /**
-     * Factory method to create a single component with engine reference automatically injected.
-     * Usage: engine.addComponent(C_Shape, { ...options })
-     */
     createComponent<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
         ctor: new (options: TOptions) => T,
         options: Omit<TOptions, 'engine'>,
     ): T;
-    /**
-     * Factory method to create multiple components with engine reference automatically injected.
-     * Usage: engine.addComponent(C_Shape, { ...options1 }, { ...options2 })
-     */
     createComponent<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
         ctor: new (options: TOptions) => T,
         ...optionObjs: Omit<TOptions, 'engine'>[]

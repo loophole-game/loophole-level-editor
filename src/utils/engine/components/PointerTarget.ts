@@ -1,8 +1,8 @@
 import { Component, type ComponentOptions } from '.';
 import { Vector, type IVector } from '../math';
 import { zoomToScale } from '../utils';
-import type { CursorType } from '../systems/cursor';
 import type { Engine } from '..';
+import type { CursorType } from '../systems/pointer';
 
 export interface C_PointerTargetOptions<TEngine extends Engine = Engine>
     extends ComponentOptions<TEngine> {
@@ -107,10 +107,6 @@ export class C_PointerTarget<TEngine extends Engine = Engine> extends Component<
                 }
             } else {
                 this.#onPointerLeave?.();
-                if (this.#cursorOnHover && window.engine) {
-                    const cursorId = `pointer-target-${this.entity?.id}`;
-                    window.engine.cancelCursorRequest(cursorId);
-                }
             }
         }
 

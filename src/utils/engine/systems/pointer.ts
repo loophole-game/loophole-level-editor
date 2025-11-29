@@ -4,6 +4,26 @@ import { Vector, type IVector, type VectorConstructor } from '../math';
 import type { ButtonState } from '../types';
 
 const MAX_DISTANCE_DURING_CLICK = 10;
+const DRAG_CURSOR_PRIORITY = 100;
+
+export type CursorType =
+    | 'default'
+    | 'pointer'
+    | 'crosshair'
+    | 'grab'
+    | 'grabbing'
+    | 'move'
+    | 'ew-resize'
+    | 'ns-resize'
+    | 'nwse-resize'
+    | 'nesw-resize'
+    | 'not-allowed'
+    | 'none';
+
+interface CursorRequest {
+    type: CursorType;
+    priority: number;
+}
 
 export interface PointerButtonState extends ButtonState {
     clicked: boolean;
@@ -75,6 +95,10 @@ export class PointerSystem extends System {
 
     #checkForOverlap: boolean = true;
 
+    #canvas: HTMLCanvasElement | null = null;
+    #currentCursor: CursorType = 'default';
+    #cursorRequests: Map<string, CursorRequest> = new Map();
+
     get pointerState(): Readonly<PointerState> {
         return this.#pointerState;
     }
@@ -115,6 +139,15 @@ export class PointerSystem extends System {
 
     get checkForOverlap(): boolean {
         return this.#checkForOverlap;
+    }
+
+    get currentCursor(): CursorType {
+        return this.#currentCursor;
+    }
+
+    set canvas(canvas: HTMLCanvasElement | null) {
+        this.#canvas = canvas;
+        this.#applyCursor();
     }
 
     getPointerButton(button: PointerButton): PointerButtonState {
@@ -179,56 +212,10 @@ export class PointerSystem extends System {
         this.#lastPointerState.worldPosition.set(worldPosition);
 
         this.#updateAllPointerTargets();
-
-        if (this.#pointerState.justMovedOnScreen) {
-            this.#pointerState.justMovedOnScreen = false;
-        }
-
         if (this._engine.options.cameraDrag) {
-            if (this.#pointerState.scrollDelta !== 0) {
-                this._engine.zoomCamera(
-                    this.#pointerState.scrollDelta,
-                    this.#pointerState.worldPosition,
-                );
-                this.#pointerState.scrollDelta = 0;
-                this._engine.cameraTarget = null;
-            }
-
-            const buttonStates = this._engine.options.cameraDragButtons.map(
-                (btn) => this.#pointerState[btn],
-            );
-            if (buttonStates.some((state) => state.pressed) && !this.#dragStartMousePosition) {
-                this.#dragStartMousePosition = this._engine.pointerState.position.extract();
-                this.#dragStartCameraPosition = this._engine.camera.position;
-                this._engine.requestCursor('camera-drag', 'grabbing', 40); // CURSOR_PRIORITY.CAMERA_DRAG
-            }
-
-            if (this._engine.pointerState.justMoved) {
-                if (
-                    buttonStates.some((state) => state.down) &&
-                    this.#dragStartMousePosition &&
-                    this.#dragStartCameraPosition
-                ) {
-                    const screenDelta = this._engine.pointerState.position.sub(
-                        this.#dragStartMousePosition,
-                    );
-                    this._engine.setCameraPosition(
-                        new Vector(this.#dragStartCameraPosition).add(screenDelta),
-                    );
-                    this._engine.cameraTarget = null;
-                }
-            }
-
-            if (buttonStates.some((state) => state.released) && this.#dragStartMousePosition) {
-                this.#dragStartMousePosition = null;
-                this.#dragStartCameraPosition = null;
-                this._engine.cancelCursorRequest('camera-drag');
-            }
-
-            if (this.#dragStartMousePosition) {
-                this._engine.cameraTarget = null;
-            }
+            this.#updateCameraDrag();
         }
+        this.#updateCursor();
 
         return false;
     }
@@ -254,6 +241,10 @@ export class PointerSystem extends System {
             released: false,
             pressed: false,
         };
+    }
+
+    requestCursor(id: string, type: CursorType, priority: number = 0): void {
+        this.#cursorRequests.set(id, { type, priority });
     }
 
     #getAllPointerTargets(): C_PointerTarget[] {
@@ -288,6 +279,80 @@ export class PointerSystem extends System {
             }
         } else {
             this.#resetAllPointerTargets();
+        }
+
+        if (this.#pointerState.justMovedOnScreen) {
+            this.#pointerState.justMovedOnScreen = false;
+        }
+    }
+
+    #updateCameraDrag(): void {
+        if (this.#pointerState.scrollDelta !== 0) {
+            this._engine.zoomCamera(
+                this.#pointerState.scrollDelta,
+                this.#pointerState.worldPosition,
+            );
+            this.#pointerState.scrollDelta = 0;
+            this._engine.cameraTarget = null;
+        }
+
+        const buttonStates = this._engine.options.cameraDragButtons.map(
+            (btn) => this.#pointerState[btn],
+        );
+        if (buttonStates.some((state) => state.pressed) && !this.#dragStartMousePosition) {
+            this.#dragStartMousePosition = this._engine.pointerState.position.extract();
+            this.#dragStartCameraPosition = this._engine.camera.position;
+        }
+
+        if (this._engine.pointerState.justMoved) {
+            if (
+                buttonStates.some((state) => state.down) &&
+                this.#dragStartMousePosition &&
+                this.#dragStartCameraPosition
+            ) {
+                const screenDelta = this._engine.pointerState.position.sub(
+                    this.#dragStartMousePosition,
+                );
+                this._engine.setCameraPosition(
+                    new Vector(this.#dragStartCameraPosition).add(screenDelta),
+                );
+                this._engine.cameraTarget = null;
+            }
+        }
+
+        if (buttonStates.some((state) => state.released) && this.#dragStartMousePosition) {
+            this.#dragStartMousePosition = null;
+            this.#dragStartCameraPosition = null;
+        }
+
+        if (this.#dragStartMousePosition) {
+            this._engine.cameraTarget = null;
+            this._engine.requestCursor('camera-drag', 'grabbing', DRAG_CURSOR_PRIORITY);
+        }
+    }
+
+    #updateCursor(): void {
+        let highestPriority = -Infinity;
+        let selectedCursor: CursorType = 'default';
+
+        for (const request of this.#cursorRequests.values()) {
+            if (request.priority > highestPriority) {
+                highestPriority = request.priority;
+                selectedCursor = request.type;
+            }
+        }
+
+        if (this.#currentCursor !== selectedCursor) {
+            this.#currentCursor = selectedCursor;
+            this.#applyCursor();
+        }
+
+        this.#cursorRequests.clear();
+    }
+
+    #applyCursor(): void {
+        if (this.#canvas) {
+            this.#canvas.style.cursor = this.#currentCursor;
         }
     }
 }
