@@ -10,7 +10,7 @@ export function OpenInterfacePanel() {
 
     return (
         <Panel
-            className={clsx('fixed top-4 right-4 z-50 transition-all', {
+            className={clsx('fixed top-4 right-4 transition-all', {
                 'opacity-0 pointer-events-none translate-x-18 -translate-y-18': !interfaceHidden,
             })}
         >

@@ -18,6 +18,8 @@ import type { CameraData } from './engine/types';
 interface AppStore {
     levels: Record<string, Loophole_InternalLevel>;
     levelHashes: Record<string, number>;
+    levelInViewport: boolean;
+    setLevelInViewport: (inViewport: boolean) => void;
     activeLevelID: string;
     addLevel: (level: Loophole_InternalLevel, makeActive?: boolean) => void;
     setActiveLevelID: (levelID: string) => void;
@@ -70,6 +72,8 @@ export const useAppStore = create<AppStore>()(
                 levels: {
                     [defaultLevel.id]: defaultLevel,
                 },
+                levelInViewport: true,
+                setLevelInViewport: (inViewport) => set({ levelInViewport: inViewport }),
                 levelHashes: {
                     [defaultLevel.id]: Math.random(),
                 },

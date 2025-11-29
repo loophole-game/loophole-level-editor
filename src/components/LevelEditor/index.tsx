@@ -12,6 +12,7 @@ import { COLOR_PALETTE_METADATA, Loophole_ColorPalette } from '@/utils/utils';
 import clsx from 'clsx';
 import { OpenInterfacePanel } from '../OpenInterfacePanel';
 import { ScrollArea } from '../ui/scroll-area';
+import { ResetViewportPanel } from './ResetViewportPanel';
 
 export function LevelEditorComponent() {
     const levelEditorRef = useRef<LevelEditor>(null);
@@ -103,6 +104,7 @@ export function LevelEditorComponent() {
                 </div>
             </div>
             <OpenInterfacePanel />
+            <ResetViewportPanel />
         </div>
     );
 }

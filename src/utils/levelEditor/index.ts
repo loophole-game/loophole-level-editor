@@ -18,6 +18,7 @@ import { E_Tile, GridScene } from './scenes/grid';
 import { TestScene } from './scenes/test';
 import { UIScene } from './scenes/ui';
 import {
+    calculateLevelBoundingBox,
     calculateLevelCameraTarget,
     COLOR_PALETTE_METADATA,
     convertLoopholeTypeToExtendedType,
@@ -41,6 +42,8 @@ import {
 import { v4 } from 'uuid';
 import { getAppStore } from '../stores';
 import { Vector, type IVector } from '../engine/math';
+import type { BoundingBox } from '../engine/types';
+import { boundingBoxesIntersect } from '../engine/utils';
 
 const MAX_STASHED_TILES = 10_000;
 
@@ -51,6 +54,7 @@ const SCENES: AvailableScenes = {
 };
 
 export type OnLevelChangedCallback = (level: Loophole_InternalLevel) => void;
+export type OnLevelInViewportChangedCallback = (inViewport: boolean) => void;
 
 type EditAction =
     | {
@@ -82,6 +86,9 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
     #redoStack: EditActionGroup[] = [];
     #colorPaletteChangedListeners: Map<string, (palette: Loophole_ColorPalette) => void> =
         new Map();
+
+    #levelBoundingBox: BoundingBox | null = null;
+    #levelBoundingBoxDirty: boolean = true;
 
     constructor(options: Partial<LevelEditorOptions> = {}) {
         super({
@@ -163,6 +170,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
 
         getAppStore().setSelectedTiles([]);
         this.forceRender();
+        this.#levelBoundingBoxDirty = true;
     }
 
     get tiles(): Readonly<Record<string, E_Tile>> {
@@ -177,6 +185,25 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         return this.#colorPalette;
     }
 
+    get levelBoundingBox(): BoundingBox {
+        if (this.#levelBoundingBox && !this.#levelBoundingBoxDirty) {
+            return this.#levelBoundingBox;
+        }
+
+        if (!this.#level) {
+            return {
+                x1: 0,
+                x2: 0,
+                y1: 0,
+                y2: 0,
+            };
+        }
+
+        this.#levelBoundingBox = calculateLevelBoundingBox(this.#level, true);
+        this.#levelBoundingBoxDirty = false;
+        return this.#levelBoundingBox;
+    }
+
     addColorPaletteChangedListener(id: string, listener: (palette: Loophole_ColorPalette) => void) {
         this.#colorPaletteChangedListeners.set(id, listener);
         if (this.#colorPalette) {
@@ -189,7 +216,14 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
     }
 
     override update(): boolean {
-        const { cameraTarget, setCameraTarget, levels, activeLevelID } = getAppStore();
+        const {
+            cameraTarget,
+            setCameraTarget,
+            levels,
+            activeLevelID,
+            levelInViewport,
+            setLevelInViewport,
+        } = getAppStore();
         if (cameraTarget) {
             this.cameraTarget = cameraTarget;
             setCameraTarget(null);
@@ -208,6 +242,14 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
             this.#colorPaletteChangedListeners.forEach((listener) => listener(colorPalette));
             this.forceRender();
             this.#colorPalette = colorPalette;
+        }
+
+        const currentLevelInViewport = boundingBoxesIntersect(
+            this._cameraSystem.boundingBox,
+            this.levelBoundingBox,
+        );
+        if (currentLevelInViewport !== levelInViewport) {
+            setLevelInViewport(currentLevelInViewport);
         }
 
         return false;

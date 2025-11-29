@@ -25,10 +25,10 @@ import type {
     Loophole_Int,
     Loophole_Level,
 } from './levelEditor/externalLevelSchema';
-import type { CameraData } from './engine/types';
+import type { BoundingBox, CameraData } from './engine/types';
 import { Vector, type IVector } from './engine/math';
 import type { E_Tile } from './levelEditor/scenes/grid';
-import { calculateBoundingBox, scaleToZoom } from './engine/utils';
+import { calculatePositionsBoundingBox, scaleToZoom } from './engine/utils';
 
 export const TILE_CENTER_FRACTION = 1;
 export const TILE_SIZE = 100;
@@ -559,7 +559,7 @@ export const getLoopholeExplosionStartPosition = (
 };
 
 export const calculateSelectionCenter = (tiles: E_Tile[]): Vector => {
-    const box = calculateBoundingBox(
+    const box = calculatePositionsBoundingBox(
         tiles.map((t) =>
             t.entity.entityType === 'EXPLOSION' ? t.highlightEntity.position : t.position,
         ),
@@ -648,7 +648,10 @@ export const DEFAULT_LEVEL_NAME = 'Untitled Level';
 
 const LEVEL_CAMERA_PADDING = 4;
 
-export const calculateLevelCameraTarget = (level: Loophole_InternalLevel): CameraData => {
+export const calculateLevelBoundingBox = (
+    level: Loophole_InternalLevel,
+    worldScale = false,
+): BoundingBox => {
     const entityPositions: IVector<number>[] = [
         ...[...level.entities, ...level.explosions, level.entrance].map((e) =>
             getLoopholeEntityPosition(e),
@@ -656,7 +659,19 @@ export const calculateLevelCameraTarget = (level: Loophole_InternalLevel): Camer
         level.exitPosition,
     ];
 
-    const boundingBox = calculateBoundingBox(entityPositions);
+    const box = calculatePositionsBoundingBox(entityPositions);
+    if (worldScale) {
+        box.x1 *= TILE_SIZE;
+        box.x2 *= TILE_SIZE;
+        box.y1 *= TILE_SIZE;
+        box.y2 *= TILE_SIZE;
+    }
+
+    return box;
+};
+
+export const calculateLevelCameraTarget = (level: Loophole_InternalLevel): CameraData => {
+    const boundingBox = calculateLevelBoundingBox(level);
     boundingBox.x1 -= LEVEL_CAMERA_PADDING;
     boundingBox.x2 += LEVEL_CAMERA_PADDING;
     boundingBox.y1 -= LEVEL_CAMERA_PADDING;

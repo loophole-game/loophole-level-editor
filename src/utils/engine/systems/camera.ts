@@ -2,8 +2,8 @@ import { System } from '.';
 import type { Engine } from '..';
 import type { Entity } from '../entities';
 import type { IVector } from '../math';
-import type { Camera, CameraData } from '../types';
-import { DEFAULT_CAMERA_OPTIONS, lerp, zoomToScale } from '../utils';
+import type { BoundingBox, Camera, CameraData } from '../types';
+import { calculateRectangleBoundingBox, DEFAULT_CAMERA_OPTIONS, lerp, zoomToScale } from '../utils';
 
 export class CameraSystem extends System {
     #camera: Required<Camera>;
@@ -12,6 +12,8 @@ export class CameraSystem extends System {
 
     #worldToScreenMatrix: DOMMatrix | null = null;
     #worldToScreenMatrixDirty: boolean = true;
+    #worldBoundingBox: BoundingBox | null = null;
+    #worldBoundingBoxDirty: boolean = true;
 
     constructor(engine: Engine, rootEntity: Entity, cameraStart: CameraData) {
         super(engine);
@@ -58,11 +60,45 @@ export class CameraSystem extends System {
         this.#worldToScreenMatrixDirty = dirty;
     }
 
+    get boundingBox(): Readonly<BoundingBox> {
+        if (!this.#worldBoundingBox || this.#worldBoundingBoxDirty) {
+            if (!this._engine.canvasSize) {
+                return {
+                    x1: 0,
+                    x2: 0,
+                    y1: 0,
+                    y2: 0,
+                };
+            }
+
+            // Convert screen dimensions to world space by dividing by scale
+            const scale = zoomToScale(this.#camera.zoom);
+            const worldSize = {
+                x: this._engine.canvasSize.x / scale,
+                y: this._engine.canvasSize.y / scale,
+            };
+            // The world center visible is the inverse of camera position, scaled
+            const worldCenter = {
+                x: -this.#camera.position.x / scale,
+                y: -this.#camera.position.y / scale,
+            };
+
+            this.#worldBoundingBox = calculateRectangleBoundingBox(
+                worldCenter,
+                worldSize,
+                -this.#camera.rotation,
+                { x: worldSize.x / 2, y: worldSize.y / 2 },
+            );
+            this.#worldBoundingBoxDirty = false;
+        }
+
+        return this.#worldBoundingBox;
+    }
+
     setCameraPosition(position: IVector<number>): void {
         if (this.#camera.position.x !== position.x || this.#camera.position.y !== position.y) {
             this.#camera.position = { x: position.x, y: position.y };
-            this.#worldToScreenMatrixDirty = true;
-            this.#camera.dirty = true;
+            this.#onCameraChanged();
         }
     }
 
@@ -70,8 +106,7 @@ export class CameraSystem extends System {
         if (this.#camera.zoom !== zoom) {
             this.#camera.zoom = zoom;
             this.clampCameraZoom();
-            this.#worldToScreenMatrixDirty = true;
-            this.#camera.dirty = true;
+            this.#onCameraChanged();
         }
     }
 
@@ -90,15 +125,13 @@ export class CameraSystem extends System {
             };
         }
 
-        this.#worldToScreenMatrixDirty = true;
-        this.#camera.dirty = true;
+        this.#onCameraChanged();
     }
 
     setCameraRotation(rotation: number): void {
         if (this.#camera.rotation !== rotation) {
             this.#camera.rotation = rotation;
-            this.#worldToScreenMatrixDirty = true;
-            this.#camera.dirty = true;
+            this.#onCameraChanged();
         }
     }
 
@@ -167,8 +200,7 @@ export class CameraSystem extends System {
                 this._engine.cameraTarget = null;
             }
 
-            this.#camera.dirty = true;
-            this.#worldToScreenMatrixDirty = true;
+            this.#onCameraChanged();
         }
 
         const scale = zoomToScale(this.#camera.zoom);
@@ -188,5 +220,11 @@ export class CameraSystem extends System {
             this._engine.options.minZoom,
             Math.min(this._engine.options.maxZoom, this.#camera.zoom),
         );
+    }
+
+    #onCameraChanged(): void {
+        this.#camera.dirty = true;
+        this.#worldToScreenMatrixDirty = true;
+        this.#worldBoundingBoxDirty = true;
     }
 }
