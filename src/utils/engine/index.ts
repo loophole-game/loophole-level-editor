@@ -133,9 +133,6 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
     #browserEventHandlers: Partial<Record<BrowserEvent, BrowserEventHandler<BrowserEvent>[]>> = {};
 
     constructor(options: Partial<TOptions> = {}) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        window.engine = this as unknown as any;
-
         this._rootEntity = new Entity({ name: 'root', engine: this });
 
         // Order of system creation is important

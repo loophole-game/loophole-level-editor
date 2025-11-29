@@ -23,6 +23,11 @@ import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
 import type { Loophole_WireSprite } from '@/utils/levelEditor/externalLevelSchema';
 import { Switch } from '../ui/switch';
 import { Label } from '../ui/label';
+import type { LevelEditor } from '@/utils/levelEditor';
+
+interface EditorUI {
+    editorRef: React.RefObject<LevelEditor | null>;
+}
 
 function computeSharedValue<T>(
     tiles: E_Tile[],
@@ -44,18 +49,21 @@ function computeSharedValue<T>(
     return { sharedValue: shared, value };
 }
 
-interface EntityInspectorProps {
+interface EntityInspectorProps extends EditorUI {
     className?: string;
 }
 
-export function EntityInspector({ className }: EntityInspectorProps) {
+export function EntityInspector({ editorRef, className }: EntityInspectorProps) {
     const selectedTiles = useAppStore((state) => state.selectedTiles);
     const numTiles = Object.keys(selectedTiles).length;
 
     return (
         <Panel className={clsx(className, 'flex flex-col gap-4')}>
             {numTiles > 0 ? (
-                <MultiTileContent selectedTiles={Object.values(selectedTiles)} />
+                <MultiTileContent
+                    editorRef={editorRef}
+                    selectedTiles={Object.values(selectedTiles)}
+                />
             ) : (
                 <EmptyContent />
             )}
@@ -63,11 +71,11 @@ export function EntityInspector({ className }: EntityInspectorProps) {
     );
 }
 
-interface MultiTileContentProps {
+interface MultiTileContentProps extends EditorUI {
     selectedTiles: E_Tile[];
 }
 
-function MultiTileContent({ selectedTiles }: MultiTileContentProps) {
+function MultiTileContent({ editorRef, selectedTiles }: MultiTileContentProps) {
     const setSelectedTiles = useAppStore((state) => state.setSelectedTiles);
 
     const tileInfo = useMemo(() => {
@@ -88,7 +96,7 @@ function MultiTileContent({ selectedTiles }: MultiTileContentProps) {
 
     const rotateEntities = (rotation: 90 | -90) => {
         const center = calculateSelectionCenter(selectedTiles);
-        const entities = window.engine?.rotateEntities(
+        const entities = editorRef.current?.rotateEntities(
             selectedTiles.map((t) => t.entity),
             {
                 x: center.x / TILE_SIZE,
@@ -116,7 +124,7 @@ function MultiTileContent({ selectedTiles }: MultiTileContentProps) {
                 {selectedTiles.some((t) => t.variant === 'default') && (
                     <button
                         onClick={() =>
-                            window.engine?.removeEntities(selectedTiles.map((t) => t.entity))
+                            editorRef.current?.removeEntities(selectedTiles.map((t) => t.entity))
                         }
                         className="ml-auto"
                     >
@@ -135,27 +143,27 @@ function MultiTileContent({ selectedTiles }: MultiTileContentProps) {
                     </Button>
                 </div>
                 {tileInfo.every((ti) => ENTITY_METADATA[ti.extendedType].hasChannel) && (
-                    <ChannelInput selectedTiles={selectedTiles} />
+                    <ChannelInput editorRef={editorRef} selectedTiles={selectedTiles} />
                 )}
                 {tileInfo.every((ti) => ENTITY_METADATA[ti.extendedType].hasWireSprite) && (
-                    <WireInput selectedTiles={selectedTiles} />
+                    <WireInput editorRef={editorRef} selectedTiles={selectedTiles} />
                 )}
                 {tileInfo.every((ti) => ENTITY_METADATA[ti.extendedType].hasFlipDirection) && (
-                    <FlipDirectionInput selectedTiles={selectedTiles} />
+                    <FlipDirectionInput editorRef={editorRef} selectedTiles={selectedTiles} />
                 )}
                 {tileInfo.every((ti) => ENTITY_METADATA[ti.extendedType].hasDirection) && (
-                    <ExplosionDirectionInput selectedTiles={selectedTiles} />
+                    <ExplosionDirectionInput editorRef={editorRef} selectedTiles={selectedTiles} />
                 )}
             </div>
         </>
     );
 }
 
-interface ChannelInputProps {
+interface ChannelInputProps extends EditorUI {
     selectedTiles: E_Tile[];
 }
 
-function ChannelInput({ selectedTiles }: ChannelInputProps) {
+function ChannelInput({ editorRef, selectedTiles }: ChannelInputProps) {
     const { sharedValue, value: channel } = useMemo(
         () => computeSharedValue(selectedTiles, (tile) => getLoopholeEntityChannel(tile.entity)),
         [selectedTiles],
@@ -173,7 +181,7 @@ function ChannelInput({ selectedTiles }: ChannelInputProps) {
                 onChange={(e) => {
                     const newChannel = e.target.value === '' ? null : parseInt(e.target.value, 10);
                     if (newChannel !== null && newChannel !== undefined) {
-                        window.engine?.updateEntities(
+                        editorRef.current?.updateEntities(
                             selectedTiles.map((t) => t.entity),
                             { channel: newChannel },
                         );
@@ -185,11 +193,11 @@ function ChannelInput({ selectedTiles }: ChannelInputProps) {
     );
 }
 
-interface WireInputProps {
+interface WireInputProps extends EditorUI {
     selectedTiles: E_Tile[];
 }
 
-function WireInput({ selectedTiles }: WireInputProps) {
+function WireInput({ editorRef, selectedTiles }: WireInputProps) {
     const { sharedValue, value: sprite } = useMemo(
         () => computeSharedValue(selectedTiles, (tile) => getLoopholeWireSprite(tile.entity)),
         [selectedTiles],
@@ -205,7 +213,7 @@ function WireInput({ selectedTiles }: WireInputProps) {
                 value={sharedValue && sprite !== null ? sprite : undefined}
                 onValueChange={(value) => {
                     if (value !== undefined) {
-                        window.engine?.updateEntities(
+                        editorRef.current?.updateEntities(
                             selectedTiles.map((t) => t.entity),
                             { sprite: value as Loophole_WireSprite },
                         );
@@ -219,11 +227,11 @@ function WireInput({ selectedTiles }: WireInputProps) {
     );
 }
 
-interface FlipDirectionInputProps {
+interface FlipDirectionInputProps extends EditorUI {
     selectedTiles: E_Tile[];
 }
 
-function FlipDirectionInput({ selectedTiles }: FlipDirectionInputProps) {
+function FlipDirectionInput({ editorRef, selectedTiles }: FlipDirectionInputProps) {
     const { sharedValue, value: flipDirection } = useMemo(
         () =>
             computeSharedValue(selectedTiles, (tile) =>
@@ -240,7 +248,7 @@ function FlipDirectionInput({ selectedTiles }: FlipDirectionInputProps) {
                 checked={sharedValue && flipDirection !== null ? flipDirection : false}
                 onCheckedChange={(checked) => {
                     if (checked !== undefined) {
-                        window.engine?.updateEntities(
+                        editorRef.current?.updateEntities(
                             selectedTiles.map((t) => t.entity),
                             { flipDirection: checked },
                         );
@@ -251,11 +259,11 @@ function FlipDirectionInput({ selectedTiles }: FlipDirectionInputProps) {
     );
 }
 
-interface ExplosionDirectionInputProps {
+interface ExplosionDirectionInputProps extends EditorUI {
     selectedTiles: E_Tile[];
 }
 
-function ExplosionDirectionInput({ selectedTiles }: ExplosionDirectionInputProps) {
+function ExplosionDirectionInput({ editorRef, selectedTiles }: ExplosionDirectionInputProps) {
     const { value: direction } = useMemo(
         () => computeSharedValue(selectedTiles, (tile) => getLoopholeEntityDirection(tile.entity)),
         [selectedTiles],
@@ -267,7 +275,7 @@ function ExplosionDirectionInput({ selectedTiles }: ExplosionDirectionInputProps
             <Button
                 variant="loophole"
                 onClick={() => {
-                    window.engine?.updateEntities(
+                    editorRef.current?.updateEntities(
                         selectedTiles.map((t) => t.entity),
                         {
                             direction: degreesToLoopholeRotation(

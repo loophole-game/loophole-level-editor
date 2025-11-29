@@ -14,7 +14,7 @@ import { OpenInterfacePanel } from '../OpenInterfacePanel';
 import { ScrollArea } from '../ui/scroll-area';
 
 export function LevelEditorComponent() {
-    const levelEditorRef = useRef<LevelEditor | null>(null);
+    const levelEditorRef = useRef<LevelEditor>(null);
     const levels = useAppStore((state) => state.levels);
     const activeLevelID = useAppStore((state) => state.activeLevelID);
     const updateLevel = useAppStore((state) => state.updateLevel);
@@ -48,11 +48,10 @@ export function LevelEditorComponent() {
                 });
             },
         };
-        if (!window.engine) {
+        if (!levelEditorRef.current) {
             levelEditorRef.current = new LevelEditor(options);
         } else {
             if (prevLevelHash.current !== levelHash) {
-                levelEditorRef.current = window.engine as LevelEditor;
                 levelEditorRef.current.level = level;
                 prevLevelHash.current = levelHash;
             }
@@ -91,13 +90,16 @@ export function LevelEditorComponent() {
                         <LayerButtons groupClassName={panelClassName} />
                     </ScrollArea>
                 </div>
-                <EntityInspector className={clsx('w-fit shrink-0', panelClassName)} />
+                <EntityInspector
+                    editorRef={levelEditorRef}
+                    className={clsx('w-fit shrink-0', panelClassName)}
+                />
                 <div
                     className={clsx('fixed bottom-4 right-4 text-right transition-opacity', {
                         'opacity-0': !showEngineStats,
                     })}
                 >
-                    <FPSCounter />
+                    <FPSCounter editorRef={levelEditorRef} />
                 </div>
             </div>
             <OpenInterfacePanel />

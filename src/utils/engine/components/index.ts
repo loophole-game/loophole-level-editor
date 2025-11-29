@@ -44,7 +44,7 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
         return this._name;
     }
 
-    get engine(): Engine | null {
+    get engine(): Engine {
         return this._engine;
     }
 

@@ -51,7 +51,7 @@ export class E_EntityVisual extends Entity<LevelEditor> {
         this.#mode = options.mode;
         this.#variant = options.variant ?? 'default';
 
-        window.engine?.addColorPaletteChangedListener(
+        this._engine.addColorPaletteChangedListener(
             this.id.toString(),
             (palette: Loophole_ColorPalette) => {
                 this.onColorPaletteChanged.bind(this)(palette, this.#variant);
@@ -102,7 +102,7 @@ export class E_EntityVisual extends Entity<LevelEditor> {
     }
 
     override destroy(): void {
-        window.engine?.removeColorPaletteChangedListener(this.id.toString());
+        this._engine.removeColorPaletteChangedListener(this.id.toString());
         this.#clearTimeMachineDecals();
         super.destroy();
     }
@@ -132,11 +132,8 @@ export class E_EntityVisual extends Entity<LevelEditor> {
                     break;
                 }
                 case 'WALL': {
-                    if (
-                        window.engine?.colorPalette !== null &&
-                        window.engine?.colorPalette !== undefined
-                    ) {
-                        this.onColorPaletteChanged(window.engine.colorPalette, this.#variant);
+                    if (typeof this._engine.colorPalette === 'number') {
+                        this.onColorPaletteChanged(this._engine.colorPalette, this.#variant);
                     }
                     break;
                 }

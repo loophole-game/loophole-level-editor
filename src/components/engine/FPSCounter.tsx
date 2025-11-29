@@ -1,23 +1,25 @@
 import { cn } from '@/lib/utils';
 import type { Stats, TraceFrame } from '@/utils/engine/systems/stats';
+import type { LevelEditor } from '@/utils/levelEditor';
 import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 
 interface FPSCounterProps {
+    editorRef: React.RefObject<LevelEditor | null>;
     className?: string;
 }
 
-export function FPSCounter({ className }: FPSCounterProps) {
+export function FPSCounter({ editorRef, className }: FPSCounterProps) {
     const [stats, setStats] = useState<Stats | null>(null);
     useEffect(() => {
         const interval = setInterval(() => {
-            if (window.engine) {
-                setStats(window.engine.stats);
+            if (editorRef.current) {
+                setStats(editorRef.current.stats);
             }
         }, 100);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [editorRef]);
 
     if (!stats) return null;
 

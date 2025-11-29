@@ -55,9 +55,9 @@ export class C_PointerTarget<TEngine extends Engine = Engine> extends Component<
         this.#isPointerHovered = false;
 
         const transform = this.entity?.transform;
-        if (transform && window.engine) {
+        if (transform) {
             // Compute scene-space matrix by removing camera transform from the entity's world matrix
-            const camera = window.engine.camera;
+            const camera = this._engine.camera;
             const scale = zoomToScale(camera.zoom);
             const cameraMatrix = new DOMMatrix()
                 .translate(camera.position.x, camera.position.y)
@@ -97,13 +97,9 @@ export class C_PointerTarget<TEngine extends Engine = Engine> extends Component<
         if (prevIsPointerHovered !== this.#isPointerHovered) {
             if (this.#isPointerHovered) {
                 this.#onPointerEnter?.();
-                if (this.#cursorOnHover && window.engine) {
+                if (this.#cursorOnHover) {
                     const cursorId = `pointer-target-${this.entity?.id}`;
-                    window.engine.requestCursor(
-                        cursorId,
-                        this.#cursorOnHover,
-                        this.#cursorPriority,
-                    );
+                    this._engine.requestCursor(cursorId, this.#cursorOnHover, this.#cursorPriority);
                 }
             } else {
                 this.#onPointerLeave?.();
@@ -119,7 +115,7 @@ export class C_PointerTarget<TEngine extends Engine = Engine> extends Component<
         }
 
         const transform = this.entity?.transform;
-        if (!transform || !window.engine) {
+        if (!transform) {
             return false;
         }
 
@@ -130,7 +126,7 @@ export class C_PointerTarget<TEngine extends Engine = Engine> extends Component<
         const boxBottom = Math.max(topLeft.y, bottomRight.y);
 
         // Compute scene-space matrix by removing camera transform from the entity's world matrix
-        const camera = window.engine.camera;
+        const camera = this._engine.camera;
         const cameraScale = zoomToScale(camera.zoom);
         const cameraMatrix = new DOMMatrix()
             .translate(camera.position.x, camera.position.y)

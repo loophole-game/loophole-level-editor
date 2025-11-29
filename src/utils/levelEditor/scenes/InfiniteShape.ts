@@ -31,11 +31,11 @@ export class E_InfiniteShape<TEngine extends Engine = Engine> extends Entity<TEn
     override update(deltaTime: number) {
         const updated = super.update(deltaTime);
 
-        if (window.engine?.canvasSize) {
-            const scale = zoomToScale(window.engine.camera.zoom);
+        if (this._engine.canvasSize) {
+            const scale = zoomToScale(this._engine.camera.zoom);
             if (this.#zoomCullThresh === null || scale >= this.#zoomCullThresh) {
-                const topLeft = window.engine.screenToWorld({ x: 0, y: 0 }),
-                    bottomRight = window.engine.screenToWorld(window.engine.canvasSize);
+                const topLeft = this._engine.screenToWorld({ x: 0, y: 0 }),
+                    bottomRight = this._engine.screenToWorld(this._engine.canvasSize);
                 const gridTopLeft = {
                         x: Math.floor((topLeft.x - this.#tileSize.x / 2) / this.#tileSize.x),
                         y: Math.floor((topLeft.y - this.#tileSize.y / 2) / this.#tileSize.y),

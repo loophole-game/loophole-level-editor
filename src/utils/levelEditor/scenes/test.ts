@@ -151,8 +151,8 @@ export class TestScene extends Scene {
     override update(deltaTime: number): boolean {
         this.#rotatingBox?.rotate(90 * deltaTime);
 
-        if (window.engine?.pointerState[PointerButton.LEFT].pressed) {
-            window.engine.destroyScene(this._id);
+        if (this._engine?.pointerState[PointerButton.LEFT].pressed) {
+            this._engine.destroyScene(this._id);
         }
 
         return true;

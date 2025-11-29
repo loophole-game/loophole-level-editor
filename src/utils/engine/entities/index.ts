@@ -86,7 +86,7 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         return this._name;
     }
 
-    get engine(): Engine | null {
+    get engine(): Engine {
         return this._engine;
     }
 
