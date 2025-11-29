@@ -9,9 +9,10 @@ export abstract class System<TEngine extends Engine = Engine> {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    update(_deltaTime: number): boolean {
-        return false;
-    }
+    earlyUpdate(_deltaTime: number): boolean | void {}
 
-    abstract destroy(): void;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    lateUpdate(_deltaTime: number): boolean | void {}
+
+    destroy(): void {}
 }

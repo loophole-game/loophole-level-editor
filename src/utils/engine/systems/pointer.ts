@@ -170,7 +170,7 @@ export class PointerSystem extends System {
         }
     }
 
-    update(deltaTime: number): boolean {
+    override earlyUpdate(deltaTime: number) {
         this.#pointerState.justMoved =
             this.#pointerState.position.x !== this.#lastPointerState.position.x ||
             this.#pointerState.position.y !== this.#lastPointerState.position.y;
@@ -216,8 +216,6 @@ export class PointerSystem extends System {
             this.#updateCameraDrag();
         }
         this.#updateCursor();
-
-        return false;
     }
 
     destroy(): void {

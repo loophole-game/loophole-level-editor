@@ -102,7 +102,7 @@ export class CameraSystem extends System {
         }
     }
 
-    update(): boolean {
+    override lateUpdate(): boolean {
         const MIN_POS_DELTA = 0.01;
         const MIN_ROT_DELTA = 0.001;
         const MIN_ZOOM_DELTA = 0.001;
@@ -182,8 +182,6 @@ export class CameraSystem extends System {
     postRender(): void {
         this.#camera.dirty = false;
     }
-
-    destroy(): void {}
 
     clampCameraZoom(): void {
         this.#camera.zoom = Math.max(

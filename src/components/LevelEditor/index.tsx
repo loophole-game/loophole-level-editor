@@ -1,4 +1,4 @@
-import { LevelEditor } from '@/utils/levelEditor';
+import { LevelEditor, type LevelEditorOptions } from '@/utils/levelEditor';
 import { useAppStore, useSettingsStore, useCurrentLevel } from '@/utils/stores';
 import { useEffect, useRef } from 'react';
 import { EngineCanvas } from '../engine/EngineCanvas';
@@ -37,16 +37,19 @@ export function LevelEditorComponent() {
         ]?.class;
 
     useEffect(() => {
-        const onLevelChanged = (updatedLevel: Loophole_InternalLevel) => {
-            updateLevel(level.id, {
-                entities: updatedLevel.entities,
-                entrance: updatedLevel.entrance,
-                exitPosition: updatedLevel.exitPosition,
-                explosions: updatedLevel.explosions,
-            });
+        const options: Partial<LevelEditorOptions> = {
+            engineTracesEnabled: showEngineStats,
+            onLevelChanged: (updatedLevel: Loophole_InternalLevel) => {
+                updateLevel(level.id, {
+                    entities: updatedLevel.entities,
+                    entrance: updatedLevel.entrance,
+                    exitPosition: updatedLevel.exitPosition,
+                    explosions: updatedLevel.explosions,
+                });
+            },
         };
         if (!window.engine) {
-            levelEditorRef.current = new LevelEditor(onLevelChanged);
+            levelEditorRef.current = new LevelEditor(options);
         } else {
             if (prevLevelHash.current !== levelHash) {
                 levelEditorRef.current = window.engine as LevelEditor;
@@ -55,10 +58,10 @@ export function LevelEditorComponent() {
             }
 
             if (levelEditorRef.current) {
-                levelEditorRef.current.onLevelChanged = onLevelChanged;
+                levelEditorRef.current.options = options;
             }
         }
-    }, [activeLevelID, levelHash, level, updateLevel]);
+    }, [activeLevelID, levelHash, level, updateLevel, showEngineStats]);
 
     const panelClassName = clsx({
         'pointer-events-auto': !interfaceHidden,

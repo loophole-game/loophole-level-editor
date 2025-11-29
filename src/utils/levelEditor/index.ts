@@ -66,8 +66,11 @@ type EditActionGroup = {
     hash: string;
 };
 
-export class LevelEditor extends Engine {
-    #onLevelChanged: OnLevelChangedCallback | null = null;
+export interface LevelEditorOptions extends EngineOptions {
+    onLevelChanged?: OnLevelChangedCallback;
+}
+
+export class LevelEditor extends Engine<LevelEditorOptions> {
     #level: Loophole_InternalLevel | null = null;
     #exitEntity: (Loophole_Exit & WithID) | null = null;
     #tiles: Record<string, E_Tile> = {};
@@ -80,7 +83,7 @@ export class LevelEditor extends Engine {
     #colorPaletteChangedListeners: Map<string, (palette: Loophole_ColorPalette) => void> =
         new Map();
 
-    constructor(onLevelChanged?: OnLevelChangedCallback, options: Partial<EngineOptions> = {}) {
+    constructor(options: Partial<LevelEditorOptions> = {}) {
         super({
             scenes: SCENES,
             startScenes: [GridScene.name, UIScene.name],
@@ -115,8 +118,6 @@ export class LevelEditor extends Engine {
                 ...options.images,
             },
         });
-
-        this.#onLevelChanged = onLevelChanged ?? null;
     }
 
     get level(): Readonly<Loophole_InternalLevel | null> {
@@ -162,10 +163,6 @@ export class LevelEditor extends Engine {
 
         getAppStore().setSelectedTiles([]);
         this.forceRender();
-    }
-
-    set onLevelChanged(onLevelChanged: OnLevelChangedCallback) {
-        this.#onLevelChanged = onLevelChanged;
     }
 
     get tiles(): Readonly<Record<string, E_Tile>> {
@@ -612,68 +609,70 @@ export class LevelEditor extends Engine {
     }
 
     #performEditActions(actions: EditActionGroup, updateStacks: boolean = true): E_Tile[] {
-        if (actions.actions.length === 0) {
-            return [];
-        }
+        return this.trace('performEditActions', () => {
+            if (actions.actions.length === 0) {
+                return [];
+            }
 
-        const affectedTiles: E_Tile[] = [];
-        const removedIDs = new Set<string>();
-        const placedEntities = new Map<string, Loophole_EntityWithID>();
-        for (const action of actions.actions) {
-            switch (action.type) {
-                case 'place': {
-                    const tile = this.#placeEntity(action.entity);
-                    affectedTiles.push(tile);
-                    placedEntities.set(action.entity.tID, action.entity);
-                    if (removedIDs.has(action.entity.tID)) {
-                        delete this.#stashedTiles[action.entity.tID];
-                        removedIDs.delete(action.entity.tID);
+            const affectedTiles: E_Tile[] = [];
+            const removedIDs = new Set<string>();
+            const placedEntities = new Map<string, Loophole_EntityWithID>();
+            for (const action of actions.actions) {
+                switch (action.type) {
+                    case 'place': {
+                        const tile = this.#placeEntity(action.entity);
+                        affectedTiles.push(tile);
+                        placedEntities.set(action.entity.tID, action.entity);
+                        if (removedIDs.has(action.entity.tID)) {
+                            delete this.#stashedTiles[action.entity.tID];
+                            removedIDs.delete(action.entity.tID);
+                        }
+
+                        break;
                     }
+                    case 'remove': {
+                        this.#removeEntity(action.entity);
+                        removedIDs.add(action.entity.tID);
+                        placedEntities.delete(action.entity.tID);
 
-                    break;
-                }
-                case 'remove': {
-                    this.#removeEntity(action.entity);
-                    removedIDs.add(action.entity.tID);
-                    placedEntities.delete(action.entity.tID);
-
-                    break;
+                        break;
+                    }
                 }
             }
-        }
 
-        for (const entity of placedEntities.values()) {
-            const overlappingEntities = this.#getOverlappingEntities(
-                getLoopholeEntityPosition(entity),
-                getLoopholeEntityPositionType(entity),
-                entity.entityType,
-                getLoopholeEntityEdgeAlignment(entity) || 'RIGHT',
-            );
+            for (const entity of placedEntities.values()) {
+                const overlappingEntities = this.#getOverlappingEntities(
+                    getLoopholeEntityPosition(entity),
+                    getLoopholeEntityPositionType(entity),
+                    entity.entityType,
+                    getLoopholeEntityEdgeAlignment(entity) || 'RIGHT',
+                );
 
-            for (const overlappingEntity of overlappingEntities) {
-                if (overlappingEntity.tID !== entity.tID) {
-                    actions.actions.push({ type: 'remove', entity: overlappingEntity });
-                    this.#removeEntity(overlappingEntity);
-                    removedIDs.add(overlappingEntity.tID);
+                for (const overlappingEntity of overlappingEntities) {
+                    if (overlappingEntity.tID !== entity.tID) {
+                        actions.actions.push({ type: 'remove', entity: overlappingEntity });
+                        this.#removeEntity(overlappingEntity);
+                        removedIDs.add(overlappingEntity.tID);
+                    }
                 }
             }
-        }
 
-        getAppStore().deselectEntities(Array.from(removedIDs));
+            getAppStore().deselectEntities(Array.from(removedIDs));
 
-        if (updateStacks) {
-            this.#undoStack.push(actions);
-            this.#redoStack = [];
-        }
+            if (updateStacks) {
+                this.#undoStack.push(actions);
+                this.#redoStack = [];
+            }
 
-        const level = this.level;
-        if (level) {
-            this.#onLevelChanged?.(level);
-        }
+            const level = this.level;
+            if (level) {
+                this.options.onLevelChanged?.(level);
+            }
 
-        this.forceRender();
+            this.forceRender();
 
-        return affectedTiles;
+            return affectedTiles;
+        });
     }
 
     #reverseActions(actions: EditAction[]): EditAction[] {

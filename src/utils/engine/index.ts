@@ -17,6 +17,7 @@ import type { System } from './systems';
 import { DEFAULT_CAMERA_OPTIONS } from './utils';
 import { CameraSystem } from './systems/camera';
 import { Vector, type IVector } from './math';
+import { StatsSystem, type Stats } from './systems/stats';
 
 type BrowserEvent =
     | 'mousemove'
@@ -76,6 +77,8 @@ export interface EngineOptions {
     keysToCapture: KeyCapture[];
 
     asyncImageLoading: boolean;
+
+    engineTracesEnabled: boolean;
 }
 
 const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
@@ -101,14 +104,16 @@ const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
     keysToCapture: [],
 
     asyncImageLoading: true,
+
+    engineTracesEnabled: false,
 };
 
-export class Engine {
+export class Engine<TOptions extends EngineOptions = EngineOptions> {
     protected static _nextId: number = 1;
     protected readonly _id: string = (Engine._nextId++).toString();
 
     protected _canvas: HTMLCanvasElement | null = null;
-    protected _options: EngineOptions = { ...DEFAULT_ENGINE_OPTIONS };
+    protected _options: TOptions = { ...DEFAULT_ENGINE_OPTIONS } as TOptions;
 
     protected _rootEntity: Entity<this>;
 
@@ -118,32 +123,31 @@ export class Engine {
     protected _pointerSystem: PointerSystem;
     protected _imageSystem: ImageSystem;
     protected _cameraSystem: CameraSystem;
+    protected _statsSystem: StatsSystem;
 
     protected _systems: System[] = [];
 
+    protected _lastTime: number = performance.now();
+
     #forceRender: boolean = true;
-    #lastTime: number = performance.now();
-
-    #fps: number = 0;
-    #frameCount: number = 0;
-    #fpsTimeAccumulator: number = 0;
-
-    #updateTime: number = 0;
-    #renderTime: number = 0;
-
     #browserEventHandlers: Partial<Record<BrowserEvent, BrowserEventHandler<BrowserEvent>[]>> = {};
 
-    constructor(options: Partial<EngineOptions> = {}) {
+    constructor(options: Partial<TOptions> = {}) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         window.engine = this as unknown as any;
 
         this._rootEntity = new Entity({ name: 'root', engine: this });
-        this._renderSystem = new RenderSystem(this);
-        this._sceneSystem = new SceneSystem(this, this._rootEntity);
+
+        // Order of system creation is important
         this._keyboardSystem = new KeyboardSystem(this);
         this._pointerSystem = new PointerSystem(this);
+        this._sceneSystem = new SceneSystem(this, this._rootEntity);
         this._imageSystem = new ImageSystem(this);
         this._cameraSystem = new CameraSystem(this, this._rootEntity, this._options.cameraStart);
+
+        // Order isn't important since systems are manually updated
+        this._statsSystem = new StatsSystem(this);
+        this._renderSystem = new RenderSystem(this);
 
         this.addBrowserEventHandler('mousedown', (_, data) =>
             this.#setPointerButtonDown(data.button, true),
@@ -170,7 +174,7 @@ export class Engine {
             this.#setKeyDown(data.key, false, data.ctrl, data.meta, data.shift, data.alt),
         );
 
-        this._options = { ...DEFAULT_ENGINE_OPTIONS, ...options };
+        this._options = { ...DEFAULT_ENGINE_OPTIONS, ...options } as TOptions;
 
         this.#applyOptions(this._options);
         this._options.startScenes.forEach((scene) => {
@@ -203,11 +207,11 @@ export class Engine {
         return new Vector(this._canvas.width, this._canvas.height);
     }
 
-    get options(): Readonly<EngineOptions> {
+    get options(): Readonly<TOptions> {
         return this._options;
     }
 
-    set options(newOptions: Partial<EngineOptions>) {
+    set options(newOptions: Partial<TOptions>) {
         this.#applyOptions(newOptions);
     }
 
@@ -235,16 +239,8 @@ export class Engine {
         return this._pointerSystem.pointerState;
     }
 
-    get fps(): number {
-        return this.#fps;
-    }
-
-    get updateTime(): number {
-        return this.#updateTime;
-    }
-
-    get renderTime(): number {
-        return this.#renderTime;
+    get stats(): Readonly<Stats> | null {
+        return this._statsSystem.stats;
     }
 
     get pointerSystem(): PointerSystem {
@@ -432,19 +428,22 @@ export class Engine {
         this._systems = [];
     }
 
+    trace<T>(name: string, callback: () => T): T {
+        if (!this._options.engineTracesEnabled) {
+            return callback();
+        }
+
+        return this._statsSystem.trace(name, callback);
+    }
+
     #engineUpdate(deltaTime: number): boolean {
         if (!this._rootEntity.enabled) {
-            this.#updateTime = 0;
             return false;
         }
 
-        const startTime = performance.now();
         let updated = this.update(deltaTime);
         updated = this._rootEntity.engineUpdate(deltaTime) || updated;
-
         this._rootEntity.engineLateUpdate(deltaTime, this);
-
-        this.#updateTime = performance.now() - startTime;
 
         return updated;
     }
@@ -455,17 +454,13 @@ export class Engine {
     }
 
     #render() {
-        const startTime = performance.now();
-
         if (!this._canvas || !this.canvasSize) {
-            this.#renderTime = performance.now() - startTime;
             return;
         }
 
         const ctx = this._canvas.getContext('2d');
         if (!ctx) {
             console.error('Failed to get canvas context');
-            this.#renderTime = performance.now() - startTime;
             return;
         }
 
@@ -481,44 +476,45 @@ export class Engine {
 
         this._renderSystem.render(ctx, this._rootEntity, this._cameraSystem.camera);
         this._cameraSystem.postRender();
-
-        this.#renderTime = performance.now() - startTime;
     }
 
     #engineLoop() {
         const currentTime = performance.now();
-        const deltaTime = (currentTime - this.#lastTime) * 0.001;
-        this.#lastTime = currentTime;
+        const deltaTime = (currentTime - this._lastTime) * 0.001;
+        this._lastTime = currentTime;
+        this._statsSystem.update(deltaTime);
 
-        this.#frameCount++;
-        this.#fpsTimeAccumulator += deltaTime;
-        if (this.#fpsTimeAccumulator >= 1.0) {
-            this.#fps = Math.round(this.#frameCount / this.#fpsTimeAccumulator);
-            this.#frameCount = 0;
-            this.#fpsTimeAccumulator = 0;
-        }
+        this.trace('Update', () => {
+            for (const system of this._systems) {
+                const updated = system.earlyUpdate(deltaTime);
+                if (updated === true) {
+                    this.#forceRender = true;
+                }
+            }
 
-        this._keyboardSystem.update(deltaTime);
-        this._pointerSystem.update(deltaTime);
-        const sceneUpdated = this._sceneSystem.update(deltaTime);
-        const imagesUpdated = this._imageSystem.update();
-        const engineUpdated = this.#engineUpdate(deltaTime);
-        const cameraUpdated = this._cameraSystem.update();
+            const engineUpdated = this.#engineUpdate(deltaTime);
+            if (engineUpdated) {
+                this.#forceRender = true;
+            }
 
-        const loadingImages = this._imageSystem.getLoadingImages();
-        if (
-            (this.#forceRender ||
-                sceneUpdated ||
-                engineUpdated ||
-                imagesUpdated ||
-                cameraUpdated) &&
-            (this.options.asyncImageLoading || loadingImages.length === 0)
-        ) {
-            this.#render();
-            this.#forceRender = false;
-        } else {
-            this.#renderTime = -1;
-        }
+            for (const system of this._systems) {
+                const updated = system.lateUpdate(deltaTime);
+                if (updated === true) {
+                    this.#forceRender = true;
+                }
+            }
+
+            const loadingImages = this._imageSystem.getLoadingImages();
+            this.#forceRender =
+                this.#forceRender && (this.options.asyncImageLoading || loadingImages.length === 0);
+        });
+
+        this.trace('Render', () => {
+            if (this.#forceRender) {
+                this.#render();
+                this.#forceRender = false;
+            }
+        });
 
         window.requestAnimationFrame(this.#engineLoop.bind(this));
     }
@@ -563,7 +559,7 @@ export class Engine {
         this._pointerSystem.pointerButtonStateChange(button, down);
     }
 
-    #applyOptions(newOptions: Partial<EngineOptions>): void {
+    #applyOptions(newOptions: Partial<TOptions>): void {
         this._options = { ...this._options, ...newOptions };
 
         this._cameraSystem.clampCameraZoom();

@@ -299,6 +299,7 @@ export class GridScene extends Scene {
                     tileSize: TILE_SIZE,
                     zoomCullThresh: 0.2,
                     scale: DOT_SIZE,
+                    zIndex: -10,
                 },
                 {
                     name: 'border',
@@ -318,6 +319,7 @@ export class GridScene extends Scene {
                         y: SCREEN_BORDER_SIZE.y / 2,
                     },
                     scale: SCREEN_BORDER_SIZE,
+                    zIndex: -10,
                 },
             ),
         );

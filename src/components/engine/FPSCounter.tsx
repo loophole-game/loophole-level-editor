@@ -1,4 +1,6 @@
 import { cn } from '@/lib/utils';
+import type { Stats, TraceFrame } from '@/utils/engine/systems/stats';
+import clsx from 'clsx';
 import { useEffect, useState } from 'react';
 
 interface FPSCounterProps {
@@ -6,32 +8,64 @@ interface FPSCounterProps {
 }
 
 export function FPSCounter({ className }: FPSCounterProps) {
-    const [stats, setStats] = useState<{ fps: number; updateTime: number; renderTime: number }>({
-        fps: 0,
-        updateTime: 0,
-        renderTime: 0,
-    });
+    const [stats, setStats] = useState<Stats | null>(null);
     useEffect(() => {
         const interval = setInterval(() => {
             if (window.engine) {
-                setStats({
-                    fps: window.engine.fps,
-                    updateTime: window.engine.updateTime,
-                    renderTime: window.engine.renderTime,
-                });
+                setStats(window.engine.stats);
             }
-        }, 200);
+        }, 100);
 
         return () => clearInterval(interval);
     }, []);
 
+    if (!stats) return null;
+
     return (
-        <p className={cn('text-white', className)}>
+        <p className={cn('text-white font-mono', className)}>
             FPS: {stats.fps}
             <br />
-            Update: {stats.updateTime.toFixed(1)}ms
-            <br />
-            Render: {stats.renderTime >= 0 ? `${stats.renderTime.toFixed(1)}ms` : 'N/A'}
+            <TraceFrameList traces={stats.traces} />
         </p>
     );
+}
+
+interface TraceFrameListProps {
+    traces: TraceFrame[];
+    depth?: number;
+    parentName?: string;
+}
+
+export function TraceFrameList({ traces, depth = 0, parentName }: TraceFrameListProps) {
+    return traces.map((trace) => {
+        const name = parentName ? `${parentName} > ${trace.name}` : trace.name;
+        const { subFrames, time, numCalls = 1 } = trace;
+
+        return (
+            <span
+                key={trace.name}
+                className={clsx('text-base', {
+                    'px-4': depth > 0,
+                    'text-sm': depth === 1,
+                    'text-xs': depth >= 2,
+                })}
+            >
+                {name}
+                {numCalls > 1 && ` (${numCalls})`}: {time.toFixed(1)}ms
+                {subFrames.length > 0 && (
+                    <>
+                        <br />
+                        <span>
+                            <TraceFrameList
+                                traces={subFrames}
+                                parentName={name}
+                                depth={depth + 1}
+                            />
+                        </span>
+                    </>
+                )}
+                <br />
+            </span>
+        );
+    });
 }

@@ -19,7 +19,7 @@ interface KeyState {
 export class KeyboardSystem extends System {
     #keyStates: Record<string, KeyState> = {};
 
-    update(deltaTime: number): boolean {
+    override earlyUpdate(deltaTime: number) {
         for (const key in this.#keyStates) {
             const keyState = this.#keyStates[key];
             keyState.currState.pressed = !keyState.prevState.down && keyState.currState.down;
@@ -37,8 +37,6 @@ export class KeyboardSystem extends System {
 
             keyState.prevState = { ...keyState.currState };
         }
-
-        return false;
     }
 
     destroy(): void {

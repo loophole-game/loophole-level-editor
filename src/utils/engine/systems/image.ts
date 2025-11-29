@@ -14,7 +14,7 @@ export class ImageSystem extends System {
     #requestedImages: Set<string> = new Set();
     #requestedImageJustLoaded: boolean = false;
 
-    update(): boolean {
+    override lateUpdate(): boolean {
         if (this.#requestedImageJustLoaded) {
             this.#requestedImageJustLoaded = false;
             return true;
@@ -53,6 +53,10 @@ export class ImageSystem extends System {
                 this.#loadingImages.delete(name);
                 if (this.#requestedImages.has(name)) {
                     this.#requestedImages.delete(name);
+                    this.#requestedImageJustLoaded = true;
+                }
+                if (this.#requestedImages.has(src)) {
+                    this.#requestedImages.delete(src);
                     this.#requestedImageJustLoaded = true;
                 }
             };

@@ -102,7 +102,7 @@ export class SceneSystem<TEngine extends Engine = Engine> extends System<TEngine
         return this.#queuedNewScenes.length > 0 || this.#queuedDestroyedScenes.length > 0;
     }
 
-    update(deltaTime: number): boolean {
+    override earlyUpdate(deltaTime: number): boolean {
         let updated = this.#performQueuedUpdate();
 
         this.#activeScenesByID.forEach((scene) => {
