@@ -289,19 +289,6 @@ export class GridScene extends Scene {
             ...engine.add(
                 E_InfiniteShape<LevelEditor>,
                 {
-                    name: 'grid',
-                    shapeOptions: {
-                        name: 'dots',
-                        shape: 'ELLIPSE',
-                        style: { fillStyle: '#BBBBBB', globalAlpha: 0.5 },
-                        gap: DOT_GAP,
-                    },
-                    tileSize: TILE_SIZE,
-                    zoomCullThresh: 0.2,
-                    scale: DOT_SIZE,
-                    zIndex: -10,
-                },
-                {
                     name: 'border',
                     shapeOptions: {
                         name: 'border',
@@ -309,7 +296,7 @@ export class GridScene extends Scene {
                         style: {
                             fillStyle: '',
                             strokeStyle: '#BBBBBB',
-                            lineWidth: 4,
+                            lineWidth: 2,
                             globalAlpha: 0.5,
                         },
                     },
@@ -320,6 +307,23 @@ export class GridScene extends Scene {
                     },
                     scale: SCREEN_BORDER_SIZE,
                     zIndex: -10,
+                },
+                {
+                    name: 'grid',
+                    shapeOptions: {
+                        name: 'dots',
+                        shape: 'ELLIPSE',
+                        style: { fillStyle: '#BBBBBB', globalAlpha: 0.5 },
+                        gap: DOT_GAP,
+                    },
+                    tileSize: TILE_SIZE,
+                    zoomCullThresh: 0.2,
+                    offset: {
+                        x: DOT_SIZE / 2,
+                        y: DOT_SIZE / 2,
+                    },
+                    scale: DOT_SIZE,
+                    zIndex: -9,
                 },
             ),
         );

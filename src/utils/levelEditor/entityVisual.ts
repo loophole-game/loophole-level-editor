@@ -108,7 +108,7 @@ export class E_EntityVisual extends Entity<LevelEditor> {
     }
 
     onEntityChanged(type: Loophole_ExtendedEntityType, entity?: Loophole_EntityWithID) {
-        if (this.#type === type) {
+        if (this.#type === type && type !== 'WIRE') {
             return;
         }
 
