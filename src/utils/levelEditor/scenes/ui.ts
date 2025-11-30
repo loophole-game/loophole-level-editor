@@ -158,18 +158,18 @@ class E_TileCursor extends Entity<LevelEditor> {
             if (this.#dragPositionType === 'CELL' || !this.#dragStartTilePosition)
                 this.#targetPosition = {
                     x: cursorPosition.x * TILE_SIZE,
-                    y: cursorPosition.y * TILE_SIZE,
+                    y: -cursorPosition.y * TILE_SIZE,
                 };
             else
                 this.#targetPosition =
                     this.#dragEdgeAlignment === 'TOP'
                         ? {
                               x: tilePosition.x * TILE_SIZE,
-                              y: (this.#dragStartTilePosition.y + 0.5) * TILE_SIZE,
+                              y: -(this.#dragStartTilePosition.y + 0.5) * TILE_SIZE,
                           }
                         : {
                               x: (this.#dragStartTilePosition.x + 0.5) * TILE_SIZE,
-                              y: tilePosition.y * TILE_SIZE,
+                              y: -tilePosition.y * TILE_SIZE,
                           };
 
             let _brushEntityRotation = brushEntityRotation;

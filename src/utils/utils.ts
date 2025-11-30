@@ -116,7 +116,7 @@ export const loopholePositionToEnginePosition = (
 ): Vector => {
     return new Vector(
         position.x + (edgeAlignment === 'RIGHT' ? 0.5 : 0),
-        position.y + (edgeAlignment === 'TOP' ? 0.5 : 0),
+        -(position.y + (edgeAlignment === 'TOP' ? 0.5 : 0)),
     );
 };
 
@@ -654,7 +654,7 @@ export const calculateLevelBoundingBox = (
 ): BoundingBox => {
     const entityPositions: IVector<number>[] = [
         ...[...level.entities, ...level.explosions, level.entrance].map((e) =>
-            getLoopholeEntityPosition(e),
+            loopholePositionToEnginePosition(getLoopholeEntityPosition(e)),
         ),
         level.exitPosition,
     ];
