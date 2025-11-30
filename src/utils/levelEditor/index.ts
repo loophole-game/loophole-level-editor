@@ -64,6 +64,11 @@ type EditAction =
     | {
           type: 'remove';
           entity: Loophole_EntityWithID;
+      }
+    | {
+          type: 'update';
+          oldEntity: Loophole_EntityWithID;
+          newEntity: Loophole_EntityWithID;
       };
 type EditActionGroup = {
     actions: EditAction[];
@@ -451,70 +456,9 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         }
     }
 
-    moveEntities(
+    applyEntityTransformation(
         entities: Loophole_EntityWithID[],
-        offset: IVector<number>,
-        hash?: string | null,
-    ): E_Tile[] {
-        const group: EditActionGroup = {
-            actions: [],
-            hash: hash || v4(),
-        };
-
-        for (const entity of entities) {
-            group.actions.push({ type: 'remove', entity });
-
-            const position = getLoopholeEntityPosition(entity);
-            const positionType = getLoopholeEntityPositionType(entity);
-            const edgeAlignment = getLoopholeEntityEdgeAlignment(entity);
-            const isCritical = this.#overlapsCriticalTile(
-                entity.entityType,
-                position,
-                positionType,
-                edgeAlignment,
-            );
-
-            const newEntity = { ...entity };
-            let newPosition: Loophole_Int2;
-            if ('edgePosition' in newEntity) {
-                newPosition = {
-                    x: position.x + offset.x,
-                    y: position.y + offset.y,
-                };
-                newEntity.edgePosition = {
-                    ...newEntity.edgePosition,
-                    cell: newPosition,
-                };
-            } else if ('position' in newEntity) {
-                newPosition = {
-                    x: position.x + offset.x,
-                    y: position.y + offset.y,
-                };
-                newEntity.position = newPosition;
-            } else {
-                newPosition = getLoopholeExplosionPosition(newEntity, offset);
-                newEntity.startPosition = getLoopholeExplosionStartPosition(newEntity, newPosition);
-            }
-
-            if (
-                isCritical ||
-                !this.#overlapsCriticalTile(
-                    entity.entityType,
-                    newPosition,
-                    getLoopholeEntityPositionType(newEntity),
-                    edgeAlignment,
-                )
-            ) {
-                group.actions.push({ type: 'place', entity: newEntity });
-            }
-        }
-
-        return this.#performEditActions(group);
-    }
-
-    updateEntities(
-        entities: Loophole_EntityWithID[],
-        updatedProperties: Partial<Loophole_EntityWithID> | Partial<Loophole_EntityWithID>[],
+        transform: (entity: Loophole_EntityWithID, index: number) => Loophole_EntityWithID | null,
         hash?: string | null,
     ): E_Tile[] {
         const group: EditActionGroup = {
@@ -524,15 +468,99 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
 
         for (let i = 0; i < entities.length; i++) {
             const entity = entities[i];
-            const props = Array.isArray(updatedProperties)
-                ? updatedProperties[i]
-                : updatedProperties;
-            const updatedEntity = { ...entity, ...props } as Loophole_EntityWithID;
-            group.actions.push({ type: 'remove', entity });
-            group.actions.push({ type: 'place', entity: updatedEntity });
+            const position = getLoopholeEntityPosition(entity);
+            const positionType = getLoopholeEntityPositionType(entity);
+            const edgeAlignment = getLoopholeEntityEdgeAlignment(entity);
+            const isEntrance = this.#level?.entrance.tID === entity.tID;
+            const isCritical =
+                isEntrance ||
+                this.#overlapsCriticalTile(
+                    entity.entityType,
+                    position,
+                    positionType,
+                    edgeAlignment,
+                    entity.tID,
+                );
+
+            const newEntity = transform(entity, i);
+
+            if (!newEntity) {
+                continue;
+            }
+
+            const newPosition = getLoopholeEntityPosition(newEntity);
+            const newPositionType = getLoopholeEntityPositionType(newEntity);
+            const newEdgeAlignment = getLoopholeEntityEdgeAlignment(newEntity);
+
+            if (
+                isCritical ||
+                !this.#overlapsCriticalTile(
+                    newEntity.entityType,
+                    newPosition,
+                    newPositionType,
+                    newEdgeAlignment,
+                    newEntity.tID,
+                )
+            ) {
+                group.actions.push({ type: 'update', oldEntity: entity, newEntity: newEntity });
+            } else {
+                group.actions.push({ type: 'remove', entity });
+            }
         }
 
         return this.#performEditActions(group);
+    }
+
+    moveEntities(
+        entities: Loophole_EntityWithID[],
+        offset: IVector<number>,
+        hash?: string | null,
+    ): E_Tile[] {
+        return this.applyEntityTransformation(
+            entities,
+            (entity) => {
+                const newEntity = { ...entity };
+                if ('edgePosition' in newEntity) {
+                    newEntity.edgePosition = {
+                        ...newEntity.edgePosition,
+                        cell: {
+                            x: newEntity.edgePosition.cell.x + offset.x,
+                            y: newEntity.edgePosition.cell.y + offset.y,
+                        },
+                    };
+                } else if ('position' in newEntity) {
+                    newEntity.position = {
+                        x: newEntity.position.x + offset.x,
+                        y: newEntity.position.y + offset.y,
+                    };
+                } else {
+                    const newPosition = getLoopholeExplosionPosition(newEntity, offset);
+                    newEntity.startPosition = getLoopholeExplosionStartPosition(
+                        newEntity,
+                        newPosition,
+                    );
+                }
+                return newEntity;
+            },
+            hash,
+        );
+    }
+
+    updateEntities(
+        entities: Loophole_EntityWithID[],
+        updatedProperties: Partial<Loophole_EntityWithID> | Partial<Loophole_EntityWithID>[],
+        hash?: string | null,
+    ): E_Tile[] {
+        return this.applyEntityTransformation(
+            entities,
+            (entity, i) => {
+                const props = Array.isArray(updatedProperties)
+                    ? updatedProperties[i]
+                    : updatedProperties;
+                return { ...entity, ...props } as Loophole_EntityWithID;
+            },
+            hash,
+        );
     }
 
     rotateEntities(
@@ -541,113 +569,92 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         rotation: 90 | -90,
         hash?: string | null,
     ): E_Tile[] {
-        const group: EditActionGroup = {
-            actions: [],
-            hash: hash || v4(),
-        };
+        return this.applyEntityTransformation(
+            entities,
+            (entity) => {
+                let newEntity = entity;
+                const positionType = getLoopholeEntityPositionType(entity);
+                const position = getLoopholeEntityPosition(entity);
 
-        for (const entity of entities) {
-            group.actions.push({ type: 'remove', entity });
+                if (positionType === 'CELL') {
+                    if ('position' in entity) {
+                        if ('rotation' in entity) {
+                            const currentPos = position;
+                            const dx = currentPos.x - centerPosition.x;
+                            const dy = currentPos.y - centerPosition.y;
 
-            let newEntity = entity;
-            const positionType = getLoopholeEntityPositionType(entity);
-            const position = getLoopholeEntityPosition(entity);
-            const edgeAlignment = getLoopholeEntityEdgeAlignment(entity);
-            const isCritical = this.#overlapsCriticalTile(
-                entity.entityType,
-                position,
-                positionType,
-                edgeAlignment,
-            );
+                            const newPosition: Loophole_Int2 =
+                                rotation === 90
+                                    ? {
+                                          x: Math.round(centerPosition.x - dy),
+                                          y: Math.round(centerPosition.y + dx),
+                                      }
+                                    : {
+                                          x: Math.round(centerPosition.x + dy),
+                                          y: Math.round(centerPosition.y - dx),
+                                      };
 
-            if (positionType === 'CELL') {
-                if ('position' in entity) {
-                    const currentPos = position;
-                    const dx = currentPos.x - centerPosition.x;
-                    const dy = currentPos.y - centerPosition.y;
-
-                    const newPosition: Loophole_Int2 =
-                        rotation === 90
-                            ? {
-                                  x: Math.round(centerPosition.x - dy),
-                                  y: Math.round(centerPosition.y + dx),
-                              }
-                            : {
-                                  x: Math.round(centerPosition.x + dy),
-                                  y: Math.round(centerPosition.y - dx),
-                              };
-
-                    if ('rotation' in entity) {
-                        const currentDegrees = loopholeRotationToDegrees(entity.rotation);
+                            const currentDegrees = loopholeRotationToDegrees(entity.rotation);
+                            const newDegrees = (currentDegrees + rotation + 360) % 360;
+                            newEntity = {
+                                ...entity,
+                                position: newPosition,
+                                rotation: degreesToLoopholeRotation(newDegrees),
+                            };
+                        }
+                    } else if ('startPosition' in entity) {
+                        const currentDegrees = loopholeRotationToDegrees(entity.direction);
                         const newDegrees = (currentDegrees + rotation + 360) % 360;
+                        const cellPos = new Vector(
+                            Math.round(centerPosition.x),
+                            Math.round(centerPosition.y),
+                        );
                         newEntity = {
                             ...entity,
-                            position: newPosition,
-                            rotation: degreesToLoopholeRotation(newDegrees),
+                            startPosition:
+                                entity.direction === 'RIGHT' || entity.direction === 'LEFT'
+                                    ? cellPos.y
+                                    : cellPos.x,
+                            direction: degreesToLoopholeRotation(newDegrees),
                         };
+                    } else {
+                        return null;
                     }
-                } else if ('startPosition' in entity) {
-                    const currentDegrees = loopholeRotationToDegrees(entity.direction);
-                    const newDegrees = (currentDegrees + rotation + 360) % 360;
-                    const cellPos = new Vector(
-                        Math.round(centerPosition.x),
-                        Math.round(centerPosition.y),
-                    );
+                } else if ('edgePosition' in entity) {
+                    const edgePos = entity.edgePosition;
+
+                    const worldX = edgePos.cell.x + (edgePos.alignment === 'RIGHT' ? 0.5 : 0);
+                    const worldY = edgePos.cell.y + (edgePos.alignment === 'TOP' ? 0.5 : 0);
+
+                    const dx = worldX - centerPosition.x;
+                    const dy = worldY - centerPosition.y;
+
+                    const newWorldX =
+                        rotation === 90 ? centerPosition.x - dy : centerPosition.x + dy;
+                    const newWorldY =
+                        rotation === 90 ? centerPosition.y + dx : centerPosition.y - dx;
+
+                    const newAlignment: Loophole_EdgeAlignment =
+                        edgePos.alignment === 'RIGHT' ? 'TOP' : 'RIGHT';
+
+                    const newCellX = Math.round(newWorldX - (newAlignment === 'RIGHT' ? 0.5 : 0));
+                    const newCellY = Math.round(newWorldY - (newAlignment === 'TOP' ? 0.5 : 0));
+
                     newEntity = {
                         ...entity,
-                        startPosition:
-                            entity.direction === 'RIGHT' || entity.direction === 'LEFT'
-                                ? cellPos.y
-                                : cellPos.x,
-                        direction: degreesToLoopholeRotation(newDegrees),
+                        edgePosition: {
+                            cell: { x: newCellX, y: newCellY },
+                            alignment: newAlignment,
+                        },
                     };
                 } else {
-                    continue;
+                    return null;
                 }
-            } else if ('edgePosition' in entity) {
-                const edgePos = entity.edgePosition;
 
-                const worldX = edgePos.cell.x + (edgePos.alignment === 'RIGHT' ? 0.5 : 0);
-                const worldY = edgePos.cell.y + (edgePos.alignment === 'TOP' ? 0.5 : 0);
-
-                const dx = worldX - centerPosition.x;
-                const dy = worldY - centerPosition.y;
-
-                const newWorldX = rotation === 90 ? centerPosition.x - dy : centerPosition.x + dy;
-                const newWorldY = rotation === 90 ? centerPosition.y + dx : centerPosition.y - dx;
-
-                const newAlignment: Loophole_EdgeAlignment =
-                    edgePos.alignment === 'RIGHT' ? 'TOP' : 'RIGHT';
-
-                const newCellX = Math.round(newWorldX - (newAlignment === 'RIGHT' ? 0.5 : 0));
-                const newCellY = Math.round(newWorldY - (newAlignment === 'TOP' ? 0.5 : 0));
-
-                newEntity = {
-                    ...entity,
-                    edgePosition: {
-                        cell: { x: newCellX, y: newCellY },
-                        alignment: newAlignment,
-                    },
-                };
-            } else {
-                continue;
-            }
-
-            const newPosition = getLoopholeEntityPosition(newEntity);
-            if (
-                isCritical ||
-                !this.#overlapsCriticalTile(
-                    newEntity.entityType,
-                    newPosition,
-                    getLoopholeEntityPositionType(newEntity),
-                    edgeAlignment,
-                )
-            ) {
-                group.actions.push({ type: 'place', entity: newEntity });
-            }
-        }
-
-        return this.#performEditActions(group);
+                return newEntity;
+            },
+            hash,
+        );
     }
 
     #performEditActions(actions: EditActionGroup, updateStacks: boolean = true): E_Tile[] {
@@ -676,6 +683,13 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
                         this.#removeEntity(action.entity);
                         removedIDs.add(action.entity.tID);
                         placedEntities.delete(action.entity.tID);
+
+                        break;
+                    }
+                    case 'update': {
+                        const tile = this.#updateEntity(action.newEntity);
+                        affectedTiles.push(tile);
+                        placedEntities.set(action.newEntity.tID, action.newEntity);
 
                         break;
                     }
@@ -725,9 +739,47 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
                         return { type: 'remove', entity: { ...action.entity } };
                     case 'remove':
                         return { type: 'place', entity: { ...action.entity } };
+                    case 'update':
+                        return {
+                            type: 'update',
+                            oldEntity: { ...action.newEntity },
+                            newEntity: { ...action.oldEntity },
+                        };
                 }
             })
             .reverse();
+    }
+
+    #updateEntity(entity: Loophole_EntityWithID, updateLevel: boolean = true) {
+        const tile = this.#tiles[entity.tID];
+        if (tile) {
+            tile.entity = entity;
+        }
+
+        if (this.#level && updateLevel) {
+            if (entity.tID === this.#level.entrance.tID && entity.entityType === 'TIME_MACHINE') {
+                this.#level.entrance = entity;
+            } else if (
+                this.#exitEntity &&
+                entity.tID === this.#exitEntity.tID &&
+                entity.entityType === 'EXIT'
+            ) {
+                this.#exitEntity = entity;
+                this.#level.exitPosition = entity.position;
+            } else if (entity.entityType === 'EXPLOSION') {
+                const index = this.#level.explosions.findIndex((e) => e.tID === entity.tID);
+                if (index !== -1) {
+                    this.#level.explosions[index] = entity;
+                }
+            } else {
+                const index = this.#level.entities.findIndex((e) => e.tID === entity.tID);
+                if (index !== -1) {
+                    this.#level.entities[index] = entity;
+                }
+            }
+        }
+
+        return tile;
     }
 
     #placeEntity(entity: Loophole_EntityWithID, updateLevel: boolean = true) {
@@ -866,6 +918,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         position: Loophole_Int2,
         positionType: LoopholePositionType,
         alignment: Loophole_EdgeAlignment | null,
+        excludeTID?: string,
     ): boolean {
         if (entityType === 'EXPLOSION') {
             return false;
@@ -883,9 +936,13 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
             for (const e of [this.#level.entrance, ...this.#level.entities].filter(
                 (e) => e.entityType === 'TIME_MACHINE',
             )) {
-                if (this.#overlapsTimeMachine(position, alignment, e.position)) {
-                    return true;
+                if (
+                    (excludeTID && e.tID === excludeTID) ||
+                    !this.#overlapsTimeMachine(position, alignment, e.position)
+                ) {
+                    continue;
                 }
+                return true;
             }
         }
 

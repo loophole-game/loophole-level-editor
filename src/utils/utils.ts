@@ -429,7 +429,7 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
             startPosition: rotation === 'RIGHT' || rotation === 'LEFT' ? position.x : position.y,
             direction: rotation,
             startTime: 0,
-            speed: 0.5,
+            period: 0.5,
         }),
         tileOwnership: 'ONLY_TYPE_IN_TILE',
         dragPlacementDisabled: true,
@@ -508,6 +508,14 @@ export const getLoopholeEntityDirection = (entity: Loophole_Entity): Loophole_Ro
     }
 
     return null;
+};
+
+export const getLoopholeExplosionPeriod = (entity: Loophole_Entity): number => {
+    if ('period' in entity) {
+        return entity.period;
+    }
+
+    return 1;
 };
 
 export const getLoopholeEntityFlipDirection = (entity: Loophole_Entity): boolean => {

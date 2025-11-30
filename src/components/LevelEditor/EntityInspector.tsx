@@ -11,6 +11,7 @@ import {
     getLoopholeEntityDirection,
     getLoopholeEntityExtendedType,
     getLoopholeEntityFlipDirection,
+    getLoopholeExplosionPeriod,
     getLoopholeWireSprite,
     loopholeRotationToDegrees,
     TILE_SIZE,
@@ -152,7 +153,7 @@ function MultiTileContent({ editorRef, selectedTiles }: MultiTileContentProps) {
                     <FlipDirectionInput editorRef={editorRef} selectedTiles={selectedTiles} />
                 )}
                 {tileInfo.every((ti) => ENTITY_METADATA[ti.extendedType].hasDirection) && (
-                    <ExplosionDirectionInput editorRef={editorRef} selectedTiles={selectedTiles} />
+                    <ExplosionInput editorRef={editorRef} selectedTiles={selectedTiles} />
                 )}
             </div>
         </>
@@ -212,7 +213,7 @@ function WireInput({ editorRef, selectedTiles }: WireInputProps) {
                 variant="outline"
                 value={sharedValue && sprite !== null ? sprite : undefined}
                 onValueChange={(value) => {
-                    if (value !== undefined) {
+                    if (value) {
                         editorRef.current?.updateEntities(
                             selectedTiles.map((t) => t.entity),
                             { sprite: value as Loophole_WireSprite },
@@ -259,13 +260,17 @@ function FlipDirectionInput({ editorRef, selectedTiles }: FlipDirectionInputProp
     );
 }
 
-interface ExplosionDirectionInputProps extends EditorUI {
+interface ExplosionInputProps extends EditorUI {
     selectedTiles: E_Tile[];
 }
 
-function ExplosionDirectionInput({ editorRef, selectedTiles }: ExplosionDirectionInputProps) {
+function ExplosionInput({ editorRef, selectedTiles }: ExplosionInputProps) {
     const { value: direction } = useMemo(
         () => computeSharedValue(selectedTiles, (tile) => getLoopholeEntityDirection(tile.entity)),
+        [selectedTiles],
+    );
+    const { value: period } = useMemo(
+        () => computeSharedValue(selectedTiles, (tile) => getLoopholeExplosionPeriod(tile.entity)),
         [selectedTiles],
     );
 
@@ -274,7 +279,7 @@ function ExplosionDirectionInput({ editorRef, selectedTiles }: ExplosionDirectio
             <Label htmlFor="explosion-direction-input">Direction</Label>
             <Button
                 variant="loophole"
-                onClick={() => {
+                onClick={() =>
                     editorRef.current?.updateEntities(
                         selectedTiles.map((t) => t.entity),
                         {
@@ -282,11 +287,26 @@ function ExplosionDirectionInput({ editorRef, selectedTiles }: ExplosionDirectio
                                 loopholeRotationToDegrees(direction ?? 'RIGHT') + 180,
                             ),
                         },
-                    );
-                }}
+                    )
+                }
             >
                 Flip
             </Button>
+            <Label htmlFor="explosion-direction-input">Rate</Label>
+            <span className="flex items-center gap-2 text-sm">
+                <Input
+                    type="number"
+                    className="w-14"
+                    value={period || ''}
+                    onChange={(e) =>
+                        editorRef.current?.updateEntities(
+                            selectedTiles.map((t) => t.entity),
+                            { period: parseFloat(e.target.value) },
+                        )
+                    }
+                />{' '}
+                turn{period === 1 ? '' : 's'}/cell
+            </span>
         </>
     );
 }

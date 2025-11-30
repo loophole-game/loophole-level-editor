@@ -133,9 +133,9 @@ export interface Loophole_Explosion extends Loophole_EntityBase {
     // If direction is "LEFT" or "RIGHT", this refers to an x coordinate.
     // If direction is "UP" or "DOWN", this refers to a y coordinate.
     startPosition: Loophole_Int;
-    // A real number that determines the speed that the explosions move across the screen.
-    // For example, a value of 0.5 would mean the explosions advance every other turn.
-    speed: number;
+    // The number of turns it takes for the explosion to move one cell.
+    // For example, a value of 0.5 would mean the explosion advances twice every turn.
+    period: number;
 }
 
 // A time machine, including the walls and doors around it.

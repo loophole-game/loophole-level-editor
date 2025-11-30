@@ -93,7 +93,7 @@ export function LevelEditorComponent() {
                 </div>
                 <EntityInspector
                     editorRef={levelEditorRef}
-                    className={clsx('w-fit shrink-0', panelClassName)}
+                    className={clsx('w-fit shrink-0 z-10', panelClassName)}
                 />
                 <div
                     className={clsx('fixed bottom-4 right-4 text-right transition-opacity', {
