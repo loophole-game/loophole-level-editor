@@ -264,15 +264,15 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         this._systems.push(system);
     }
 
-    add<T extends Entity<this>, TOptions extends EntityOptions<this> = EntityOptions<this>>(
+    addEntities<T extends Entity<this>, TOptions extends EntityOptions<this> = EntityOptions<this>>(
         ctor: new (options: TOptions) => T,
         options: Omit<TOptions, 'engine'> & { scene?: string },
     ): T;
-    add<T extends Entity<this>, TOptions extends EntityOptions<this> = EntityOptions<this>>(
+    addEntities<T extends Entity<this>, TOptions extends EntityOptions<this> = EntityOptions<this>>(
         ctor: new (options: TOptions) => T,
         ...optionObjs: (Omit<TOptions, 'engine'> & { scene?: string })[]
     ): T[];
-    add<T extends Entity<this>, TOptions extends EntityOptions<this> = EntityOptions<this>>(
+    addEntities<T extends Entity<this>, TOptions extends EntityOptions<this> = EntityOptions<this>>(
         ctor: new (options: TOptions) => T,
         ...optionObjs: (Omit<TOptions, 'engine'> & { scene?: string })[]
     ): T | T[] {

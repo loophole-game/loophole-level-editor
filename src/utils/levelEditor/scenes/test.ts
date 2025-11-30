@@ -129,7 +129,7 @@ export class TestScene extends Scene {
             };
             const entity: Entity = currEntity
                 ? currEntity.addEntities(Entity, entityOptions)
-                : engine.add(Entity, entityOptions);
+                : engine.addEntities(Entity, entityOptions);
             entity.addComponents(C_Shape<Engine>, {
                 name: `Box Level ${i + 1}`,
                 shape: 'RECT',

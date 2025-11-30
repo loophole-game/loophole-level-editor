@@ -100,7 +100,7 @@ function MultiTileContent({ editorRef, selectedTiles }: MultiTileContentProps) {
             selectedTiles.map((t) => t.entity),
             {
                 x: center.x / TILE_SIZE,
-                y: center.y / TILE_SIZE,
+                y: -center.y / TILE_SIZE,
             },
             rotation,
         );

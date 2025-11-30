@@ -88,12 +88,14 @@ export class E_Tile extends Entity<LevelEditor> {
             speed: 20,
         });
 
-        this.#highlightEntity = this.addEntities(
-            E_TileHighlight,
-            options.entity.entityType === 'EXPLOSION'
-                ? { tile: this, scene: GridScene.name }
-                : { tile: this },
-        ).setZIndex(-1);
+        this.#highlightEntity = (options.entity.entityType === 'EXPLOSION' ? this._engine : this)
+            .addEntities(
+                E_TileHighlight,
+                options.entity.entityType === 'EXPLOSION'
+                    ? { tile: this, scene: GridScene.name }
+                    : { tile: this },
+            )
+            .setZIndex(-1);
         this.#entityVisual = this.#highlightEntity.addEntities(E_EntityVisual, {
             mode: 'tile',
             zIndex: -1,
@@ -286,7 +288,7 @@ export class GridScene extends Scene {
 
     override create(engine: Engine) {
         this.#grids.push(
-            ...engine.add(
+            ...engine.addEntities(
                 E_InfiniteShape<LevelEditor>,
                 {
                     name: 'border',

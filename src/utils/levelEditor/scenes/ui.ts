@@ -2,11 +2,8 @@ import {
     calculateSelectionCenter,
     degreesToLoopholeRotation,
     ENTITY_METADATA,
-    getLoopholeEntityEdgeAlignment,
-    getLoopholeEntityPosition,
     getLoopholeExplosionPosition,
     getLoopholeExplosionStartPosition,
-    loopholePositionToEnginePosition,
     loopholeRotationToDegrees,
     TILE_SIZE,
 } from '@/utils/utils';
@@ -470,6 +467,9 @@ class E_SelectionCursor extends Entity<LevelEditor> {
 }
 
 const HANDLE_ARROW_LENGTH = 3;
+const BOX_COLOR_BOTH = '#DD5555';
+const BOX_COLOR_X = '#55BB55';
+const BOX_COLOR_Y = '#5555DD';
 
 type DragAxis = 'x' | 'y' | 'both';
 
@@ -511,7 +511,7 @@ class E_DragCursor extends Entity<LevelEditor> {
         });
         const shape = this.addComponents(C_Shape<LevelEditor>, {
             shape: 'RECT',
-            style: { fillStyle: '#FF5555', strokeStyle: 'red', lineWidth: 2 },
+            style: { fillStyle: BOX_COLOR_BOTH, strokeStyle: 'red', lineWidth: 2 },
         });
         this.#drawables = [this.#upArrow, this.#rightArrow, shape];
 
@@ -616,7 +616,7 @@ class E_DragCursor extends Entity<LevelEditor> {
                     const deltaX =
                         this.#dragAxis !== 'y' ? currentPos.x - this.#dragStartPosition.x : 0;
                     const deltaY =
-                        this.#dragAxis !== 'x' ? currentPos.y - this.#dragStartPosition.y : 0;
+                        this.#dragAxis !== 'x' ? this.#dragStartPosition.y - currentPos.y : 0;
                     const newOffsetX = Math.round(deltaX / TILE_SIZE);
                     const newOffsetY = Math.round(deltaY / TILE_SIZE);
 
@@ -643,11 +643,14 @@ class E_DragCursor extends Entity<LevelEditor> {
 
             if (!this.#isDragging && selectedTileArray.length > 0) {
                 if (this._engine.getKey('r').pressed) {
-                    const center = this.#calculateSelectionCenterInt(selectedTileArray);
+                    const center = calculateSelectionCenter(selectedTileArray);
                     const entities = selectedTileArray.map((t) => t.entity);
                     const newTiles = this._engine.rotateEntities(
                         entities,
-                        center,
+                        {
+                            x: center.x / TILE_SIZE,
+                            y: -center.y / TILE_SIZE,
+                        },
                         this._engine.getKey('Shift').down ? -90 : 90,
                     );
                     setSelectedTiles(newTiles);
@@ -687,17 +690,26 @@ class E_DragCursor extends Entity<LevelEditor> {
                 this.#upArrow.setEnabled(false);
                 this.#rightPointerTarget.entity?.setEnabled(true);
                 this.#rightArrow.setEnabled(true);
+
+                this.#drawables[2].style.fillStyle = BOX_COLOR_X;
+                this.#drawables[2].style.strokeStyle = 'green';
             } else {
                 this.#upPointerTarget.entity?.setEnabled(true);
                 this.#upArrow.setEnabled(true);
                 this.#rightPointerTarget.entity?.setEnabled(false);
                 this.#rightArrow.setEnabled(false);
+
+                this.#drawables[2].style.fillStyle = BOX_COLOR_Y;
+                this.#drawables[2].style.strokeStyle = 'blue';
             }
         } else if (selectedTileArray.length > 0) {
             this.#upPointerTarget.entity?.setEnabled(true);
             this.#upArrow.setEnabled(true);
             this.#rightPointerTarget.entity?.setEnabled(true);
             this.#rightArrow.setEnabled(true);
+
+            this.#drawables[2].style.fillStyle = BOX_COLOR_BOTH;
+            this.#drawables[2].style.strokeStyle = 'red';
         }
 
         return updated;
@@ -709,40 +721,6 @@ class E_DragCursor extends Entity<LevelEditor> {
             this.#upPointerTarget.isPointerHovered ||
             this.#rightPointerTarget.isPointerHovered
         );
-    }
-
-    #calculateSelectionCenter(tiles: E_Tile[]): IVector<number> {
-        if (tiles.length === 0) {
-            return { x: 0, y: 0 };
-        }
-
-        let minX = Number.POSITIVE_INFINITY;
-        let minY = Number.POSITIVE_INFINITY;
-        let maxX = Number.NEGATIVE_INFINITY;
-        let maxY = Number.NEGATIVE_INFINITY;
-
-        tiles.forEach((tile) => {
-            const pos = getLoopholeEntityPosition(tile.entity);
-            const edgeAlign = getLoopholeEntityEdgeAlignment(tile.entity);
-            const enginePos = loopholePositionToEnginePosition(pos, edgeAlign);
-            if (enginePos.x < minX) minX = enginePos.x;
-            if (enginePos.y < minY) minY = enginePos.y;
-            if (enginePos.x > maxX) maxX = enginePos.x;
-            if (enginePos.y > maxY) maxY = enginePos.y;
-        });
-
-        return {
-            x: (minX + maxX) / 2,
-            y: (minY + maxY) / 2,
-        };
-    }
-
-    #calculateSelectionCenterInt(tiles: E_Tile[]): Loophole_Int2 {
-        const center = this.#calculateSelectionCenter(tiles);
-        return {
-            x: Math.round(center.x),
-            y: Math.round(center.y),
-        };
     }
 
     #updateTilePositions(tiles: E_Tile[]) {
