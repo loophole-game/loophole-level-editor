@@ -456,67 +456,12 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         }
     }
 
-    applyEntityTransformation(
-        entities: Loophole_EntityWithID[],
-        transform: (entity: Loophole_EntityWithID, index: number) => Loophole_EntityWithID | null,
-        hash?: string | null,
-    ): E_Tile[] {
-        const group: EditActionGroup = {
-            actions: [],
-            hash: hash || v4(),
-        };
-
-        for (let i = 0; i < entities.length; i++) {
-            const entity = entities[i];
-            const position = getLoopholeEntityPosition(entity);
-            const positionType = getLoopholeEntityPositionType(entity);
-            const edgeAlignment = getLoopholeEntityEdgeAlignment(entity);
-            const isEntrance = this.#level?.entrance.tID === entity.tID;
-            const isCritical =
-                isEntrance ||
-                this.#overlapsCriticalTile(
-                    entity.entityType,
-                    position,
-                    positionType,
-                    edgeAlignment,
-                    entity.tID,
-                );
-
-            const newEntity = transform(entity, i);
-
-            if (!newEntity) {
-                continue;
-            }
-
-            const newPosition = getLoopholeEntityPosition(newEntity);
-            const newPositionType = getLoopholeEntityPositionType(newEntity);
-            const newEdgeAlignment = getLoopholeEntityEdgeAlignment(newEntity);
-
-            if (
-                isCritical ||
-                !this.#overlapsCriticalTile(
-                    newEntity.entityType,
-                    newPosition,
-                    newPositionType,
-                    newEdgeAlignment,
-                    newEntity.tID,
-                )
-            ) {
-                group.actions.push({ type: 'update', oldEntity: entity, newEntity: newEntity });
-            } else {
-                group.actions.push({ type: 'remove', entity });
-            }
-        }
-
-        return this.#performEditActions(group);
-    }
-
     moveEntities(
         entities: Loophole_EntityWithID[],
         offset: IVector<number>,
         hash?: string | null,
     ): E_Tile[] {
-        return this.applyEntityTransformation(
+        return this.#applyEntityTransformation(
             entities,
             (entity) => {
                 const newEntity = { ...entity };
@@ -551,7 +496,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         updatedProperties: Partial<Loophole_EntityWithID> | Partial<Loophole_EntityWithID>[],
         hash?: string | null,
     ): E_Tile[] {
-        return this.applyEntityTransformation(
+        return this.#applyEntityTransformation(
             entities,
             (entity, i) => {
                 const props = Array.isArray(updatedProperties)
@@ -569,7 +514,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         rotation: 90 | -90,
         hash?: string | null,
     ): E_Tile[] {
-        return this.applyEntityTransformation(
+        return this.#applyEntityTransformation(
             entities,
             (entity) => {
                 let newEntity = entity;
@@ -595,7 +540,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
                                       };
 
                             const currentDegrees = loopholeRotationToDegrees(entity.rotation);
-                            const newDegrees = (currentDegrees + rotation + 360) % 360;
+                            const newDegrees = (currentDegrees - rotation + 360) % 360;
                             newEntity = {
                                 ...entity,
                                 position: newPosition,
@@ -657,78 +602,132 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         );
     }
 
-    #performEditActions(actions: EditActionGroup, updateStacks: boolean = true): E_Tile[] {
-        return this.trace('performEditActions', () => {
-            if (actions.actions.length === 0) {
-                return [];
-            }
+    #applyEntityTransformation(
+        entities: Loophole_EntityWithID[],
+        transform: (entity: Loophole_EntityWithID, index: number) => Loophole_EntityWithID | null,
+        hash?: string | null,
+    ): E_Tile[] {
+        const group: EditActionGroup = {
+            actions: [],
+            hash: hash || v4(),
+        };
 
-            const affectedTiles: E_Tile[] = [];
-            const removedIDs = new Set<string>();
-            const placedEntities = new Map<string, Loophole_EntityWithID>();
-            for (const action of actions.actions) {
-                switch (action.type) {
-                    case 'place': {
-                        const tile = this.#placeEntity(action.entity);
-                        affectedTiles.push(tile);
-                        placedEntities.set(action.entity.tID, action.entity);
-                        if (removedIDs.has(action.entity.tID)) {
-                            delete this.#stashedTiles[action.entity.tID];
-                            removedIDs.delete(action.entity.tID);
-                        }
-
-                        break;
-                    }
-                    case 'remove': {
-                        this.#removeEntity(action.entity);
-                        removedIDs.add(action.entity.tID);
-                        placedEntities.delete(action.entity.tID);
-
-                        break;
-                    }
-                    case 'update': {
-                        const tile = this.#updateEntity(action.newEntity);
-                        affectedTiles.push(tile);
-                        placedEntities.set(action.newEntity.tID, action.newEntity);
-
-                        break;
-                    }
-                }
-            }
-
-            for (const entity of placedEntities.values()) {
-                const overlappingEntities = this.#getOverlappingEntities(
-                    getLoopholeEntityPosition(entity),
-                    getLoopholeEntityPositionType(entity),
+        const entityIDs = new Set<string>(entities.map((e) => e.tID));
+        for (let i = 0; i < entities.length; i++) {
+            const entity = entities[i];
+            const position = getLoopholeEntityPosition(entity);
+            const positionType = getLoopholeEntityPositionType(entity);
+            const edgeAlignment = getLoopholeEntityEdgeAlignment(entity);
+            const isEntrance = this.#level?.entrance.tID === entity.tID;
+            const isCritical =
+                isEntrance ||
+                this.#overlapsCriticalTile(
                     entity.entityType,
-                    getLoopholeEntityEdgeAlignment(entity) || 'RIGHT',
+                    position,
+                    positionType,
+                    edgeAlignment,
+                    entityIDs,
                 );
 
-                for (const overlappingEntity of overlappingEntities) {
-                    if (overlappingEntity.tID !== entity.tID) {
-                        actions.actions.push({ type: 'remove', entity: overlappingEntity });
-                        this.#removeEntity(overlappingEntity);
-                        removedIDs.add(overlappingEntity.tID);
+            const newEntity = transform(entity, i);
+
+            if (!newEntity) {
+                continue;
+            }
+
+            const newPosition = getLoopholeEntityPosition(newEntity);
+            const newPositionType = getLoopholeEntityPositionType(newEntity);
+            const newEdgeAlignment = getLoopholeEntityEdgeAlignment(newEntity);
+
+            if (
+                isCritical ||
+                !this.#overlapsCriticalTile(
+                    newEntity.entityType,
+                    newPosition,
+                    newPositionType,
+                    newEdgeAlignment,
+                    entityIDs,
+                )
+            ) {
+                group.actions.push({ type: 'update', oldEntity: entity, newEntity: newEntity });
+            } else {
+                group.actions.push({ type: 'remove', entity });
+            }
+        }
+
+        return this.#performEditActions(group);
+    }
+
+    #performEditActions(actions: EditActionGroup, updateStacks: boolean = true): E_Tile[] {
+        if (actions.actions.length === 0) {
+            return [];
+        }
+
+        const affectedTiles: E_Tile[] = [];
+        const removedIDs = new Set<string>();
+        const placedEntities = new Map<string, Loophole_EntityWithID>();
+        for (const action of actions.actions) {
+            switch (action.type) {
+                case 'place': {
+                    const tile = this.#placeEntity(action.entity);
+                    affectedTiles.push(tile);
+                    placedEntities.set(action.entity.tID, action.entity);
+                    if (removedIDs.has(action.entity.tID)) {
+                        delete this.#stashedTiles[action.entity.tID];
+                        removedIDs.delete(action.entity.tID);
                     }
+
+                    break;
+                }
+                case 'remove': {
+                    this.#removeEntity(action.entity);
+                    removedIDs.add(action.entity.tID);
+                    placedEntities.delete(action.entity.tID);
+
+                    break;
+                }
+                case 'update': {
+                    const tile = this.#updateEntity(action.newEntity);
+                    affectedTiles.push(tile);
+                    placedEntities.set(action.newEntity.tID, action.newEntity);
+
+                    break;
                 }
             }
+        }
 
-            getAppStore().deselectEntities(Array.from(removedIDs));
+        for (const entity of placedEntities.values()) {
+            const overlappingEntities = this.#getOverlappingEntities(
+                getLoopholeEntityPosition(entity),
+                getLoopholeEntityPositionType(entity),
+                entity.entityType,
+                getLoopholeEntityEdgeAlignment(entity) || 'RIGHT',
+            );
 
-            if (updateStacks) {
-                this.#undoStack.push(actions);
-                this.#redoStack = [];
+            for (const overlappingEntity of overlappingEntities) {
+                if (!placedEntities.has(overlappingEntity.tID)) {
+                    actions.actions.push({ type: 'remove', entity: overlappingEntity });
+                    this.#removeEntity(overlappingEntity);
+                    removedIDs.add(overlappingEntity.tID);
+                }
             }
+        }
 
-            const level = this.level;
-            if (level) {
-                this.options.onLevelChanged?.(level);
-            }
+        getAppStore().deselectEntities(Array.from(removedIDs));
 
-            this.forceRender();
+        if (updateStacks) {
+            this.#undoStack.push(actions);
+            this.#redoStack = [];
+        }
 
-            return affectedTiles;
-        });
+        const level = this.level;
+        if (level) {
+            this.options.onLevelChanged?.(level);
+        }
+
+        this.forceRender();
+
+        return affectedTiles;
     }
 
     #reverseActions(actions: EditAction[]): EditAction[] {
@@ -918,7 +917,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         position: Loophole_Int2,
         positionType: LoopholePositionType,
         alignment: Loophole_EdgeAlignment | null,
-        excludeTID?: string,
+        entityIDs?: Set<string>,
     ): boolean {
         if (entityType === 'EXPLOSION') {
             return false;
@@ -937,7 +936,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
                 (e) => e.entityType === 'TIME_MACHINE',
             )) {
                 if (
-                    (excludeTID && e.tID === excludeTID) ||
+                    entityIDs?.has(e.tID) ||
                     !this.#overlapsTimeMachine(position, alignment, e.position)
                 ) {
                     continue;

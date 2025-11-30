@@ -824,7 +824,11 @@ export class UIScene extends Scene {
         let updated = false;
 
         if (this._engine.getKey('a').pressed && this._engine.getKey('a').mod) {
-            setSelectedTiles(Object.values(this._engine.tiles));
+            setSelectedTiles(
+                Object.values(this._engine.tiles).filter(
+                    (t) => t.entity.entityType !== 'EXPLOSION',
+                ),
+            );
         }
 
         const cameraOffset = {

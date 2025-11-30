@@ -20,7 +20,12 @@ import {
     loopholePositionToEnginePosition,
     TILE_SIZE,
 } from '@/utils/utils';
-import { C_Lerp, C_LerpOpacity, C_LerpPosition } from '@/utils/engine/components/Lerp';
+import {
+    C_Lerp,
+    C_LerpOpacity,
+    C_LerpPosition,
+    C_LerpRotation,
+} from '@/utils/engine/components/Lerp';
 import { E_InfiniteShape } from './InfiniteShape';
 import { E_EntityVisual } from '../entityVisual';
 import type { Vector } from '@/utils/engine/math';
@@ -61,6 +66,7 @@ export class E_Tile extends Entity<LevelEditor> {
 
     #tileImage: C_Image;
     #positionLerp: C_Lerp<Vector>;
+    #rotationLerp: C_Lerp<number>;
 
     #entityVisual: E_EntityVisual;
 
@@ -86,6 +92,10 @@ export class E_Tile extends Entity<LevelEditor> {
         this.#positionLerp = this.addComponents(C_LerpPosition<Vector, LevelEditor>, {
             target: this,
             speed: 20,
+        });
+        this.#rotationLerp = this.addComponents(C_LerpRotation<LevelEditor>, {
+            target: this,
+            speed: 1000,
         });
 
         this.#highlightEntity = (options.entity.entityType === 'EXPLOSION' ? this._engine : this)
@@ -227,12 +237,15 @@ export class E_Tile extends Entity<LevelEditor> {
             ENTITY_METADATA[this.#type];
 
         this.setScale(tileScaleOverride * TILE_SIZE);
-        this.setRotation(getLoopholeEntityDegreeRotation(this.#entity));
+
+        const targetRotation = getLoopholeEntityDegreeRotation(this.#entity);
+        this.#rotationLerp.target = targetRotation;
 
         const newPosition = enginePosition.mul(TILE_SIZE);
         this.#positionLerp.target = newPosition;
         if (!this.#initialized) {
             this.setPosition(newPosition);
+            this.setRotation(targetRotation);
             this.#initialized = true;
         }
 
