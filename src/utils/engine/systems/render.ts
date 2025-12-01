@@ -83,6 +83,10 @@ export type DrawDataLine = {
     y1: number;
     x2: number;
     y2: number;
+    rx?: number;
+    ry?: number;
+    gx?: number;
+    gy?: number;
 };
 
 export type RenderCommandData =
@@ -250,7 +254,7 @@ export class RenderSystem extends System {
                     }
 
                     if (style.globalAlpha > 0) {
-                        const { x1, y1, x2, y2 } = data;
+                        const { x1, y1, x2, y2, rx = 1, ry = 1, gx = 1, gy = 1 } = data;
                         this.#applyStyle(ctx, style);
 
                         const strokeColor = style.strokeStyle ? style.strokeStyle : style.fillStyle;
@@ -261,11 +265,15 @@ export class RenderSystem extends System {
                         ctx.lineWidth =
                             style.lineWidth && style.lineWidth > 0 ? style.lineWidth : 1;
 
-                        ctx.beginPath();
-                        ctx.moveTo(x1, y1);
-                        ctx.lineTo(x2, y2);
-                        ctx.stroke();
-                        ctx.closePath();
+                        for (let i = 0; i < rx; i++) {
+                            for (let j = 0; j < ry; j++) {
+                                ctx.beginPath();
+                                ctx.moveTo(x1 + i * gx, y1 + j * gy);
+                                ctx.lineTo(x2 + i * gx, y2 + j * gy);
+                                ctx.stroke();
+                                ctx.closePath();
+                            }
+                        }
                     }
 
                     break;

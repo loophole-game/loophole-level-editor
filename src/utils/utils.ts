@@ -485,7 +485,7 @@ export const loopholeRotationToDegrees = (rotation: Loophole_Rotation): number =
 const LOOPHOLE_ROTATION_LIST: Loophole_Rotation[] = ['RIGHT', 'DOWN', 'LEFT', 'UP'];
 
 export const degreesToLoopholeRotation = (rotation: number): Loophole_Rotation => {
-    return LOOPHOLE_ROTATION_LIST[Math.round((rotation % 360) / 90)];
+    return LOOPHOLE_ROTATION_LIST[Math.round(((rotation + 360) % 360) / 90)];
 };
 
 export const getLoopholeEntityDegreeRotation = (entity: Loophole_Entity): number => {

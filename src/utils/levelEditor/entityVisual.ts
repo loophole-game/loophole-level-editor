@@ -1,27 +1,35 @@
 import { C_Image } from '../engine/components/Image';
 import { C_Shape, type Shape } from '../engine/components/Shape';
-import { C_Line } from '../engine/components/Line';
 import { Entity, type EntityOptions } from '../engine/entities';
 import {
     COLOR_PALETTE_METADATA,
     ENTITY_METADATA,
+    getLoopholeEntityDirection,
     getLoopholeWireSprite,
     Loophole_ColorPalette,
+    TILE_SIZE,
     WIRE_CORNER_SPRITE,
 } from '../utils';
 import type { Loophole_EntityWithID, Loophole_ExtendedEntityType } from './externalLevelSchema';
-import type { LevelEditor } from '.';
+import { LevelEditor } from '.';
+import { E_Tile, GridScene } from './scenes/grid';
+import { E_InfiniteShape } from './scenes/InfiniteShape';
 
 type Mode = 'brush' | 'tile';
 type Variant = 'default' | 'entrance' | 'exit' | 'explosion';
 
 interface TimeMachineDecals {
-    arrow: C_Line;
+    arrow: C_Shape;
     walls: E_EntityVisual[];
+}
+
+interface ExplosionDecals {
+    arrows: E_InfiniteShape;
 }
 
 interface E_EntityVisualOptions extends EntityOptions<LevelEditor> {
     mode: Mode;
+    tile?: E_Tile;
     variant?: Variant;
 }
 
@@ -32,9 +40,11 @@ export class E_EntityVisual extends Entity<LevelEditor> {
 
     #type: Loophole_ExtendedEntityType | null = null;
     #mode: Mode;
+    #tile: E_Tile | null = null;
     #variant: Variant;
 
     #timeMachineDecals: TimeMachineDecals | null = null;
+    #explosionDecals: ExplosionDecals | null = null;
 
     constructor(options: E_EntityVisualOptions) {
         const { name = 'entity_visual', ...rest } = options;
@@ -49,6 +59,7 @@ export class E_EntityVisual extends Entity<LevelEditor> {
         });
 
         this.#mode = options.mode;
+        this.#tile = options.tile ?? null;
         this.#variant = options.variant ?? 'default';
 
         this._engine.addColorPaletteChangedListener(
@@ -74,6 +85,9 @@ export class E_EntityVisual extends Entity<LevelEditor> {
             this.#timeMachineDecals.walls.forEach((wall) => {
                 wall.opacity = opacity;
             });
+        }
+        if (this.#explosionDecals) {
+            this.#explosionDecals.arrows.shape.style.globalAlpha = opacity;
         }
     }
 
@@ -103,12 +117,30 @@ export class E_EntityVisual extends Entity<LevelEditor> {
 
     override destroy(): void {
         this._engine.removeColorPaletteChangedListener(this.id.toString());
-        this.#clearTimeMachineDecals();
+        this.stash();
+
         super.destroy();
     }
 
+    sync() {
+        const entity = this.#tile?.entity;
+        if (this.#explosionDecals && this.parent && entity && 'startPosition' in entity) {
+            this.#explosionDecals.arrows.infiniteAxes = {
+                x: entity.direction === 'UP' || entity.direction === 'DOWN',
+                y: entity.direction === 'RIGHT' || entity.direction === 'LEFT',
+            };
+
+            this.#explosionDecals.arrows.setPosition(this.parent.position);
+        }
+    }
+
+    stash() {
+        this.#clearTimeMachineDecals();
+        this.#clearExplosionDecals();
+    }
+
     onEntityChanged(type: Loophole_ExtendedEntityType, entity?: Loophole_EntityWithID) {
-        if (this.#type === type && type !== 'WIRE') {
+        if (this.#type === type && type !== 'WIRE' && type !== 'EXPLOSION') {
             return;
         }
 
@@ -124,6 +156,7 @@ export class E_EntityVisual extends Entity<LevelEditor> {
                 fillStyle: 'orange',
                 globalAlpha: 0.5,
             };
+            this.#createExplosionDecals();
         } else {
             switch (type) {
                 case 'WIRE': {
@@ -147,6 +180,8 @@ export class E_EntityVisual extends Entity<LevelEditor> {
                     break;
             }
         }
+
+        this.sync();
     }
 
     onColorPaletteChanged(palette: Loophole_ColorPalette, variant: Variant) {
@@ -179,8 +214,9 @@ export class E_EntityVisual extends Entity<LevelEditor> {
 
     #createTimeMachineDecals() {
         if (!this.#timeMachineDecals) {
-            const arrow = this.addComponents(C_Line<LevelEditor>, {
+            const arrow = this.addComponents(C_Shape<LevelEditor>, {
                 name: 'arrow',
+                shape: 'LINE',
                 start: { x: -0.2, y: 0 },
                 end: { x: 0.3, y: 0 },
                 style: { strokeStyle: 'white', lineWidth: 0.1, lineCap: 'round' },
@@ -237,6 +273,53 @@ export class E_EntityVisual extends Entity<LevelEditor> {
                 this.#timeMachineDecals.walls.forEach((w) => w.setEnabled(false));
                 this.#timeMachineDecals.arrow.setEnabled(false);
             }
+        }
+    }
+
+    #createExplosionDecals() {
+        if (!this.#explosionDecals) {
+            this.#explosionDecals = {
+                arrows: this._engine.addEntities(E_InfiniteShape<LevelEditor>, {
+                    name: 'arrows',
+                    shapeOptions: {
+                        name: 'arrow',
+                        shape: 'LINE',
+                        style: { fillStyle: 'orange', lineCap: 'round', lineJoin: 'round' },
+                        endTip: { type: 'arrow', length: 3 },
+                    },
+                    tileSize: TILE_SIZE * 3,
+                    scale: 10,
+                    zIndex: 10,
+                    offset: -TILE_SIZE / 2,
+                    scene: GridScene.name,
+                }),
+            };
+        } else {
+            this.#explosionDecals.arrows.setEnabled(true);
+        }
+
+        if (this.#tile?.entity) {
+            const direction = getLoopholeEntityDirection(this.#tile?.entity);
+            const halfSize = 3;
+            if (direction === 'RIGHT') {
+                this.#explosionDecals.arrows.shape.setStart({ x: -halfSize, y: 0 });
+                this.#explosionDecals.arrows.shape.setEnd({ x: halfSize, y: 0 });
+            } else if (direction === 'LEFT') {
+                this.#explosionDecals.arrows.shape.setStart({ x: halfSize, y: 0 });
+                this.#explosionDecals.arrows.shape.setEnd({ x: -halfSize, y: 0 });
+            } else if (direction === 'UP') {
+                this.#explosionDecals.arrows.shape.setStart({ x: 0, y: halfSize });
+                this.#explosionDecals.arrows.shape.setEnd({ x: 0, y: -halfSize });
+            } else if (direction === 'DOWN') {
+                this.#explosionDecals.arrows.shape.setStart({ x: 0, y: -halfSize });
+                this.#explosionDecals.arrows.shape.setEnd({ x: 0, y: halfSize });
+            }
+        }
+    }
+
+    #clearExplosionDecals() {
+        if (this.#explosionDecals) {
+            this.#explosionDecals.arrows.destroy();
         }
     }
 }

@@ -28,7 +28,6 @@ import { C_PointerTarget } from '@/utils/engine/components/PointerTarget';
 import { v4 } from 'uuid';
 import { E_EntityVisual } from '../entityVisual';
 import type { C_Drawable } from '@/utils/engine/components';
-import { C_Line } from '@/utils/engine/components/Line';
 
 const multiSelectIsActive = (editor: LevelEditor) => editor.getKey('Shift').down;
 const cameraDragIsActive = (editor: LevelEditor) =>
@@ -174,7 +173,7 @@ class E_TileCursor extends Entity<LevelEditor> {
             if (this._engine.getKey('r').pressed) {
                 if (hasRotation) {
                     _brushEntityRotation = degreesToLoopholeRotation(
-                        loopholeRotationToDegrees(brushEntityRotation) + 90,
+                        loopholeRotationToDegrees(brushEntityRotation) - 90,
                     );
                     setBrushEntityRotation(_brushEntityRotation);
                 } else if (hasFlipDirection) {
@@ -474,8 +473,8 @@ const BOX_COLOR_Y = '#5555DD';
 type DragAxis = 'x' | 'y' | 'both';
 
 class E_DragCursor extends Entity<LevelEditor> {
-    #upArrow: C_Line;
-    #rightArrow: C_Line;
+    #upArrow: C_Shape;
+    #rightArrow: C_Shape;
     #drawables: C_Drawable[];
     #opacityLerp: C_Lerp<number>;
     #positionLerp: C_LerpPosition<Vector>;
@@ -495,15 +494,17 @@ class E_DragCursor extends Entity<LevelEditor> {
     constructor(options: EntityOptions<LevelEditor>) {
         super({ name: 'drag_handle', ...options });
 
-        this.#upArrow = this.addComponents(C_Line<LevelEditor>, {
+        this.#upArrow = this.addComponents(C_Shape<LevelEditor>, {
             name: 'up-arrow',
+            shape: 'LINE',
             start: { x: 0, y: -0.5 },
             end: { x: 0, y: -HANDLE_ARROW_LENGTH },
             style: { lineWidth: 0.15, fillStyle: 'blue' },
             endTip: { type: 'arrow', length: 0.5 },
         });
-        this.#rightArrow = this.addComponents(C_Line<LevelEditor>, {
+        this.#rightArrow = this.addComponents(C_Shape<LevelEditor>, {
             name: 'right-arrow',
+            shape: 'LINE',
             start: { x: 0.5, y: 0 },
             end: { x: HANDLE_ARROW_LENGTH, y: 0 },
             style: { lineWidth: 0.15, fillStyle: 'green' },
@@ -819,8 +820,13 @@ export class UIScene extends Scene {
     #updateKeyboardControls(deltaTime: number): boolean {
         if (!this._engine) return false;
 
-        const { brushEntityType, setBrushEntityType, selectedTiles, setSelectedTiles } =
-            getAppStore();
+        const {
+            brushEntityType,
+            setBrushEntityType,
+            selectedTiles,
+            setSelectedTiles,
+            centerCameraOnLevel,
+        } = getAppStore();
         let updated = false;
 
         if (this._engine.getKey('a').pressed && this._engine.getKey('a').mod) {
@@ -854,7 +860,7 @@ export class UIScene extends Scene {
         }
 
         if (this._engine.getKey('Backspace').pressed || this._engine.getKey('Delete').pressed) {
-            this._engine.removeEntities(Object.values(selectedTiles).map((t) => t.entity));
+            this._engine.removeLoopholeEntities(Object.values(selectedTiles).map((t) => t.entity));
             updated = true;
         }
 
@@ -876,6 +882,10 @@ export class UIScene extends Scene {
                 updated = true;
                 break;
             }
+        }
+
+        if (this._engine.getKey('f').pressed && this._engine.getKey('f').mod) {
+            centerCameraOnLevel();
         }
 
         return updated;

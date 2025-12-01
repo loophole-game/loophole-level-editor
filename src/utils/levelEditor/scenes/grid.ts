@@ -109,6 +109,7 @@ export class E_Tile extends Entity<LevelEditor> {
         this.#entityVisual = this.#highlightEntity.addEntities(E_EntityVisual, {
             mode: 'tile',
             zIndex: -1,
+            tile: this,
         });
         this.#pointerParent = this.#highlightEntity.addEntities(Entity, { name: 'pointer_parent' });
 
@@ -208,6 +209,7 @@ export class E_Tile extends Entity<LevelEditor> {
 
     override destroy(): void {
         this.#highlightEntity.destroy();
+        this.#entityVisual.destroy();
         super.destroy();
     }
 
@@ -217,14 +219,17 @@ export class E_Tile extends Entity<LevelEditor> {
             this.entity.tID in selectedTiles ? ACTIVE_TILE_OPACITY : 0;
     }
 
-    stashTile() {
+    stashTile(): boolean {
         if (!this.#canBeReused) {
-            return;
+            return false;
         }
 
         this.initialized = false;
         this.setEnabled(false);
         this.#highlightEntity.setEnabled(false); // TODO: make disabling propagate to children
+        this.#entityVisual.stash();
+
+        return true;
     }
 
     #onEntityChanged() {
@@ -243,7 +248,7 @@ export class E_Tile extends Entity<LevelEditor> {
 
         const newPosition = enginePosition.mul(TILE_SIZE);
         this.#positionLerp.target = newPosition;
-        if (!this.#initialized) {
+        if (!this.#initialized || this.#type === 'EXPLOSION') {
             this.setPosition(newPosition);
             this.setRotation(targetRotation);
             this.#initialized = true;
@@ -284,6 +289,8 @@ export class E_Tile extends Entity<LevelEditor> {
                               y: this.position.y,
                           },
                 );
+
+            this.#entityVisual.sync();
         }
     }
 }
@@ -333,10 +340,7 @@ export class GridScene extends Scene {
                     },
                     tileSize: TILE_SIZE,
                     zoomCullThresh: 0.2,
-                    offset: {
-                        x: DOT_SIZE / 2,
-                        y: DOT_SIZE / 2,
-                    },
+                    offset: DOT_SIZE / 2,
                     scale: DOT_SIZE,
                     zIndex: -9,
                 },

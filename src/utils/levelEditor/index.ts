@@ -109,6 +109,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
                 { key: 'y', ctrl: true },
                 { key: 'y', meta: true },
                 { key: 'a', meta: true },
+                { key: 'f', meta: true },
             ],
             ...options,
             images: {
@@ -368,7 +369,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         });
     }
 
-    removeEntities(entities: Loophole_EntityWithID[], hash?: string | null): E_Tile[] {
+    removeLoopholeEntities(entities: Loophole_EntityWithID[], hash?: string | null): E_Tile[] {
         const tiles = entities.map((entity) => ({
             tID: entity.tID,
             position: getLoopholeEntityPosition(entity),
@@ -843,8 +844,8 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
             Object.keys(this.#stashedTiles).length < MAX_STASHED_TILES &&
             !this.#stashedTiles[id]
         ) {
-            this.#stashedTiles[id] = tile;
             tile.stashTile();
+            this.#stashedTiles[id] = tile;
         } else {
             tile.destroy();
         }

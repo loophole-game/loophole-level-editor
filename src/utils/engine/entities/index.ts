@@ -253,12 +253,15 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
     }
 
     destroy(): void {
-        this._parent?.removeChildren(this);
+        if (this._parent)
+            this._parent._children = this._parent._children.filter((e) => e.id !== this.id);
         this.#destroy();
     }
 
     removeChildren(...entities: Entity<TEngine>[]): void {
-        this._children = [...this._children.filter((e) => entities.every((ic) => e.id !== ic.id))];
+        for (const entity of entities) {
+            entity.destroy();
+        }
     }
 
     setEnabled(enabled: boolean): this {

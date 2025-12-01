@@ -125,7 +125,9 @@ function MultiTileContent({ editorRef, selectedTiles }: MultiTileContentProps) {
                 {selectedTiles.some((t) => t.variant === 'default') && (
                     <button
                         onClick={() =>
-                            editorRef.current?.removeEntities(selectedTiles.map((t) => t.entity))
+                            editorRef.current?.removeLoopholeEntities(
+                                selectedTiles.map((t) => t.entity),
+                            )
                         }
                         className="ml-auto"
                     >

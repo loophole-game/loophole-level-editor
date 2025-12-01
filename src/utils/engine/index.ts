@@ -480,6 +480,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         const deltaTime = (currentTime - this._lastTime) * 0.001;
         this._lastTime = currentTime;
         this._statsSystem.update(deltaTime);
+        let systemLateUpdated = false;
 
         this.trace('Update', () => {
             for (const system of this._systems) {
@@ -498,6 +499,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
                 const updated = system.lateUpdate(deltaTime);
                 if (updated === true) {
                     this.#forceRender = true;
+                    systemLateUpdated = true;
                 }
             }
 
@@ -512,6 +514,10 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
                 this.#forceRender = false;
             }
         });
+
+        if (systemLateUpdated) {
+            this.#forceRender = true;
+        }
 
         window.requestAnimationFrame(this.#engineLoop.bind(this));
     }
