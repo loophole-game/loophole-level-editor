@@ -39,25 +39,6 @@ export function EngineCanvas({
     const [canvasSize, setCanvasSize] = useState<IVector<number>>(
         calculateCanvasSize(window.innerWidth, window.innerHeight, aspectRatio),
     );
-    const [engineReady, setEngineReady] = useState(false);
-
-    useEffect(() => {
-        if (engineRef.current) {
-            setEngineReady(true);
-            return;
-        }
-
-        const checkEngine = () => {
-            if (engineRef.current) {
-                setEngineReady(true);
-            } else {
-                rafId = requestAnimationFrame(checkEngine);
-            }
-        };
-
-        let rafId = requestAnimationFrame(checkEngine);
-        return () => cancelAnimationFrame(rafId);
-    }, [engineRef]);
 
     useEffect(() => {
         if (engineRef.current) {
@@ -73,7 +54,7 @@ export function EngineCanvas({
                 window.removeEventListener('resize', onResize);
             };
         }
-    }, [aspectRatio, engineReady, engineRef]);
+    }, [aspectRatio, engineRef]);
 
     useEffect(() => {
         if (!canvasRef.current || !engineRef.current) {
@@ -234,7 +215,7 @@ export function EngineCanvas({
             localCanvas.removeEventListener('dragover', onDragOver);
             localCanvas.removeEventListener('drop', onDrop);
         };
-    }, [canvasSize, engineReady, engineRef, scrollDirection, scrollSensitivity]);
+    }, [canvasSize, engineRef, scrollDirection, scrollSensitivity]);
 
     return <canvas {...rest} ref={canvasRef} width={canvasSize.x} height={canvasSize.y} />;
 }

@@ -1,4 +1,4 @@
-import { LevelEditor, type LevelEditorOptions } from '@/utils/levelEditor';
+import { LevelEditor } from '@/utils/levelEditor';
 import { useAppStore, useSettingsStore, useCurrentLevel } from '@/utils/stores';
 import { useEffect, useRef } from 'react';
 import { EngineCanvas } from '../engine/EngineCanvas';
@@ -15,7 +15,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { ResetViewportPanel } from './ResetViewportPanel';
 
 export function LevelEditorComponent() {
-    const levelEditorRef = useRef<LevelEditor>(null);
+    const levelEditorRef = useRef<LevelEditor | null>(null);
     const levels = useAppStore((state) => state.levels);
     const activeLevelID = useAppStore((state) => state.activeLevelID);
     const updateLevel = useAppStore((state) => state.updateLevel);
@@ -37,8 +37,19 @@ export function LevelEditorComponent() {
                 Loophole_ColorPalette.ONE) as keyof typeof COLOR_PALETTE_METADATA
         ]?.class;
 
+    // Create LevelEditor synchronously during render to avoid timing issues with EngineCanvas
+    // This ensures engineRef.current is set before EngineCanvas's useEffect runs
+    if (!levelEditorRef.current) {
+        levelEditorRef.current = new LevelEditor({
+            engineTracesEnabled: showEngineStats,
+        });
+    }
+
     useEffect(() => {
-        const options: Partial<LevelEditorOptions> = {
+        if (!levelEditorRef.current) return;
+
+        // Update options when dependencies change
+        levelEditorRef.current.options = {
             engineTracesEnabled: showEngineStats,
             onLevelChanged: (updatedLevel: Loophole_InternalLevel) => {
                 updateLevel(level.id, {
@@ -49,17 +60,10 @@ export function LevelEditorComponent() {
                 });
             },
         };
-        if (!levelEditorRef.current) {
-            levelEditorRef.current = new LevelEditor(options);
-        } else {
-            if (prevLevelHash.current !== levelHash) {
-                levelEditorRef.current.level = level;
-                prevLevelHash.current = levelHash;
-            }
 
-            if (levelEditorRef.current) {
-                levelEditorRef.current.options = options;
-            }
+        if (prevLevelHash.current !== levelHash) {
+            levelEditorRef.current.level = level;
+            prevLevelHash.current = levelHash;
         }
     }, [activeLevelID, levelHash, level, updateLevel, showEngineStats]);
 
