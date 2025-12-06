@@ -28,6 +28,7 @@ import { C_PointerTarget } from '@/utils/engine/components/PointerTarget';
 import { v4 } from 'uuid';
 import { E_EntityVisual } from '../entityVisual';
 import type { C_Drawable } from '@/utils/engine/components';
+import type { WebKey } from '@/utils/engine/types';
 
 const multiSelectIsActive = (editor: LevelEditor) => editor.getKey('Shift').down;
 const cameraDragIsActive = (editor: LevelEditor) =>
@@ -876,7 +877,7 @@ export class UIScene extends Scene {
 
         const keys = Object.keys(ENTITY_METADATA) as Loophole_ExtendedEntityType[];
         for (let i = 0; i < Object.keys(ENTITY_METADATA).length; i++) {
-            if (this._engine.getKey((i === 9 ? 0 : i + 1).toString()).pressed) {
+            if (this._engine.getKey((i === 9 ? 0 : i + 1).toString() as WebKey).pressed) {
                 const newBrushEntityType = brushEntityType === keys[i] ? null : keys[i];
                 setBrushEntityType(newBrushEntityType);
                 updated = true;

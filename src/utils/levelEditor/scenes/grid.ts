@@ -248,10 +248,12 @@ export class E_Tile extends Entity<LevelEditor> {
 
         const newPosition = enginePosition.mul(TILE_SIZE);
         this.#positionLerp.target = newPosition;
-        if (!this.#initialized || this.#type === 'EXPLOSION') {
+        if (!this.#initialized) {
             this.setPosition(newPosition);
             this.setRotation(targetRotation);
             this.#initialized = true;
+        } else if (this.#type === 'EXPLOSION') {
+            this.setRotation(targetRotation);
         }
 
         const pointerScale =

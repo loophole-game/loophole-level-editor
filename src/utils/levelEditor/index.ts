@@ -550,7 +550,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
                         }
                     } else if ('startPosition' in entity) {
                         const currentDegrees = loopholeRotationToDegrees(entity.direction);
-                        const newDegrees = (currentDegrees + rotation + 360) % 360;
+                        const newDegrees = (currentDegrees - rotation + 360) % 360;
                         const cellPos = new Vector(
                             Math.round(centerPosition.x),
                             Math.round(centerPosition.y),

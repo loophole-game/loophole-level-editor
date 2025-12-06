@@ -12,6 +12,7 @@ import {
     getLoopholeEntityExtendedType,
     getLoopholeEntityFlipDirection,
     getLoopholeExplosionPeriod,
+    getLoopholeExplosionStartTime,
     getLoopholeWireSprite,
     loopholeRotationToDegrees,
     TILE_SIZE,
@@ -138,10 +139,10 @@ function MultiTileContent({ editorRef, selectedTiles }: MultiTileContentProps) {
             <div className="grid grid-cols-[min-content_1fr] gap-2 items-center justify-items-start">
                 <Label>Rotate</Label>
                 <div className="flex gap-2">
-                    <Button size="icon-lg" variant="loophole" onClick={() => rotateEntities(-90)}>
+                    <Button size="icon-lg" variant="loophole" onClick={() => rotateEntities(90)}>
                         <RotateCcw />
                     </Button>
-                    <Button size="icon-lg" variant="loophole" onClick={() => rotateEntities(90)}>
+                    <Button size="icon-lg" variant="loophole" onClick={() => rotateEntities(-90)}>
                         <RotateCw />
                     </Button>
                 </div>
@@ -275,11 +276,17 @@ function ExplosionInput({ editorRef, selectedTiles }: ExplosionInputProps) {
         () => computeSharedValue(selectedTiles, (tile) => getLoopholeExplosionPeriod(tile.entity)),
         [selectedTiles],
     );
+    const { value: startTime } = useMemo(
+        () =>
+            computeSharedValue(selectedTiles, (tile) => getLoopholeExplosionStartTime(tile.entity)),
+        [selectedTiles],
+    );
 
     return (
         <>
             <Label htmlFor="explosion-direction-input">Direction</Label>
             <Button
+                id="explosion-direction-input"
                 variant="loophole"
                 onClick={() =>
                     editorRef.current?.updateEntities(
@@ -297,9 +304,10 @@ function ExplosionInput({ editorRef, selectedTiles }: ExplosionInputProps) {
             <Label htmlFor="explosion-direction-input">Rate</Label>
             <span className="flex items-center gap-2 text-sm">
                 <Input
+                    id="explosion-period-input"
                     type="number"
-                    className="w-14"
-                    value={period || ''}
+                    className="w-18"
+                    value={period !== null ? period : ''}
                     onChange={(e) =>
                         editorRef.current?.updateEntities(
                             selectedTiles.map((t) => t.entity),
@@ -308,6 +316,22 @@ function ExplosionInput({ editorRef, selectedTiles }: ExplosionInputProps) {
                     }
                 />{' '}
                 turn{period === 1 ? '' : 's'}/cell
+            </span>
+            <Label htmlFor="explosion-direction-input">Start at</Label>
+            <span className="flex items-center gap-2 text-sm">
+                <Input
+                    id="explosion-start-time-input"
+                    type="number"
+                    className="w-18"
+                    value={startTime !== null ? startTime : ''}
+                    onChange={(e) =>
+                        editorRef.current?.updateEntities(
+                            selectedTiles.map((t) => t.entity),
+                            { startTime: Math.round(parseFloat(e.target.value)) },
+                        )
+                    }
+                />{' '}
+                turns in
             </span>
         </>
     );

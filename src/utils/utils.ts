@@ -518,6 +518,14 @@ export const getLoopholeExplosionPeriod = (entity: Loophole_Entity): number => {
     return 1;
 };
 
+export const getLoopholeExplosionStartTime = (entity: Loophole_Entity): number => {
+    if ('startTime' in entity) {
+        return entity.startTime;
+    }
+
+    return 0;
+};
+
 export const getLoopholeEntityFlipDirection = (entity: Loophole_Entity): boolean => {
     if ('flipDirection' in entity) {
         return entity.flipDirection;

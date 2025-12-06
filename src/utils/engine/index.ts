@@ -1,7 +1,7 @@
 import { Entity, type EntityOptions } from './entities';
 import { Component, type ComponentOptions } from './components';
 import { RenderSystem } from './systems/render';
-import { type Camera, type CameraData } from './types';
+import { type Camera, type CameraData, type WebKey } from './types';
 import type { AvailableScenes, Scene, SceneIdentifier } from './systems/scene';
 import { SceneSystem } from './systems/scene';
 import {
@@ -41,8 +41,8 @@ interface BrowserEventMap {
     mouseover: { from: EventTarget | null; to: EventTarget | null };
     mouseout: { from: EventTarget | null; to: EventTarget | null };
 
-    keydown: { key: string; ctrl: boolean; meta: boolean; shift: boolean; alt: boolean };
-    keyup: { key: string; ctrl: boolean; meta: boolean; shift: boolean; alt: boolean };
+    keydown: { key: WebKey; ctrl: boolean; meta: boolean; shift: boolean; alt: boolean };
+    keyup: { key: WebKey; ctrl: boolean; meta: boolean; shift: boolean; alt: boolean };
 }
 
 type BrowserEventHandler<T extends BrowserEvent> = (
@@ -341,7 +341,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         return new Vector(p.x, p.y);
     }
 
-    getKey(keyCode: string): Readonly<KeyboardKeyState> {
+    getKey(keyCode: WebKey): Readonly<KeyboardKeyState> {
         return this._keyboardSystem.getKey(keyCode);
     }
 
@@ -363,8 +363,11 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         this._cameraSystem.setCameraZoom(camera.zoom);
     }
 
-    setCameraPosition(position: IVector<number>): void {
+    setCameraPosition(position: IVector<number>, cancelCameraTarget: boolean = true): void {
         this._cameraSystem.setCameraPosition(position);
+        if (cancelCameraTarget) {
+            this.cameraTarget = null;
+        }
     }
 
     setCameraZoom(zoom: number): void {
@@ -535,7 +538,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
     }
 
     #setKeyDown(
-        key: string,
+        key: WebKey,
         down: boolean,
         ctrl: boolean,
         meta: boolean,

@@ -5,6 +5,7 @@ import { getAppStore } from '../../utils/stores';
 import type { Loophole_ExtendedEntityType } from '../../utils/levelEditor/externalLevelSchema';
 import type { LevelEditor } from '../../utils/levelEditor';
 import type { IVector } from '@/utils/engine/math';
+import type { WebKey } from '@/utils/engine/types';
 
 const calculateCanvasSize = (
     width: number,
@@ -126,7 +127,7 @@ export function EngineCanvas({
 
             if (
                 engineRef.current?.onKeyDown('keydown', {
-                    key: event.key,
+                    key: event.key as WebKey,
                     ctrl: event.ctrlKey,
                     meta: event.metaKey,
                     shift: event.shiftKey,
@@ -144,7 +145,7 @@ export function EngineCanvas({
 
             if (
                 engineRef.current?.onKeyUp('keyup', {
-                    key: event.key,
+                    key: event.key as WebKey,
                     ctrl: event.ctrlKey,
                     meta: event.metaKey,
                     shift: event.shiftKey,

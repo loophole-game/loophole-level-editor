@@ -1,5 +1,5 @@
 import { System } from '.';
-import type { ButtonState } from '../types';
+import type { ButtonState, WebKey } from '../types';
 
 export interface KeyboardKeyState extends ButtonState {
     numHeldPresses: number;
@@ -17,11 +17,10 @@ interface KeyState {
 }
 
 export class KeyboardSystem extends System {
-    #keyStates: Record<string, KeyState> = {};
+    #keyStates: Partial<Record<WebKey, KeyState>> = {};
 
     override earlyUpdate(deltaTime: number) {
-        for (const key in this.#keyStates) {
-            const keyState = this.#keyStates[key];
+        for (const keyState of Object.values(this.#keyStates)) {
             keyState.currState.pressed = !keyState.prevState.down && keyState.currState.down;
             keyState.currState.released = keyState.prevState.down && !keyState.currState.down;
             if (keyState.currState.pressed) {
@@ -44,7 +43,7 @@ export class KeyboardSystem extends System {
     }
 
     keyStateChange(
-        key: string,
+        key: WebKey,
         isDown: boolean,
         ctrl: boolean,
         meta: boolean,
@@ -67,8 +66,8 @@ export class KeyboardSystem extends System {
 
         const effectiveDown = mod && !keyCaptured && !isModifierKey ? false : isDown;
 
-        this.#keyStates[key].currState = {
-            ...this.#keyStates[key].currState,
+        this.#keyStates[key]!.currState = {
+            ...this.#keyStates[key]!.currState,
             down: effectiveDown,
             downAsNum: effectiveDown ? 1 : 0,
             downWithoutModAsNum: effectiveDown && !mod ? 1 : 0,
@@ -79,28 +78,28 @@ export class KeyboardSystem extends System {
             mod: ctrl || meta,
         };
         if (mod) {
-            this.#keyStates[key].prevState.down = false;
+            this.#keyStates[key]!.prevState.down = false;
         }
 
         return keyCaptured;
     }
 
-    getKey(key: string): KeyboardKeyState {
+    getKey(key: WebKey): KeyboardKeyState {
         this.#setIfNonExistent(key);
 
-        return this.#keyStates[key].currState;
+        return this.#keyStates[key]!.currState;
     }
 
     releaseAllKeys(): void {
-        for (const key in this.#keyStates) {
-            const state = this.#keyStates[key].currState;
+        for (const keyState of Object.values(this.#keyStates)) {
+            const state = keyState.currState;
             state.down = false;
             state.downAsNum = 0;
             state.downWithoutModAsNum = 0;
         }
     }
 
-    #setIfNonExistent(key: string) {
+    #setIfNonExistent(key: WebKey) {
         if (!(key in this.#keyStates)) {
             const state: KeyboardKeyState = {
                 down: false,
