@@ -37,6 +37,7 @@
   - React UI under `src/components/**`
 - Prefer **reusing existing helpers** in `src/utils/levelEditor/utils.ts`, `externalLevelSchema.ts`, and `stores.ts` instead of duplicating logic.
 - When adding new visual entities or behaviors, **mirror the existing scene/entity/component patterns** used by `E_Tile`, `E_EntityVisual`, and other level-editor scenes.
+- Don't document your changes in a separate file unless explicitly asked to.
 
 ## Engine & Level Editor Specific Rules
 

@@ -4,6 +4,12 @@ import { Entity, type EntityOptions } from '../entities';
 
 const DEFAULT_SCENE_NAME = 'default-scene';
 
+export interface SceneOptions<TEngine extends Engine = Engine> {
+    engine: TEngine;
+    name?: string;
+    zIndex?: number;
+}
+
 export class Scene<TEngine extends Engine = Engine> {
     protected static _nextId: number = 1;
     protected readonly _id: number = Scene._nextId++;
@@ -11,10 +17,13 @@ export class Scene<TEngine extends Engine = Engine> {
 
     protected _engine: TEngine;
     #rootEntity: Entity | null = null;
+    #zIndex: number = 0;
 
-    constructor(engine: TEngine, name?: string) {
+    constructor(options: SceneOptions<TEngine>) {
+        const { engine, name, zIndex = 0 } = options;
         this._engine = engine;
         this._name = name || `scene-${this._id}`;
+        this.#zIndex = zIndex;
     }
 
     get id(): number {
@@ -23,6 +32,19 @@ export class Scene<TEngine extends Engine = Engine> {
 
     get name(): string {
         return this._name;
+    }
+
+    get zIndex(): number {
+        return this.#zIndex;
+    }
+
+    set zIndex(zIndex: number) {
+        if (this.#zIndex !== zIndex && !isNaN(zIndex)) {
+            this.#zIndex = zIndex;
+            if (this.#rootEntity) {
+                this.#rootEntity.setZIndex(zIndex);
+            }
+        }
     }
 
     get engine(): Engine | null {
@@ -137,7 +159,7 @@ export class SceneSystem<TEngine extends Engine = Engine> extends System<TEngine
 
         let sceneObject = this.#findScene(scene);
         if (!sceneObject) {
-            this.#defaultScene = new Scene(this._engine, DEFAULT_SCENE_NAME);
+            this.#defaultScene = new Scene({ engine: this._engine, name: DEFAULT_SCENE_NAME });
             this.#makeSceneActive(this.#defaultScene);
             sceneObject = this.#defaultScene;
         }
@@ -162,7 +184,7 @@ export class SceneSystem<TEngine extends Engine = Engine> extends System<TEngine
                   ? this.#activeScenesByName.get(scene)
                   : typeof scene === 'number'
                     ? this.#activeScenesByID.get(scene)
-                    : scene) || null
+                    : scene) || this.#defaultScene
         );
     }
 
@@ -172,6 +194,7 @@ export class SceneSystem<TEngine extends Engine = Engine> extends System<TEngine
 
         const rootEntity = this.#worldRootEntity.addEntities(Entity<TEngine>, {
             name: `scene-root-${scene.name}-${scene.id}`,
+            zIndex: scene.zIndex,
         });
         this.#sceneRootEntities.set(scene.id, rootEntity);
         if (!this.#defaultScene) {

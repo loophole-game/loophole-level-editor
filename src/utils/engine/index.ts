@@ -2,7 +2,7 @@ import { Entity, type EntityOptions } from './entities';
 import { Component, type ComponentOptions } from './components';
 import { RenderSystem } from './systems/render';
 import { type Camera, type CameraData, type WebKey } from './types';
-import { Scene, type SceneIdentifier } from './systems/scene';
+import { Scene, type SceneIdentifier, type SceneOptions } from './systems/scene';
 import { SceneSystem } from './systems/scene';
 import {
     PointerButton,
@@ -21,6 +21,7 @@ import { StatsSystem, type Stats } from './systems/stats';
 import { DebugOverlayScene } from './scenes/DebugOverlay';
 
 const DEBUG_OVERLAY_SCENE_NAME = '__ENGINE_DEBUG_SCENE__';
+const DEBUG_OVERLAY_SCENE_Z_INDEX = 100;
 
 type BrowserEvent =
     | 'mousemove'
@@ -61,7 +62,9 @@ interface KeyCapture {
     alt?: boolean;
 }
 
-export type SceneConstructor<T extends Scene = Scene> = new (engine: Engine, name?: string) => T;
+export type SceneConstructor<T extends Scene = Scene, TEngine extends Engine = Engine> = new (
+    options: SceneOptions<TEngine>,
+) => T;
 
 export interface EngineOptions {
     zoomSpeed: number;
@@ -315,8 +318,11 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         return instances.length === 1 ? instances[0] : instances;
     }
 
-    openScene<T extends Scene>(sceneCtor: SceneConstructor<T>, name?: string): T {
-        const scene = new sceneCtor(this, name);
+    openScene<T extends Scene>(
+        sceneCtor: SceneConstructor<T, this>,
+        options?: Omit<SceneOptions<this>, 'engine'>,
+    ): T {
+        const scene = new sceneCtor({ engine: this, ...options });
         this._sceneSystem.openScene(scene);
 
         return scene;
@@ -443,7 +449,10 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
 
     openDebugOverlay(): void {
         if (!this.#debugOverlayScene) {
-            this.#debugOverlayScene = this.openScene(DebugOverlayScene, DEBUG_OVERLAY_SCENE_NAME);
+            this.#debugOverlayScene = this.openScene(DebugOverlayScene, {
+                name: DEBUG_OVERLAY_SCENE_NAME,
+                zIndex: DEBUG_OVERLAY_SCENE_Z_INDEX,
+            });
         }
     }
 
