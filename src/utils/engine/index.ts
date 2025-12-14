@@ -85,6 +85,7 @@ export interface EngineOptions {
 
     asyncImageLoading: boolean;
 
+    alwaysRender: boolean;
     engineTracesEnabled: boolean;
     debugOverlayEnabled: boolean;
 }
@@ -112,6 +113,7 @@ const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
 
     asyncImageLoading: true,
 
+    alwaysRender: false,
     engineTracesEnabled: false,
     debugOverlayEnabled: false,
 };
@@ -511,6 +513,8 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         let systemLateUpdated = false;
 
         this.trace('Update', () => {
+            this.#forceRender = this.options.alwaysRender;
+
             for (const system of this._systems) {
                 this.trace(`${system.constructor.name}.early`, () => {
                     const updated = system.earlyUpdate(deltaTime);

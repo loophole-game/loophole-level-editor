@@ -254,6 +254,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
             this.options = {
                 ...this.options,
                 debugOverlayEnabled: showEngineStats,
+                alwaysRender: showEngineStats,
             };
         }
 

@@ -42,6 +42,7 @@ export function LevelEditorComponent() {
     if (!levelEditorRef.current) {
         levelEditorRef.current = new LevelEditor({
             engineTracesEnabled: showEngineStats,
+            alwaysRender: showEngineStats,
         });
     }
 

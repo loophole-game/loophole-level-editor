@@ -3,7 +3,7 @@ import { RENDER_CMD, RenderCommand, type RenderCommandStream } from '../systems/
 import type { Camera, RecursiveArray, Renderable } from '../types';
 import { Vector, type IVector } from '../math';
 import { C_Transform } from '../components/transforms';
-import { zoomToScale } from '../utils';
+import { boundingBoxesIntersect, zoomToScale } from '../utils';
 import type { Engine } from '..';
 
 interface ScaleToCamera {
@@ -11,11 +11,14 @@ interface ScaleToCamera {
     y: boolean;
 }
 
+type CullMode = 'components' | 'children' | 'all' | 'none';
+
 export interface EntityOptions<TEngine extends Engine = Engine> {
     engine: TEngine;
     name?: string;
     enabled?: boolean;
     zIndex?: number;
+    cullMode?: CullMode;
     position?: number | IVector<number> | Vector;
     scale?: number | IVector<number> | Vector;
     rotation?: number;
@@ -39,6 +42,7 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
     protected _parent: Entity<TEngine> | null = null;
     protected _transform: C_Transform<TEngine>;
     protected _scaleToCamera: ScaleToCamera = { x: false, y: false };
+    protected _cullMode: CullMode = 'none';
 
     protected _children: Entity<TEngine>[] = [];
     #childrenZIndexDirty: boolean = false;
@@ -57,6 +61,7 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
                 ? { x: rest.scaleToCamera, y: rest.scaleToCamera }
                 : rest.scaleToCamera
             : { x: false, y: false };
+        this._cullMode = rest?.cullMode ?? 'none';
         this._components = rest?.components ?? [];
         this._children = rest?.children ?? [];
 
@@ -116,6 +121,10 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
 
     get zIndex(): number {
         return this._zIndex;
+    }
+
+    get cullMode(): CullMode {
+        return this._cullMode;
     }
 
     set componentsZIndexDirty(dirty: boolean) {
@@ -326,6 +335,11 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         return this;
     }
 
+    setCullMode(cullMode: CullMode): this {
+        this._cullMode = cullMode;
+        return this;
+    }
+
     removeComponents(...components: Component[]): this {
         this._components = this._components.filter((c) => components.every((ic) => c.id !== ic.id));
         return this;
@@ -344,11 +358,18 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
             return;
         }
 
-        if (this.#childrenZIndexDirty) {
+        const culled = this._cullMode !== 'none' && this.isCulled(camera);
+        const cullChildren = culled && this._cullMode !== 'components';
+        const cullComponents = culled && this._cullMode !== 'children';
+        if (culled && this._cullMode === 'all') {
+            return;
+        }
+
+        if (this.#childrenZIndexDirty && !cullChildren) {
             this.#sortChildren();
             this.#childrenZIndexDirty = false;
         }
-        if (this.#componentsZIndexDirty) {
+        if (this.#componentsZIndexDirty && !cullComponents) {
             this.#sortComponents();
             this.#componentsZIndexDirty = false;
         }
@@ -359,28 +380,38 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
             }),
         );
 
-        // Negative z-index children first
-        for (const child of this._children) {
-            if (child.zIndex < 0 && child.enabled) {
-                child.queueRenderCommands(out, camera);
+        if (!cullChildren) {
+            // Negative z-index children first
+            for (const child of this._children) {
+                if (child.zIndex < 0 && child.enabled) {
+                    child.queueRenderCommands(out, camera);
+                }
             }
         }
 
-        // Then components
-        for (const component of this._components) {
-            if (component.enabled) {
-                component.queueRenderCommands(out, camera);
+        if (!cullComponents) {
+            // Then components
+            for (const component of this._components) {
+                if (component.enabled) {
+                    component.queueRenderCommands(out, camera);
+                }
             }
         }
 
-        // Then non-negative z-index children
-        for (const child of this._children) {
-            if (child.zIndex >= 0 && child.enabled) {
-                child.queueRenderCommands(out, camera);
+        if (!cullChildren) {
+            // Then non-negative z-index children
+            for (const child of this._children) {
+                if (child.zIndex >= 0 && child.enabled) {
+                    child.queueRenderCommands(out, camera);
+                }
             }
         }
 
         out.push(new RenderCommand(RENDER_CMD.POP_TRANSFORM, null));
+    }
+
+    isCulled(camera: Camera): boolean {
+        return !boundingBoxesIntersect(this.transform.boundingBox, camera.boundingBox);
     }
 
     #destroy(): void {

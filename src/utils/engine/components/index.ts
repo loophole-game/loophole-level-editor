@@ -10,6 +10,7 @@ export interface ComponentOptions<TEngine extends Engine = Engine> {
     name?: string;
     enabled?: boolean;
     zIndex?: number;
+    cullable?: boolean;
 }
 
 export abstract class Component<TEngine extends Engine = Engine> implements Renderable {
@@ -21,6 +22,7 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
     protected _enabled: boolean = true;
 
     protected _zIndex: number = 0;
+    protected _cullable: boolean = false;
 
     protected _entity: Entity | null = null;
 
@@ -30,6 +32,7 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
         this._engine = engine;
         this._enabled = rest?.enabled ?? true;
         this._zIndex = rest?.zIndex ?? 0;
+        this._cullable = rest?.cullable ?? true;
     }
 
     get id(): string {

@@ -224,6 +224,30 @@ export class CameraSystem extends System {
 
     #onCameraChanged(): void {
         this.#camera.dirty = true;
+        
+        // Calculate the world space bounding box (what's visible in the viewport)
+        if (this._engine.canvasSize) {
+            const scale = zoomToScale(this.#camera.zoom);
+            const worldSize = {
+                x: this._engine.canvasSize.x / scale,
+                y: this._engine.canvasSize.y / scale,
+            };
+            // The world center visible is the inverse of camera position, scaled
+            const worldCenter = {
+                x: -this.#camera.position.x / scale,
+                y: -this.#camera.position.y / scale,
+            };
+
+            this.#camera.boundingBox = calculateRectangleBoundingBox(
+                worldCenter,
+                worldSize,
+                -this.#camera.rotation,
+                { x: worldSize.x / 2, y: worldSize.y / 2 },
+            );
+        } else {
+            this.#camera.boundingBox = { x1: 0, x2: 0, y1: 0, y2: 0 };
+        }
+        
         this.#worldToScreenMatrixDirty = true;
         this.#worldBoundingBoxDirty = true;
     }
