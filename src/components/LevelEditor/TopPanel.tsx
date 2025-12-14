@@ -170,7 +170,7 @@ export default function TopPanel({ className }: TopPanelProps) {
         <Panel className={clsx('flex items-center w-full', className)}>
             <Input
                 type="text"
-                className="border-none outline-none !text-xl font-bold"
+                className="border-none outline-none text-xl! font-bold"
                 value={name}
                 placeholder={DEFAULT_LEVEL_NAME}
                 onChange={(e) => updateLevel(currentLevel.id, { name: e.target.value })}

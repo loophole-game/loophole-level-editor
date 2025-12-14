@@ -17,6 +17,8 @@ import {
     type Loophole_ExtendedEntityType,
     type Loophole_Int2,
     type Loophole_Rotation,
+    type Loophole_Wire,
+    type WithID,
 } from '../externalLevelSchema';
 import { PointerButton, type CursorType } from '@/utils/engine/systems/pointer';
 import { Vector, type IVector } from '@/utils/engine/math';
@@ -42,6 +44,17 @@ const CURSOR_PRIORITY = {
     DRAGGING: 30,
 } as const;
 
+const WIRE_TURNS: Record<string, Loophole_Rotation> = {
+    'RIGHT-UP': 'UP',
+    'UP-RIGHT': 'DOWN',
+    'RIGHT-DOWN': 'RIGHT',
+    'DOWN-RIGHT': 'LEFT',
+    'LEFT-DOWN': 'DOWN',
+    'DOWN-LEFT': 'UP',
+    'LEFT-UP': 'LEFT',
+    'UP-LEFT': 'RIGHT',
+};
+
 class E_TileCursor extends Entity<LevelEditor> {
     #entityVisual: E_EntityVisual;
 
@@ -58,6 +71,9 @@ class E_TileCursor extends Entity<LevelEditor> {
     #dragPositionType: 'CELL' | 'EDGE' | null = null;
     #dragEdgeAlignment: Loophole_EdgeAlignment | null = null;
     #dragHash: string | null = null;
+
+    #wireDragPath: IVector<number>[] = [];
+    #wirePlacedTiles: Map<string, E_Tile> = new Map();
 
     #prevBrushEntityType: Loophole_ExtendedEntityType | null = null;
 
@@ -99,7 +115,6 @@ class E_TileCursor extends Entity<LevelEditor> {
             setIsDraggingToPlace,
         } = getAppStore();
 
-        // Cursor management for brush mode
         if (
             this._engine.pointerState.onScreen &&
             !multiSelectIsActive(this._engine) &&
@@ -107,7 +122,6 @@ class E_TileCursor extends Entity<LevelEditor> {
             !isMovingTiles &&
             brushEntityType
         ) {
-            // Show crosshair cursor in brush mode
             if (isDraggingToPlace) {
                 this._engine.requestCursor(
                     'tile-cursor-dragging',
@@ -208,7 +222,11 @@ class E_TileCursor extends Entity<LevelEditor> {
                 this.#dragEdgeAlignment = edgeAlignment;
                 this.#dragHash = v4();
 
-                // Place the first tile
+                if (brushEntityType === 'WIRE') {
+                    this.#wireDragPath = [{ x: tilePosition.x, y: tilePosition.y }];
+                    this.#wirePlacedTiles.clear();
+                }
+
                 const tiles = this._engine.placeTile(
                     tilePosition,
                     brushEntityType,
@@ -219,28 +237,38 @@ class E_TileCursor extends Entity<LevelEditor> {
                 );
                 setSelectedTiles(tiles);
                 this.#placedTileDuringDrag.add(this.#getTileKey(tilePosition, edgeAlignment));
+
+                if (brushEntityType === 'WIRE' && tiles.length > 0) {
+                    this.#wirePlacedTiles.set(
+                        this.#getTileKey(tilePosition, edgeAlignment),
+                        tiles[0],
+                    );
+                }
             } else if (
                 leftButton.down &&
                 isDraggingToPlace &&
                 this.#dragStartTilePosition &&
                 !dragPlacementDisabled
             ) {
-                // Continue dragging - place tiles along the line
-                this.#handleDragPlacement(
-                    tilePosition,
-                    brushEntityType,
-                    brushEntityRotation,
-                    brushEntityFlipDirection,
-                );
+                if (brushEntityType === 'WIRE') {
+                    this.#handleWireDragPlacement(tilePosition, brushEntityType);
+                } else {
+                    this.#handleDragPlacement(
+                        tilePosition,
+                        brushEntityType,
+                        brushEntityRotation,
+                        brushEntityFlipDirection,
+                    );
+                }
             } else if (leftButton.released && isDraggingToPlace) {
-                // End dragging
                 setIsDraggingToPlace(false);
                 this.#dragStartTilePosition = null;
                 this.#placedTileDuringDrag.clear();
                 this.#dragPositionType = null;
                 this.#dragEdgeAlignment = null;
+                this.#wireDragPath = [];
+                this.#wirePlacedTiles.clear();
             } else if (leftButton.clicked && !isDraggingToPlace) {
-                // Single click (short click with minimal movement)
                 const tiles = this._engine.placeTile(
                     tilePosition,
                     brushEntityType,
@@ -252,7 +280,6 @@ class E_TileCursor extends Entity<LevelEditor> {
                 this._engine.capturePointerButtonClick(PointerButton.LEFT);
             }
 
-            // Handle right click for removing tiles
             if (rightButton.clicked) {
                 this._engine.removeTiles([
                     {
@@ -295,7 +322,6 @@ class E_TileCursor extends Entity<LevelEditor> {
     ) {
         if (!this.#dragStartTilePosition || !this.#dragPositionType) return;
 
-        // Calculate the tiles to place based on positionType
         const tilesToPlace: IVector<number>[] = [];
 
         if (this.#dragPositionType === 'CELL') {
@@ -310,10 +336,7 @@ class E_TileCursor extends Entity<LevelEditor> {
                 }
             }
         } else {
-            // EDGE types: drag along the axis that aligns with the edge
-            // RIGHT edges (vertical) drag vertically, TOP edges (horizontal) drag horizontally
             if (this.#dragEdgeAlignment === 'RIGHT') {
-                // RIGHT edges are vertical, so drag vertically
                 const startY = Math.min(this.#dragStartTilePosition.y, currentTilePosition.y);
                 const endY = Math.max(this.#dragStartTilePosition.y, currentTilePosition.y);
                 const x = this.#dragStartTilePosition.x;
@@ -321,7 +344,6 @@ class E_TileCursor extends Entity<LevelEditor> {
                     tilesToPlace.push({ x, y });
                 }
             } else if (this.#dragEdgeAlignment === 'TOP') {
-                // TOP edges are horizontal, so drag horizontally
                 const startX = Math.min(this.#dragStartTilePosition.x, currentTilePosition.x);
                 const endX = Math.max(this.#dragStartTilePosition.x, currentTilePosition.x);
                 const y = this.#dragStartTilePosition.y;
@@ -331,7 +353,6 @@ class E_TileCursor extends Entity<LevelEditor> {
             }
         }
 
-        // Place tiles that haven't been placed yet
         const allPlacedTiles: E_Tile[] = [];
         const edgeAlignment = this.#dragEdgeAlignment ?? null;
 
@@ -351,7 +372,6 @@ class E_TileCursor extends Entity<LevelEditor> {
             }
         }
 
-        // Update selection if we placed any new tiles
         if (allPlacedTiles.length > 0) {
             const { selectedTiles, setSelectedTiles } = getAppStore();
             setSelectedTiles([...Object.values(selectedTiles), ...allPlacedTiles]);
@@ -360,6 +380,141 @@ class E_TileCursor extends Entity<LevelEditor> {
 
     #getTileKey(position: IVector<number>, edgeAlignment: Loophole_EdgeAlignment | null): string {
         return `${position.x},${position.y},${edgeAlignment ?? 'NONE'}`;
+    }
+
+    #handleWireDragPlacement(
+        currentTilePosition: IVector<number>,
+        brushEntityType: Loophole_ExtendedEntityType,
+    ) {
+        if (!this.#dragStartTilePosition) return;
+
+        const lastPos = this.#wireDragPath[this.#wireDragPath.length - 1];
+        if (lastPos && lastPos.x === currentTilePosition.x && lastPos.y === currentTilePosition.y) {
+            return;
+        }
+
+        this.#wireDragPath.push({ x: currentTilePosition.x, y: currentTilePosition.y });
+
+        const wireConfigs = this.#calculateWireConfigs(this.#wireDragPath);
+
+        const pos = currentTilePosition;
+        const config = wireConfigs[wireConfigs.length - 1];
+        const key = this.#getTileKey(pos, null);
+        const { selectedTiles, setSelectedTiles } = getAppStore();
+
+        if (!this.#placedTileDuringDrag.has(key)) {
+            const tiles = this._engine.placeTile(
+                pos,
+                brushEntityType,
+                null,
+                config.rotation,
+                false,
+                this.#dragHash,
+            );
+
+            if (tiles.length > 0) {
+                const wireEntity = tiles[0].entity as Loophole_Wire & WithID;
+                wireEntity.sprite = config.sprite;
+                tiles[0].entity = wireEntity;
+                tiles[0].syncVisualState();
+
+                this.#wirePlacedTiles.set(key, tiles[0]);
+                this.#placedTileDuringDrag.add(key);
+                setSelectedTiles([...Object.values(selectedTiles), tiles[0]]);
+            }
+        }
+
+        if (this.#wireDragPath.length >= 2) {
+            const prevPos = this.#wireDragPath[this.#wireDragPath.length - 2];
+            const prevKey = this.#getTileKey(prevPos, null);
+            const prevTile = this.#wirePlacedTiles.get(prevKey);
+            const prevConfig = wireConfigs[wireConfigs.length - 2];
+
+            if (prevTile) {
+                const wireEntity = prevTile.entity as Loophole_Wire & WithID;
+                const needsUpdate =
+                    wireEntity.rotation !== prevConfig.rotation ||
+                    wireEntity.sprite !== prevConfig.sprite;
+
+                if (needsUpdate) {
+                    wireEntity.rotation = prevConfig.rotation;
+                    wireEntity.sprite = prevConfig.sprite;
+                    prevTile.entity = wireEntity;
+                    prevTile.syncVisualState();
+                    prevTile.setRotation(loopholeRotationToDegrees(prevConfig.rotation));
+                }
+            }
+        }
+    }
+
+    #calculateWireConfigs(path: IVector<number>[]): Array<{
+        rotation: Loophole_Rotation;
+        sprite: 'STRAIGHT' | 'CORNER';
+    }> {
+        if (path.length === 0) return [];
+        if (path.length === 1) {
+            return [{ rotation: 'RIGHT', sprite: 'STRAIGHT' }];
+        }
+
+        return path.map((pos, i) => {
+            const prev = i > 0 ? path[i - 1] : null;
+            const next = i < path.length - 1 ? path[i + 1] : null;
+            const incomingDir = prev ? this.#getDirection(prev, pos) : null;
+            const outgoingDir = next ? this.#getDirection(pos, next) : null;
+
+            if (!incomingDir || !outgoingDir) {
+                const dir = incomingDir || outgoingDir;
+                return {
+                    rotation: dir || 'RIGHT',
+                    sprite: 'STRAIGHT' as const,
+                };
+            }
+
+            if (incomingDir === outgoingDir) {
+                return {
+                    rotation: incomingDir,
+                    sprite: 'STRAIGHT' as const,
+                };
+            } else if (this.#areOppositeDirections(incomingDir, outgoingDir)) {
+                return {
+                    rotation: incomingDir,
+                    sprite: 'STRAIGHT' as const,
+                };
+            } else {
+                const rotation = this.#getCornerRotation(incomingDir, outgoingDir);
+                return {
+                    rotation,
+                    sprite: 'CORNER' as const,
+                };
+            }
+        });
+    }
+
+    #getDirection(from: IVector<number>, to: IVector<number>): Loophole_Rotation {
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+
+        if (dx > 0) return 'RIGHT';
+        if (dx < 0) return 'LEFT';
+        if (dy > 0) return 'DOWN';
+        return 'UP';
+    }
+
+    #areOppositeDirections(dir1: Loophole_Rotation, dir2: Loophole_Rotation): boolean {
+        return (
+            (dir1 === 'RIGHT' && dir2 === 'LEFT') ||
+            (dir1 === 'LEFT' && dir2 === 'RIGHT') ||
+            (dir1 === 'UP' && dir2 === 'DOWN') ||
+            (dir1 === 'DOWN' && dir2 === 'UP')
+        );
+    }
+
+    #getCornerRotation(
+        incomingDir: Loophole_Rotation,
+        outgoingDir: Loophole_Rotation,
+    ): Loophole_Rotation {
+        const key = `${incomingDir}-${outgoingDir}`;
+        return WIRE_TURNS[key] || 'RIGHT';
     }
 }
 
@@ -454,7 +609,6 @@ class E_SelectionCursor extends Entity<LevelEditor> {
         this.#opacityLerp.target = this.#active ? 0.25 : 0;
         this._engine.pointerSystem.checkForOverlap = !this.#active;
 
-        // Cursor management for multi-select
         if (this.#active !== this.#wasActive) {
             if (this.#active) {
                 this._engine.requestCursor('multi-select', 'crosshair', CURSOR_PRIORITY.BRUSH);

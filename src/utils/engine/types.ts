@@ -22,9 +22,9 @@ export interface CameraData {
     zoom: number;
     rotation: number;
     position: IVector<number>;
-    boundingBox: BoundingBox;
 }
 export interface CameraMetadata {
+    boundingBox: BoundingBox;
     dirty: boolean;
 }
 

@@ -32,9 +32,9 @@
 - Keep **UI state and side effects** in React and the `zustand` stores in `src/utils/stores.ts`, not in the engine core.
 - Preserve and extend **strong TypeScript typing**; avoid `any`/`as` and keep public APIs typed and stable where possible.
 - Follow the existing **directory conventions**:
-  - Engine core under `src/utils/engine/**`
-  - Level-editor behavior and visuals under `src/utils/levelEditor/**`
-  - React UI under `src/components/**`
+    - Engine core under `src/utils/engine/**`
+    - Level-editor behavior and visuals under `src/utils/levelEditor/**`
+    - React UI under `src/components/**`
 - Prefer **reusing existing helpers** in `src/utils/levelEditor/utils.ts`, `externalLevelSchema.ts`, and `stores.ts` instead of duplicating logic.
 - When adding new visual entities or behaviors, **mirror the existing scene/entity/component patterns** used by `E_Tile`, `E_EntityVisual`, and other level-editor scenes.
 - Don't document your changes in a separate file unless explicitly asked to.
@@ -42,17 +42,17 @@
 ## Engine & Level Editor Specific Rules
 
 - Treat `LevelEditor` (`src/utils/levelEditor/index.ts`) as the **single source of truth** for:
-  - The current `Loophole_InternalLevel`
-  - Placement rules and constraints
-  - Undo/redo behavior
+    - The current `Loophole_InternalLevel`
+    - Placement rules and constraints
+    - Undo/redo behavior
 - Avoid mutating level data outside of the paths that `LevelEditor` and the existing stores already use; **route changes through existing APIs** when possible.
 - For new interactions:
-  - Put **input handling** in the appropriate engine systems (`pointer`, `keyboard`, `cursor`).
-  - Put **visual/animation concerns** into components (`Image`, `Shape`, `Lerp`, etc.).
-  - Keep **editor-specific behavior** (selection, brushes, layers) in the level-editor scenes under `src/utils/levelEditor/scenes/**`.
+    - Put **input handling** in the appropriate engine systems (`pointer`, `keyboard`, `cursor`).
+    - Put **visual/animation concerns** into components (`Image`, `Shape`, `Lerp`, etc.).
+    - Keep **editor-specific behavior** (selection, brushes, layers) in the level-editor scenes under `src/utils/levelEditor/scenes/**`.
 - When editing or extending `src/utils/levelEditor/scenes/ui.ts`, prefer:
-  - Using existing store selectors and actions instead of creating new global state.
-  - Keeping time-travel and multi-timeline behavior consistent with existing patterns (e.g., don't special-case a single timeline unless clearly required).
+    - Using existing store selectors and actions instead of creating new global state.
+    - Keeping time-travel and multi-timeline behavior consistent with existing patterns (e.g., don't special-case a single timeline unless clearly required).
 
 ## React/UI Rules
 
@@ -60,29 +60,30 @@
 - Use the existing **ShadCN/Tailwind pattern** from `src/components/ui/**` (`Button`, `Input`, `Tooltip`, etc.) for new UI instead of raw HTML wherever reasonable.
 - Keep React components **presentational where possible** and delegate game/editor logic to the engine and level-editor utilities.
 - For layout and styling:
-  - Use existing Tailwind tokens and utility classes as a reference to match the current visual style.
-  - Keep the editor layout responsive enough to work at common desktop resolutions.
+    - Use existing Tailwind tokens and utility classes as a reference to match the current visual style.
+    - Keep the editor layout responsive enough to work at common desktop resolutions.
 
 ## Tooling & Commands (for agents)
 
 - Use **pnpm** for all commands in this repo:
-  - `pnpm dev` to run the Vite dev server.
-  - `pnpm build` to build the app.
-  - `pnpm lint` to run ESLint.
-  - `pnpm type-check` to run TypeScript in build mode without emitting.
+    - `pnpm dev` to run the Vite dev server.
+    - `pnpm build` to build the app.
+    - `pnpm lint` to run ESLint.
+    - `pnpm type-check` to run TypeScript in build mode without emitting.
 - Before landing substantial changes, prefer to **run at least lint and type-check** and address new issues in the touched files.
-- Never modify the available scripts or pre-commit hook unless explicitly asked
+- Never modify the available scripts or pre-commit hook unless explicitly asked.
+- Do not attempt to test your changes in the browser - that's the user's job.
 
 ## Useful Default Actions for This Project
 
 - When asked to **add or change a feature in the editor**:
-  - Identify whether the change belongs in the engine (`src/utils/engine/**`), level-editor layer (`src/utils/levelEditor/**`), or React UI (`src/components/**`), and keep the change focused to the correct layer.
-  - Favor extending existing entities, components, and scenes over introducing entirely new patterns.
+    - Identify whether the change belongs in the engine (`src/utils/engine/**`), level-editor layer (`src/utils/levelEditor/**`), or React UI (`src/components/**`), and keep the change focused to the correct layer.
+    - Favor extending existing entities, components, and scenes over introducing entirely new patterns.
 - When asked to **debug editor behavior**:
-  - First inspect the relevant scene or system (for grid/selection issues, look in `src/utils/levelEditor/scenes/**` and the corresponding engine systems).
-  - Only fall back to UI-level workarounds if the bug clearly originates in React.
+    - First inspect the relevant scene or system (for grid/selection issues, look in `src/utils/levelEditor/scenes/**` and the corresponding engine systems).
+    - Only fall back to UI-level workarounds if the bug clearly originates in React.
 - When asked to **add new tiles, entities, or visual states**:
-  - Wire them into the level schema (`externalLevelSchema.ts` if applicable).
-  - Add or extend corresponding entities/visuals in `src/utils/levelEditor/scenes`.
-  - Ensure the React UI (tile picker, inspectors, layers) exposes the new options where appropriate.
+    - Wire them into the level schema (`externalLevelSchema.ts` if applicable).
+    - Add or extend corresponding entities/visuals in `src/utils/levelEditor/scenes`.
+    - Ensure the React UI (tile picker, inspectors, layers) exposes the new options where appropriate.
 - When in doubt about where something should live, **prefer consistency with similar existing code** in this repo over inventing a new pattern.
