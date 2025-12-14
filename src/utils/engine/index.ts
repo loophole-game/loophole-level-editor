@@ -2,7 +2,7 @@ import { Entity, type EntityOptions } from './entities';
 import { Component, type ComponentOptions } from './components';
 import { RenderSystem } from './systems/render';
 import { type Camera, type CameraData, type WebKey } from './types';
-import type { AvailableScenes, Scene, SceneIdentifier } from './systems/scene';
+import { Scene, type SceneIdentifier } from './systems/scene';
 import { SceneSystem } from './systems/scene';
 import {
     PointerButton,
@@ -58,14 +58,15 @@ interface KeyCapture {
     alt?: boolean;
 }
 
+export type SceneConstructor<T extends Scene = Scene> = new (engine: Engine, name?: string) => T;
+
 export interface EngineOptions {
     zoomSpeed: number;
     minZoom: number;
     maxZoom: number;
     clearColor: string;
 
-    scenes: AvailableScenes;
-    startScenes: string[];
+    startScenes: Array<SceneConstructor>;
 
     cameraStart: CameraData;
     cameraDrag: boolean;
@@ -87,7 +88,6 @@ const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
     maxZoom: 3, // 2^3 = 8 (8x scale)
     clearColor: 'black',
 
-    scenes: {},
     startScenes: [],
 
     cameraStart: {
@@ -174,8 +174,8 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         this._options = { ...DEFAULT_ENGINE_OPTIONS, ...options } as TOptions;
 
         this.#applyOptions(this._options);
-        this._options.startScenes.forEach((scene) => {
-            this.createScene(scene);
+        this._options.startScenes.forEach((sceneCtor) => {
+            this.openScene(sceneCtor);
         });
 
         window.requestAnimationFrame(this.#engineLoop.bind(this));
@@ -304,21 +304,19 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
     ): T | T[] {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const instances = optionObjs.map((option) => new ctor({ ...option, engine: this } as any));
+
         return instances.length === 1 ? instances[0] : instances;
     }
 
-    createScene(sceneID: string, name?: string): Scene | null {
-        if (!this._options.scenes[sceneID]) {
-            return null;
-        }
+    openScene<T extends Scene>(sceneCtor: SceneConstructor<T>, name?: string): T {
+        const scene = new sceneCtor(this, name);
+        this._sceneSystem.openScene(scene);
 
-        const scene = this._options.scenes[sceneID](name ?? sceneID);
-        this._sceneSystem.createScene(scene);
         return scene;
     }
 
     destroyScene(scene: SceneIdentifier): void {
-        this._sceneSystem.destroyScene(scene);
+        this._sceneSystem.closeScene(scene);
     }
 
     screenToWorld(position: IVector<number>): IVector<number> {

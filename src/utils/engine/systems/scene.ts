@@ -4,17 +4,16 @@ import { Entity, type EntityOptions } from '../entities';
 
 const DEFAULT_SCENE_NAME = 'default-scene';
 
-export type AvailableScenes = Record<string, (name?: string) => Scene>;
-
 export class Scene<TEngine extends Engine = Engine> {
     protected static _nextId: number = 1;
     protected readonly _id: number = Scene._nextId++;
     protected readonly _name: string;
 
-    protected _engine: TEngine | null = null;
+    protected _engine: TEngine;
     #rootEntity: Entity | null = null;
 
-    constructor(name?: string) {
+    constructor(engine: TEngine, name?: string) {
+        this._engine = engine;
         this._name = name || `scene-${this._id}`;
     }
 
@@ -60,18 +59,14 @@ export class Scene<TEngine extends Engine = Engine> {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    create(_engine: Engine): void {
-        return;
-    }
+    create(_engine: TEngine): void {}
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     update(_deltaTime: number): boolean {
         return false;
     }
 
-    destroy(): void {
-        return;
-    }
+    destroy(): void {}
 }
 
 export type SceneIdentifier<TEngine extends Engine = Engine> =
@@ -120,11 +115,11 @@ export class SceneSystem<TEngine extends Engine = Engine> extends System<TEngine
         this.#queuedDestroyedScenes = [];
     }
 
-    createScene(scene: Scene<TEngine>): void {
+    openScene(scene: Scene<TEngine>): void {
         this.#queuedNewScenes.push(scene);
     }
 
-    destroyScene(scene: SceneIdentifier<TEngine>): void {
+    closeScene(scene: SceneIdentifier<TEngine>): void {
         const sceneObject = this.#findScene(scene);
         if (!sceneObject) {
             return;
@@ -142,7 +137,7 @@ export class SceneSystem<TEngine extends Engine = Engine> extends System<TEngine
 
         let sceneObject = this.#findScene(scene);
         if (!sceneObject) {
-            this.#defaultScene = new Scene(DEFAULT_SCENE_NAME);
+            this.#defaultScene = new Scene(this._engine, DEFAULT_SCENE_NAME);
             this.#makeSceneActive(this.#defaultScene);
             sceneObject = this.#defaultScene;
         }
@@ -188,13 +183,18 @@ export class SceneSystem<TEngine extends Engine = Engine> extends System<TEngine
     }
 
     #performQueuedUpdate(): boolean {
-        this.#isLoadingQueuedScenes = true;
-        this.#queuedNewScenes.forEach((scene) => {
-            this.#makeSceneActive(scene);
-        });
-        this.#queuedNewScenes = [];
-
         let updated = false;
+        this.#isLoadingQueuedScenes = true;
+
+        // Allows new scenes to be opened by a scene's create method
+        while (this.#queuedNewScenes.length > 0) {
+            const newScenes = [...this.#queuedNewScenes];
+            this.#queuedNewScenes = [];
+            newScenes.forEach((scene) => {
+                this.#makeSceneActive(scene);
+            });
+            updated = true;
+        }
 
         this.#queuedDestroyedScenes.forEach((scene) => {
             scene.destroy();

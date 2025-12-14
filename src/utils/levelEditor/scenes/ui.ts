@@ -784,24 +784,23 @@ class E_DragCursor extends Entity<LevelEditor> {
 }
 
 export class UIScene extends Scene {
-    _engine: LevelEditor | null = null;
+    #editor: LevelEditor | null = null;
 
     override create(editor: LevelEditor) {
-        this._engine = editor;
-
+        this.#editor = editor;
         this.add(E_SelectionCursor, { scale: 0 });
         this.add(E_TileCursor);
         this.add(E_DragCursor, { zIndex: 200, scale: 28, scaleToCamera: true });
     }
 
     override update(deltaTime: number): boolean {
-        if (!this._engine) return false;
+        if (!this.#editor) return false;
 
         let updated = false;
         const { brushEntityType, setBrushEntityType, selectedTiles, setSelectedTiles } =
             getAppStore();
 
-        if (this._engine.getKey('Escape').pressed) {
+        if (this.#editor.getKey('Escape').pressed) {
             if (brushEntityType) {
                 setBrushEntityType(null);
                 updated = true;
@@ -811,7 +810,7 @@ export class UIScene extends Scene {
             }
         }
 
-        if (!cameraDragIsActive(this._engine)) {
+        if (!cameraDragIsActive(this.#editor)) {
             updated = this.#updateKeyboardControls(deltaTime) || updated;
         }
 
@@ -819,7 +818,7 @@ export class UIScene extends Scene {
     }
 
     #updateKeyboardControls(deltaTime: number): boolean {
-        if (!this._engine) return false;
+        if (!this.#editor) return false;
 
         const {
             brushEntityType,
@@ -830,9 +829,9 @@ export class UIScene extends Scene {
         } = getAppStore();
         let updated = false;
 
-        if (this._engine.getKey('a').pressed && this._engine.getKey('a').mod) {
+        if (this.#editor.getKey('a').pressed && this.#editor.getKey('a').mod) {
             setSelectedTiles(
-                Object.values(this._engine.tiles).filter(
+                Object.values(this.#editor.tiles).filter(
                     (t) => t.entity.entityType !== 'EXPLOSION',
                 ),
             );
@@ -840,44 +839,44 @@ export class UIScene extends Scene {
 
         const cameraOffset = {
             x:
-                (this._engine.getKey('ArrowRight').downWithoutModAsNum ||
-                    this._engine.getKey('d').downWithoutModAsNum) -
-                (this._engine.getKey('ArrowLeft').downWithoutModAsNum ||
-                    this._engine.getKey('a').downWithoutModAsNum),
+                (this.#editor.getKey('ArrowRight').downWithoutModAsNum ||
+                    this.#editor.getKey('d').downWithoutModAsNum) -
+                (this.#editor.getKey('ArrowLeft').downWithoutModAsNum ||
+                    this.#editor.getKey('a').downWithoutModAsNum),
             y:
-                (this._engine.getKey('ArrowDown').downWithoutModAsNum ||
-                    this._engine.getKey('s').downWithoutModAsNum) -
-                (this._engine.getKey('ArrowUp').downWithoutModAsNum ||
-                    this._engine.getKey('w').downWithoutModAsNum),
+                (this.#editor.getKey('ArrowDown').downWithoutModAsNum ||
+                    this.#editor.getKey('s').downWithoutModAsNum) -
+                (this.#editor.getKey('ArrowUp').downWithoutModAsNum ||
+                    this.#editor.getKey('w').downWithoutModAsNum),
         };
         if (cameraOffset.x !== 0 || cameraOffset.y !== 0) {
-            const camera = this._engine.camera;
+            const camera = this.#editor.camera;
             const offsetMagnitude = 500;
-            this._engine.setCameraPosition({
+            this.#editor.setCameraPosition({
                 x: camera.position.x - cameraOffset.x * offsetMagnitude * deltaTime,
                 y: camera.position.y - cameraOffset.y * offsetMagnitude * deltaTime,
             });
             updated = true;
         }
 
-        if (this._engine.getKey('Backspace').pressed || this._engine.getKey('Delete').pressed) {
-            this._engine.removeLoopholeEntities(Object.values(selectedTiles).map((t) => t.entity));
+        if (this.#editor.getKey('Backspace').pressed || this.#editor.getKey('Delete').pressed) {
+            this.#editor.removeLoopholeEntities(Object.values(selectedTiles).map((t) => t.entity));
             updated = true;
         }
 
-        const zKeyState = this._engine.getKey('z');
-        const yKeyState = this._engine.getKey('y');
+        const zKeyState = this.#editor.getKey('z');
+        const yKeyState = this.#editor.getKey('y');
         if (zKeyState.pressed && zKeyState.mod) {
-            this._engine.undo();
+            this.#editor.undo();
             updated = true;
         } else if (yKeyState.pressed && yKeyState.mod) {
-            this._engine.redo();
+            this.#editor.redo();
             updated = true;
         }
 
         const keys = Object.keys(ENTITY_METADATA) as Loophole_ExtendedEntityType[];
         for (let i = 0; i < Object.keys(ENTITY_METADATA).length; i++) {
-            if (this._engine.getKey((i === 9 ? 0 : i + 1).toString() as WebKey).pressed) {
+            if (this.#editor.getKey((i === 9 ? 0 : i + 1).toString() as WebKey).pressed) {
                 const newBrushEntityType = brushEntityType === keys[i] ? null : keys[i];
                 setBrushEntityType(newBrushEntityType);
                 updated = true;
@@ -885,7 +884,7 @@ export class UIScene extends Scene {
             }
         }
 
-        if (this._engine.getKey('f').pressed && this._engine.getKey('f').mod) {
+        if (this.#editor.getKey('f').pressed && this.#editor.getKey('f').mod) {
             centerCameraOnLevel();
         }
 

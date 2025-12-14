@@ -10,8 +10,8 @@ const NUM_BOXES = 50;
 export class TestScene extends Scene {
     #rotatingBox: Entity | null = null;
 
-    override create(engine: Engine) {
-        this.#rotatingBox = this.#generateNestedBoxes(NUM_BOXES, [{ x: 0, y: 0 }], engine)
+    override create() {
+        this.#rotatingBox = this.#generateNestedBoxes(NUM_BOXES, [{ x: 0, y: 0 }])
             .setScale({ x: 200, y: 200 })
             .rotate(45);
         this.#rotatingBox.addEntities(
@@ -21,7 +21,7 @@ export class TestScene extends Scene {
                 scale: 0.25,
                 position: { x: -0.5, y: -0.5 },
                 components: [
-                    engine.createComponent(C_Shape<Engine>, {
+                    this._engine.createComponent(C_Shape<Engine>, {
                         name: 'Dot',
                         shape: 'ELLIPSE',
                         style: { fillStyle: 'yellow' },
@@ -33,7 +33,7 @@ export class TestScene extends Scene {
                 scale: 0.25,
                 position: { x: 0.5, y: -0.5 },
                 components: [
-                    engine.createComponent(C_Shape<Engine>, {
+                    this._engine.createComponent(C_Shape<Engine>, {
                         name: 'Dot',
                         shape: 'ELLIPSE',
                         style: { fillStyle: 'green' },
@@ -45,7 +45,7 @@ export class TestScene extends Scene {
                 scale: 0.25,
                 position: { x: -0.5, y: 0.5 },
                 components: [
-                    engine.createComponent(C_Shape<Engine>, {
+                    this._engine.createComponent(C_Shape<Engine>, {
                         name: 'Dot',
                         shape: 'ELLIPSE',
                         style: { fillStyle: 'blue' },
@@ -57,7 +57,7 @@ export class TestScene extends Scene {
                 scale: 0.25,
                 position: 0.5,
                 components: [
-                    engine.createComponent(C_Shape<Engine>, {
+                    this._engine.createComponent(C_Shape<Engine>, {
                         name: 'Dot',
                         shape: 'ELLIPSE',
                         style: { fillStyle: 'purple' },
@@ -69,7 +69,7 @@ export class TestScene extends Scene {
                 scale: 1.25,
                 zIndex: -1,
                 components: [
-                    engine.createComponent(C_Shape<Engine>, {
+                    this._engine.createComponent(C_Shape<Engine>, {
                         name: 'Dot',
                         shape: 'ELLIPSE',
                         style: { fillStyle: 'orange' },
@@ -80,7 +80,7 @@ export class TestScene extends Scene {
                 name: 'Center Above',
                 scale: 0.02,
                 components: [
-                    engine.createComponent(C_Shape<Engine>, {
+                    this._engine.createComponent(C_Shape<Engine>, {
                         name: 'Dot',
                         shape: 'ELLIPSE',
                         style: { fillStyle: 'white' },
@@ -89,25 +89,25 @@ export class TestScene extends Scene {
             },
         );
 
-        this.#generateNestedBoxes(NUM_BOXES, [{ x: 0.25, y: 0.25 }], engine)
+        this.#generateNestedBoxes(NUM_BOXES, [{ x: 0.25, y: 0.25 }])
             .setPosition({
                 x: -400,
                 y: -400,
             })
             .setScale({ x: 300, y: 300 });
-        this.#generateNestedBoxes(NUM_BOXES, [{ x: -0.25, y: 0.25 }], engine)
+        this.#generateNestedBoxes(NUM_BOXES, [{ x: -0.25, y: 0.25 }])
             .setPosition({
                 x: 400,
                 y: -400,
             })
             .setScale({ x: 300, y: 300 });
-        this.#generateNestedBoxes(NUM_BOXES, [{ x: 0.25, y: -0.25 }], engine)
+        this.#generateNestedBoxes(NUM_BOXES, [{ x: 0.25, y: -0.25 }])
             .setPosition({
                 x: -400,
                 y: 400,
             })
             .setScale({ x: 300, y: 300 });
-        this.#generateNestedBoxes(NUM_BOXES, [{ x: -0.25, y: -0.25 }], engine)
+        this.#generateNestedBoxes(NUM_BOXES, [{ x: -0.25, y: -0.25 }])
             .setPosition({
                 x: 400,
                 y: 400,
@@ -115,7 +115,7 @@ export class TestScene extends Scene {
             .setScale({ x: 300, y: 300 });
     }
 
-    #generateNestedBoxes(count: number, pattern: IVector<number>[], engine: Engine): Entity {
+    #generateNestedBoxes(count: number, pattern: IVector<number>[]): Entity {
         let currEntity: Entity | null = null;
         let root: Entity | null = null;
         for (let i = 0; i < count; i++) {
@@ -129,7 +129,7 @@ export class TestScene extends Scene {
             };
             const entity: Entity = currEntity
                 ? currEntity.addEntities(Entity, entityOptions)
-                : engine.addEntities(Entity, entityOptions);
+                : this._engine.addEntities(Entity, entityOptions);
             entity.addComponents(C_Shape<Engine>, {
                 name: `Box Level ${i + 1}`,
                 shape: 'RECT',
@@ -151,7 +151,7 @@ export class TestScene extends Scene {
     override update(deltaTime: number): boolean {
         this.#rotatingBox?.rotate(90 * deltaTime);
 
-        if (this._engine?.pointerState[PointerButton.LEFT].pressed) {
+        if (this._engine.pointerState[PointerButton.LEFT].pressed) {
             this._engine.destroyScene(this._id);
         }
 

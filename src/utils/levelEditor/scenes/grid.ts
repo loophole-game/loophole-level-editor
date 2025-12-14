@@ -1,7 +1,6 @@
 import { C_Shape } from '../../engine/components/Shape';
 import { Entity, type EntityOptions } from '../../engine/entities';
 import { Scene } from '../../engine/systems/scene';
-import type { Engine } from '../../engine';
 import type { Loophole_EntityWithID, Loophole_ExtendedEntityType } from '../externalLevelSchema';
 import { C_PointerTarget } from '../../engine/components/PointerTarget';
 import { getAppStore, getSettingsStore } from '@/utils/stores';
@@ -29,6 +28,7 @@ import {
 import { E_InfiniteShape } from './InfiniteShape';
 import { E_EntityVisual } from '../entityVisual';
 import type { Vector } from '@/utils/engine/math';
+import { TestScene } from './test';
 
 const ACTIVE_TILE_OPACITY = 0.3;
 
@@ -308,9 +308,9 @@ const SCREEN_BORDER_SIZE = {
 export class GridScene extends Scene {
     #grids: Entity[] = [];
 
-    override create(engine: Engine) {
+    override create() {
         this.#grids.push(
-            ...engine.addEntities(
+            ...this._engine.addEntities(
                 E_InfiniteShape<LevelEditor>,
                 {
                     name: 'border',
@@ -348,6 +348,8 @@ export class GridScene extends Scene {
                 },
             ),
         );
+
+        this._engine.openScene(TestScene);
     }
 
     override update() {

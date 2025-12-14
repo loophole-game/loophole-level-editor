@@ -10,7 +10,7 @@
 ### Core Game Engine
 
 - The custom engine lives under `src/utils/engine` and follows an Entity-Component-System style: `Entity` objects (with a built-in transform) own components and child entities, `Component`s expose rendering/collision/interaction data, and `System`s such as `RenderSystem`, `CameraSystem`, `PointerSystem`, `KeyboardSystem`, and `ImageSystem` drive updates each frame.
-- Scenes are created via `SceneSystem` and host collections of entities; they are registered through `AvailableScenes` and rendered through a single `Engine` loop that manages input, updates, and batching render commands on a shared canvas.
+- Scenes are created via `SceneSystem` and host collections of entities; they are instantiated directly from their class constructors and rendered through a single `Engine` loop that manages input, updates, and batching render commands on a shared canvas.
 - Utility modules (`components`, `systems`, `types`, `utils`) handle low-level math, DOM matrices, pointer/keyboard bindings, and render command queues so higher layers can focus on gameplay/editor logic.
 
 ### Loophole-Level Editor Layer

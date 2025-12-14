@@ -1,5 +1,4 @@
 import { Engine, type EngineOptions } from '../engine';
-import type { AvailableScenes } from '../engine/systems/scene';
 import {
     MAX_ENTITY_COUNT,
     MAX_POSITION,
@@ -15,7 +14,6 @@ import {
     type WithID,
 } from './externalLevelSchema';
 import { E_Tile, GridScene } from './scenes/grid';
-import { TestScene } from './scenes/test';
 import { UIScene } from './scenes/ui';
 import {
     calculateLevelBoundingBox,
@@ -46,12 +44,6 @@ import type { BoundingBox } from '../engine/types';
 import { boundingBoxesIntersect } from '../engine/utils';
 
 const MAX_STASHED_TILES = 10_000;
-
-const SCENES: AvailableScenes = {
-    [TestScene.name]: (name) => new TestScene(name),
-    [UIScene.name]: (name) => new UIScene(name),
-    [GridScene.name]: (name) => new GridScene(name),
-};
 
 export type OnLevelChangedCallback = (level: Loophole_InternalLevel) => void;
 export type OnLevelInViewportChangedCallback = (inViewport: boolean) => void;
@@ -97,8 +89,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
 
     constructor(options: Partial<LevelEditorOptions> = {}) {
         super({
-            scenes: SCENES,
-            startScenes: [GridScene.name, UIScene.name],
+            startScenes: [GridScene, UIScene],
             minZoom: -3,
             maxZoom: 0.5,
             cameraDrag: true,
