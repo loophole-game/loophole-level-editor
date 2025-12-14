@@ -301,7 +301,7 @@ function ExplosionInput({ editorRef, selectedTiles }: ExplosionInputProps) {
             >
                 Flip
             </Button>
-            <Label htmlFor="explosion-direction-input">Rate</Label>
+            <Label htmlFor="explosion-period-input">Rate</Label>
             <span className="flex items-center gap-2 text-sm">
                 <Input
                     id="explosion-period-input"
@@ -317,7 +317,7 @@ function ExplosionInput({ editorRef, selectedTiles }: ExplosionInputProps) {
                 />{' '}
                 turn{period === 1 ? '' : 's'}/cell
             </span>
-            <Label htmlFor="explosion-direction-input">Start at</Label>
+            <Label htmlFor="explosion-start-time-input">Start at</Label>
             <span className="flex items-center gap-2 text-sm">
                 <Input
                     id="explosion-start-time-input"
