@@ -36,7 +36,7 @@ export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Compone
                 {
                     strokeStyle: `rgba(255, 0, 0, ${1 - level * 0.05})`,
                     fillStyle: '',
-                    lineWidth: 2,
+                    lineWidth: 1,
                 },
                 {
                     x: bbox.x1,

@@ -56,16 +56,18 @@ export class C_PointerTarget<TEngine extends Engine = Engine> extends Component<
 
         const transform = this.entity?.transform;
         if (transform) {
-            // Compute scene-space matrix by removing camera transform from the entity's world matrix
+            // Use cached world matrix and apply camera transform to get scene-space transform
             const camera = this._engine.camera;
-            const scale = zoomToScale(camera.zoom);
+            const cameraScale = zoomToScale(camera.zoom);
             const cameraMatrix = new DOMMatrix()
                 .translate(camera.position.x, camera.position.y)
                 .rotate(camera.rotation)
-                .scale(scale, scale);
+                .scale(cameraScale, cameraScale);
+
+            // Use cached worldMatrix instead of recomputing
             const sceneMatrix = cameraMatrix.inverse().multiply(transform.worldMatrix as DOMMatrix);
 
-            // Extract scene-space position, rotation, and scale
+            // Extract scene-space position, rotation, and scale from the matrix
             const scenePosition = new Vector(sceneMatrix.e, sceneMatrix.f);
             const sceneRotation = Math.atan2(sceneMatrix.b, sceneMatrix.a) * (180 / Math.PI);
             const sceneScale = new Vector(
@@ -77,7 +79,7 @@ export class C_PointerTarget<TEngine extends Engine = Engine> extends Component<
             const delta = position.sub(scenePosition);
 
             // Rotate point in opposite (-rotation) around the center
-            const theta = (-sceneRotation * Math.PI) / 180; // Convert degrees to radians, negate for undoing entity rotation
+            const theta = (-sceneRotation * Math.PI) / 180;
             const rotated = delta.rotate(theta);
 
             // Check bounds (rectangle centered at 0,0)
@@ -125,52 +127,34 @@ export class C_PointerTarget<TEngine extends Engine = Engine> extends Component<
         const boxTop = Math.min(topLeft.y, bottomRight.y);
         const boxBottom = Math.max(topLeft.y, bottomRight.y);
 
-        // Compute scene-space matrix by removing camera transform from the entity's world matrix
+        // Use cached world matrix and transform to scene space
         const camera = this._engine.camera;
         const cameraScale = zoomToScale(camera.zoom);
         const cameraMatrix = new DOMMatrix()
             .translate(camera.position.x, camera.position.y)
             .rotate(camera.rotation)
             .scale(cameraScale, cameraScale);
-        const sceneMatrix = cameraMatrix.inverse().multiply(transform.worldMatrix as DOMMatrix);
+        const cameraInverse = cameraMatrix.inverse();
 
-        // Extract scene-space position, rotation, and scale from the matrix (camera transform removed)
-        const scenePosition = new Vector(sceneMatrix.e, sceneMatrix.f);
-        const sceneRotation = Math.atan2(sceneMatrix.b, sceneMatrix.a) * (180 / Math.PI);
-        const sceneScale = new Vector(
-            Math.sqrt(sceneMatrix.a * sceneMatrix.a + sceneMatrix.b * sceneMatrix.b),
-            Math.sqrt(sceneMatrix.c * sceneMatrix.c + sceneMatrix.d * sceneMatrix.d),
-        );
+        // Use pre-calculated bounding box from transform (in world space)
+        // Transform the world-space AABB to scene space by applying camera inverse
+        const worldBBox = transform.boundingBox;
 
-        // Calculate the four corners of the rotated entity
-        const halfWidth = sceneScale.x / 2;
-        const halfHeight = sceneScale.y / 2;
-        const theta = (sceneRotation * Math.PI) / 180; // Convert to radians
-        const cosTheta = Math.cos(theta);
-        const sinTheta = Math.sin(theta);
-
-        // Define corners relative to center (unrotated)
-        const corners = [
-            new Vector(-halfWidth, -halfHeight), // Top-left
-            new Vector(halfWidth, -halfHeight), // Top-right
-            new Vector(halfWidth, halfHeight), // Bottom-right
-            new Vector(-halfWidth, halfHeight), // Bottom-left
+        // Transform the four corners of the world-space AABB to scene space
+        const worldCorners = [
+            new DOMPoint(worldBBox.x1, worldBBox.y1),
+            new DOMPoint(worldBBox.x2, worldBBox.y1),
+            new DOMPoint(worldBBox.x2, worldBBox.y2),
+            new DOMPoint(worldBBox.x1, worldBBox.y2),
         ];
 
-        // Rotate corners and translate to scene position
-        const rotatedCorners = corners.map(
-            (corner) =>
-                new Vector(
-                    scenePosition.x + (corner.x * cosTheta - corner.y * sinTheta),
-                    scenePosition.y + (corner.x * sinTheta + corner.y * cosTheta),
-                ),
-        );
+        const sceneCorners = worldCorners.map((corner) => cameraInverse.transformPoint(corner));
 
-        // Find the axis-aligned bounding box of the rotated entity
-        const entityLeft = Math.min(...rotatedCorners.map((c) => c.x));
-        const entityRight = Math.max(...rotatedCorners.map((c) => c.x));
-        const entityTop = Math.min(...rotatedCorners.map((c) => c.y));
-        const entityBottom = Math.max(...rotatedCorners.map((c) => c.y));
+        // Find the scene-space AABB
+        const entityLeft = Math.min(...sceneCorners.map((c) => c.x));
+        const entityRight = Math.max(...sceneCorners.map((c) => c.x));
+        const entityTop = Math.min(...sceneCorners.map((c) => c.y));
+        const entityBottom = Math.max(...sceneCorners.map((c) => c.y));
 
         // Check if entity's AABB intersects with selection box
         return !(

@@ -512,23 +512,29 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
 
         this.trace('Update', () => {
             for (const system of this._systems) {
-                const updated = system.earlyUpdate(deltaTime);
-                if (updated === true) {
-                    this.#forceRender = true;
-                }
+                this.trace(`${system.constructor.name}.early`, () => {
+                    const updated = system.earlyUpdate(deltaTime);
+                    if (updated === true) {
+                        this.#forceRender = true;
+                    }
+                });
             }
 
-            const engineUpdated = this.#engineUpdate(deltaTime);
-            if (engineUpdated) {
-                this.#forceRender = true;
-            }
+            this.trace('EngineUpdate', () => {
+                const engineUpdated = this.#engineUpdate(deltaTime);
+                if (engineUpdated) {
+                    this.#forceRender = true;
+                }
+            });
 
             for (const system of this._systems) {
-                const updated = system.lateUpdate(deltaTime);
-                if (updated === true) {
-                    this.#forceRender = true;
-                    systemLateUpdated = true;
-                }
+                this.trace(`${system.constructor.name}.late`, () => {
+                    const updated = system.lateUpdate(deltaTime);
+                    if (updated === true) {
+                        this.#forceRender = true;
+                        systemLateUpdated = true;
+                    }
+                });
             }
 
             const loadingImages = this._imageSystem.getLoadingImages();
