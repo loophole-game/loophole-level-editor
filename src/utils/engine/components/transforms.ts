@@ -1,6 +1,7 @@
 import { Component, type ComponentOptions } from '.';
 import type { Engine } from '..';
 import { Vector, type VectorConstructor } from '../math';
+import type { BoundingBox } from '../types';
 
 export interface C_TransformOptions<TEngine extends Engine = Engine>
     extends ComponentOptions<TEngine> {
@@ -19,6 +20,9 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
 
     #worldMatrix: DOMMatrix = new DOMMatrix();
     #worldMatrixDirty: boolean = true;
+
+    #boundingBox: BoundingBox = { x1: 0, x2: 0, y1: 0, y2: 0 };
+    #boundingBoxDirty: boolean = true;
 
     constructor(options: C_TransformOptions<TEngine>) {
         const { name = 'transform', ...rest } = options;
@@ -78,6 +82,14 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
         }
 
         return this.#worldMatrix;
+    }
+
+    get boundingBox(): Readonly<BoundingBox> {
+        if (this.#boundingBoxDirty) {
+            this.#computeBoundingBox();
+        }
+
+        return this.#boundingBox;
     }
 
     setPosition(position: VectorConstructor): void {
@@ -149,6 +161,45 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
         }
 
         this.#worldMatrixDirty = false;
+        this.#boundingBoxDirty = true;
+    }
+
+    #computeBoundingBox() {
+        // Treat the transform as a unit rectangle (1x1) centered at origin
+        // Get the 4 corners of this rectangle in local space
+        const halfScaleX = 0.5;
+        const halfScaleY = 0.5;
+
+        const corners = [
+            new DOMPoint(-halfScaleX, -halfScaleY),
+            new DOMPoint(halfScaleX, -halfScaleY),
+            new DOMPoint(halfScaleX, halfScaleY),
+            new DOMPoint(-halfScaleX, halfScaleY),
+        ];
+
+        // Transform corners to world space
+        const worldCorners = corners.map((corner) => this.worldMatrix.transformPoint(corner));
+
+        // Find the axis-aligned bounding box that contains all corners
+        let minX = Infinity;
+        let maxX = -Infinity;
+        let minY = Infinity;
+        let maxY = -Infinity;
+
+        for (const corner of worldCorners) {
+            minX = Math.min(minX, corner.x);
+            maxX = Math.max(maxX, corner.x);
+            minY = Math.min(minY, corner.y);
+            maxY = Math.max(maxY, corner.y);
+        }
+
+        this.#boundingBox = {
+            x1: minX,
+            x2: maxX,
+            y1: minY,
+            y2: maxY,
+        };
+        this.#boundingBoxDirty = false;
     }
 
     #markLocalDirty() {
@@ -160,6 +211,7 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
 
     #markWorldDirty() {
         this.#worldMatrixDirty = true;
+        this.#boundingBoxDirty = true;
         this.entity?.children.forEach((child) => {
             child.transform.#markWorldDirty();
         });

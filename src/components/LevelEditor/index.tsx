@@ -51,6 +51,7 @@ export function LevelEditorComponent() {
         // Update options when dependencies change
         levelEditorRef.current.options = {
             engineTracesEnabled: showEngineStats,
+            debugOverlayEnabled: showEngineStats,
             onLevelChanged: (updatedLevel: Loophole_InternalLevel) => {
                 updateLevel(level.id, {
                     entities: updatedLevel.entities,

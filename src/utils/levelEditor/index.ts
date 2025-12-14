@@ -38,7 +38,7 @@ import {
     type LoopholePositionType,
 } from '../utils';
 import { v4 } from 'uuid';
-import { getAppStore } from '../stores';
+import { getAppStore, getSettingsStore } from '../stores';
 import { Vector, type IVector } from '../engine/math';
 import type { BoundingBox } from '../engine/types';
 import { boundingBoxesIntersect } from '../engine/utils';
@@ -247,6 +247,14 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         );
         if (currentLevelInViewport !== levelInViewport) {
             setLevelInViewport(currentLevelInViewport);
+        }
+
+        const { showEngineStats } = getSettingsStore();
+        if (this.options.debugOverlayEnabled != showEngineStats) {
+            this.options = {
+                ...this.options,
+                debugOverlayEnabled: showEngineStats,
+            };
         }
 
         return false;

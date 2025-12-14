@@ -28,7 +28,6 @@ import {
 import { E_InfiniteShape } from './InfiniteShape';
 import { E_EntityVisual } from '../entityVisual';
 import type { Vector } from '@/utils/engine/math';
-import { TestScene } from './test';
 
 const ACTIVE_TILE_OPACITY = 0.3;
 
@@ -348,8 +347,6 @@ export class GridScene extends Scene {
                 },
             ),
         );
-
-        this._engine.openScene(TestScene);
     }
 
     override update() {

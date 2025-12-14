@@ -18,6 +18,9 @@ import { DEFAULT_CAMERA_OPTIONS } from './utils';
 import { CameraSystem } from './systems/camera';
 import { Vector, type IVector } from './math';
 import { StatsSystem, type Stats } from './systems/stats';
+import { DebugOverlayScene } from './scenes/DebugOverlay';
+
+const DEBUG_OVERLAY_SCENE_NAME = '__ENGINE_DEBUG_SCENE__';
 
 type BrowserEvent =
     | 'mousemove'
@@ -80,6 +83,7 @@ export interface EngineOptions {
     asyncImageLoading: boolean;
 
     engineTracesEnabled: boolean;
+    debugOverlayEnabled: boolean;
 }
 
 const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
@@ -106,6 +110,7 @@ const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
     asyncImageLoading: true,
 
     engineTracesEnabled: false,
+    debugOverlayEnabled: false,
 };
 
 export class Engine<TOptions extends EngineOptions = EngineOptions> {
@@ -128,6 +133,8 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
     protected _systems: System[] = [];
 
     protected _lastTime: number = performance.now();
+
+    #debugOverlayScene: Scene | null = null;
 
     #forceRender: boolean = true;
     #browserEventHandlers: Partial<Record<BrowserEvent, BrowserEventHandler<BrowserEvent>[]>> = {};
@@ -434,6 +441,17 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         return this._statsSystem.trace(name, callback);
     }
 
+    openDebugOverlay(): void {
+        if (!this.#debugOverlayScene) {
+            this.#debugOverlayScene = this.openScene(DebugOverlayScene, DEBUG_OVERLAY_SCENE_NAME);
+        }
+    }
+
+    closeDebugOverlay(): void {
+        this.destroyScene(DEBUG_OVERLAY_SCENE_NAME);
+        this.#debugOverlayScene = null;
+    }
+
     #engineUpdate(deltaTime: number): boolean {
         if (!this._rootEntity.enabled) {
             return false;
@@ -572,5 +590,13 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
             this._imageSystem.loadImage(name, src);
         });
         this._options.images = {};
+
+        if (this._options.debugOverlayEnabled !== Boolean(this.#debugOverlayScene)) {
+            if (this._options.debugOverlayEnabled) {
+                this.openDebugOverlay();
+            } else {
+                this.closeDebugOverlay();
+            }
+        }
     }
 }
