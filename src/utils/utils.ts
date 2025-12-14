@@ -585,7 +585,6 @@ export const calculateSelectionCenter = (tiles: E_Tile[]): Vector => {
 };
 
 export const WIRE_CORNER_SPRITE = 'WireCorner';
-export const GUY_SPRITE = 'Guy';
 
 export const formatToSnakeCase = (str: string): string => {
     return str

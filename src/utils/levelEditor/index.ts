@@ -28,7 +28,6 @@ import {
     getLoopholeEntityPositionType,
     getLoopholeExplosionPosition,
     getLoopholeExplosionStartPosition,
-    GUY_SPRITE,
     Loophole_ColorPalette,
     loopholePositionToEnginePosition,
     loopholeRotationToDegrees,
@@ -111,7 +110,6 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
                     }),
                     {},
                 ),
-                [GUY_SPRITE]: 'pixel/guy.png',
                 [WIRE_CORNER_SPRITE]: 'pixel/wire-corner.png',
                 ...Object.fromEntries(
                     Object.values(Loophole_ColorPalette).map((palette) => [
