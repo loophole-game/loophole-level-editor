@@ -1,7 +1,7 @@
 import { System } from '.';
 import { C_PointerTarget } from '../components/PointerTarget';
 import { Vector, type IVector, type VectorConstructor } from '../math';
-import type { ButtonState } from '../types';
+import type { BoundingBox, ButtonState } from '../types';
 
 const MAX_DISTANCE_DURING_CLICK = 10;
 const DRAG_CURSOR_PRIORITY = 100;
@@ -223,13 +223,10 @@ export class PointerSystem extends System {
         this.#dragStartCameraPosition = null;
     }
 
-    getPointerTargetsWithinBox(
-        topLeft: IVector<number>,
-        bottomRight: IVector<number>,
-    ): C_PointerTarget[] {
+    getPointerTargetsWithinBox(bbox: BoundingBox): C_PointerTarget[] {
         const pointerTargets = this.#getAllPointerTargets();
 
-        return pointerTargets.filter((target) => target.checkIfWithinBox(topLeft, bottomRight));
+        return pointerTargets.filter((target) => target.checkIfWithinBox(bbox));
     }
 
     capturePointerButtonClick(button: PointerButton): void {

@@ -591,7 +591,12 @@ class E_SelectionCursor extends Entity<LevelEditor> {
 
                 const hoveredTiles = (
                     this._engine.pointerSystem
-                        .getPointerTargetsWithinBox(topLeft, bottomRight)
+                        .getPointerTargetsWithinBox({
+                            x1: Math.min(topLeft.x, bottomRight.x),
+                            x2: Math.max(topLeft.x, bottomRight.x),
+                            y1: Math.min(topLeft.y, bottomRight.y),
+                            y2: Math.max(topLeft.y, bottomRight.y),
+                        })
                         .map((t) => t.entity?.parent)
                         .filter((e) => e?.typeString === E_TileHighlight.name) as E_TileHighlight[]
                 ).map((t) => t.tile);

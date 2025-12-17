@@ -1,23 +1,22 @@
 import { System } from '.';
 import type { Engine } from '..';
-import type { Entity } from '../entities';
-import type { IVector } from '../math';
+import type { IVector, Vector } from '../math';
 import type { BoundingBox, Camera, CameraData } from '../types';
 import { calculateRectangleBoundingBox, DEFAULT_CAMERA_OPTIONS, lerp, zoomToScale } from '../utils';
 
 export class CameraSystem extends System {
     #camera: Required<Camera>;
     #cameraTarget: CameraData | null = null;
-    #rootEntity: Entity;
+
+    #prevCanvasSize: Vector | null = null;
 
     #worldToScreenMatrix: DOMMatrix | null = null;
     #worldToScreenMatrixDirty: boolean = true;
     #worldBoundingBox: BoundingBox | null = null;
     #worldBoundingBoxDirty: boolean = true;
 
-    constructor(engine: Engine, rootEntity: Entity, cameraStart: CameraData) {
+    constructor(engine: Engine, cameraStart: CameraData) {
         super(engine);
-        this.#rootEntity = rootEntity;
         this.#camera = { ...DEFAULT_CAMERA_OPTIONS, ...cameraStart };
     }
 
@@ -135,7 +134,12 @@ export class CameraSystem extends System {
         }
     }
 
-    override lateUpdate(): boolean {
+    override lateUpdate(deltaTime: number): boolean {
+        if (this._engine.canvasSize && this._engine.canvasSize !== this.#prevCanvasSize) {
+            this.#prevCanvasSize = this._engine.canvasSize;
+            this.#onCameraChanged();
+        }
+
         const MIN_POS_DELTA = 0.01;
         const MIN_ROT_DELTA = 0.001;
         const MIN_ZOOM_DELTA = 0.001;
@@ -148,6 +152,10 @@ export class CameraSystem extends System {
             const zoom = this.#camera.zoom;
             const tgtZoom = this.#cameraTarget.zoom;
 
+            // Frame-rate independent lerp factor
+            const lerpFactor =
+                1 - Math.pow(1 - this._engine.options.cameraTargetLerpSpeed, deltaTime * 100);
+
             function clampStep(from: number, to: number, factor: number, minStep: number) {
                 const lerped = lerp(from, to, factor);
                 if (Math.abs(lerped - from) < minStep && Math.abs(to - from) > minStep) {
@@ -156,32 +164,12 @@ export class CameraSystem extends System {
                 return lerped;
             }
 
-            const posX = clampStep(
-                pos.x,
-                tgtPos.x,
-                this._engine.options.cameraTargetLerpSpeed,
-                MIN_POS_DELTA,
-            );
-            const posY = clampStep(
-                pos.y,
-                tgtPos.y,
-                this._engine.options.cameraTargetLerpSpeed,
-                MIN_POS_DELTA,
-            );
+            const posX = clampStep(pos.x, tgtPos.x, lerpFactor, MIN_POS_DELTA);
+            const posY = clampStep(pos.y, tgtPos.y, lerpFactor, MIN_POS_DELTA);
 
             const newPosition = { x: posX, y: posY };
-            const newRotation = clampStep(
-                rot,
-                tgtRot,
-                this._engine.options.cameraTargetLerpSpeed,
-                MIN_ROT_DELTA,
-            );
-            const newZoom = clampStep(
-                zoom,
-                tgtZoom,
-                this._engine.options.cameraTargetLerpSpeed,
-                MIN_ZOOM_DELTA,
-            );
+            const newRotation = clampStep(rot, tgtRot, lerpFactor, MIN_ROT_DELTA);
+            const newZoom = clampStep(zoom, tgtZoom, lerpFactor, MIN_ZOOM_DELTA);
 
             this.#camera.position = newPosition;
             this.#camera.rotation = newRotation;
@@ -203,11 +191,6 @@ export class CameraSystem extends System {
             this.#onCameraChanged();
         }
 
-        const scale = zoomToScale(this.#camera.zoom);
-        this.#rootEntity.setScale(scale);
-        this.#rootEntity.setRotation(this.#camera.rotation);
-        this.#rootEntity.setPosition(this.#camera.position);
-
         return this.#camera.dirty;
     }
 
@@ -224,7 +207,7 @@ export class CameraSystem extends System {
 
     #onCameraChanged(): void {
         this.#camera.dirty = true;
-        
+
         // Calculate the world space bounding box (what's visible in the viewport)
         if (this._engine.canvasSize) {
             const scale = zoomToScale(this.#camera.zoom);
@@ -238,16 +221,17 @@ export class CameraSystem extends System {
                 y: -this.#camera.position.y / scale,
             };
 
-            this.#camera.boundingBox = calculateRectangleBoundingBox(
+            const bbox = calculateRectangleBoundingBox(
                 worldCenter,
                 worldSize,
                 -this.#camera.rotation,
                 { x: worldSize.x / 2, y: worldSize.y / 2 },
             );
+            this.#camera.boundingBox = bbox;
         } else {
             this.#camera.boundingBox = { x1: 0, x2: 0, y1: 0, y2: 0 };
         }
-        
+
         this.#worldToScreenMatrixDirty = true;
         this.#worldBoundingBoxDirty = true;
     }

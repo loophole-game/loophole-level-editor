@@ -76,7 +76,7 @@ export class E_Tile extends Entity<LevelEditor> {
     #opacityLerp: C_Lerp<number>;
 
     constructor(options: E_TileOptions) {
-        super({ name: 'tile', cullMode: 'none', ...options });
+        super({ name: 'tile', cullMode: 'all', ...options });
 
         this.#entity = options.entity;
         this.#type = getLoopholeEntityExtendedType(options.entity);

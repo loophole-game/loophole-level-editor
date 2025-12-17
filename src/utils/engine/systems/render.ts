@@ -1,6 +1,7 @@
 import { System } from '.';
 import type { Entity } from '../entities';
 import type { Camera } from '../types';
+import { zoomToScale } from '../utils';
 
 export interface RenderStyle {
     fillStyle?: string | CanvasGradient | CanvasPattern;
@@ -137,7 +138,14 @@ export class RenderSystem extends System {
     destroy(): void {}
 
     render(ctx: CanvasRenderingContext2D, rootEntity: Entity, camera: Camera) {
-        const stream: RenderCommandStream = [];
+        const stream: RenderCommandStream = [
+            new RenderCommand(RENDER_CMD.PUSH_TRANSFORM, null, {
+                t: new DOMMatrix()
+                    .translate(camera.position.x, camera.position.y)
+                    .rotate(camera.rotation)
+                    .scale(zoomToScale(camera.zoom)),
+            }),
+        ];
         rootEntity.queueRenderCommands(stream, camera);
 
         this.#applyStyle(ctx, DEFAULT_RENDER_STYLE);

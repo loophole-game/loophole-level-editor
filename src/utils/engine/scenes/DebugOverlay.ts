@@ -4,6 +4,7 @@ import type { RenderCommandStream } from '../systems/render';
 import { RENDER_CMD, RenderCommand } from '../systems/render';
 import type { Engine } from '..';
 import { Entity } from '../entities';
+import type { BoundingBox } from '../types';
 
 export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Component<TEngine> {
     constructor(options: ComponentOptions<TEngine>) {
@@ -24,12 +25,23 @@ export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Compone
         this.#drawEntityBoundingBox(this._engine.rootEntity, out);
 
         out.push(new RenderCommand(RENDER_CMD.POP_TRANSFORM, null));
+        this.#drawBoundingBox(this._engine.camera.boundingBox, out);
     }
 
     #drawEntityBoundingBox(entity: Readonly<Entity>, out: RenderCommandStream, level = 0): void {
         if (!entity.enabled) return;
 
-        const bbox = entity.transform.boundingBox;
+        const culled = entity.isCulled(this._engine.camera);
+        if (!culled) {
+            this.#drawBoundingBox(entity.transform.boundingBox, out, level);
+        }
+
+        for (const child of entity.children) {
+            this.#drawEntityBoundingBox(child, out, level + 1);
+        }
+    }
+
+    #drawBoundingBox(bbox: BoundingBox, out: RenderCommandStream, level = 0): void {
         out.push(
             new RenderCommand(
                 RENDER_CMD.DRAW_RECT,
@@ -38,18 +50,9 @@ export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Compone
                     fillStyle: '',
                     lineWidth: 1,
                 },
-                {
-                    x: bbox.x1,
-                    y: bbox.y1,
-                    w: bbox.x2 - bbox.x1,
-                    h: bbox.y2 - bbox.y1,
-                },
+                { x: bbox.x1, y: bbox.y1, w: bbox.x2 - bbox.x1, h: bbox.y2 - bbox.y1 },
             ),
         );
-
-        for (const child of entity.children) {
-            this.#drawEntityBoundingBox(child, out, level + 1);
-        }
     }
 }
 

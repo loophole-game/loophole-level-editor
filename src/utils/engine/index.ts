@@ -152,7 +152,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         this._pointerSystem = new PointerSystem(this);
         this._sceneSystem = new SceneSystem(this, this._rootEntity);
         this._imageSystem = new ImageSystem(this);
-        this._cameraSystem = new CameraSystem(this, this._rootEntity, this._options.cameraStart);
+        this._cameraSystem = new CameraSystem(this, this._options.cameraStart);
 
         // Order isn't important since systems are manually updated
         this._statsSystem = new StatsSystem(this);
