@@ -225,7 +225,7 @@ export class E_Tile extends Entity<LevelEditor> {
 
         this.initialized = false;
         this.setEnabled(false);
-        this.#highlightEntity.setEnabled(false); // TODO: make disabling propagate to children
+        this.#highlightEntity.setEnabled(false);
         this.#entityVisual.stash();
 
         return true;

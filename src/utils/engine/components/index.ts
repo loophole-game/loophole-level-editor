@@ -93,7 +93,10 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
     }
 
     setEnabled(enabled: boolean): this {
-        this._enabled = enabled;
+        if (this._enabled !== enabled) {
+            this._enabled = enabled;
+            this._entity?.onChildComponentsOfTypeChanged(this.typeString);
+        }
 
         return this;
     }

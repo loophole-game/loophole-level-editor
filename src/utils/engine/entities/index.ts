@@ -292,7 +292,16 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
     }
 
     setEnabled(enabled: boolean): this {
-        this._enabled = enabled;
+        if (this._enabled !== enabled) {
+            this._enabled = enabled;
+
+            for (const component of this._components) {
+                component.setEnabled(enabled);
+            }
+            for (const child of this._children) {
+                child.setEnabled(enabled);
+            }
+        }
 
         return this;
     }
