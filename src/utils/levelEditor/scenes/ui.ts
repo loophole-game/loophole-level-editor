@@ -659,7 +659,7 @@ class E_DragCursor extends Entity<LevelEditor> {
             shape: 'LINE',
             start: { x: 0, y: -0.5 },
             end: { x: 0, y: -HANDLE_ARROW_LENGTH },
-            style: { lineWidth: 0.15, fillStyle: 'blue' },
+            style: { lineWidth: 0.15, strokeStyle: 'blue' },
             endTip: { type: 'arrow', length: 0.5 },
         });
         this.#rightArrow = this.addComponents(C_Shape<LevelEditor>, {
@@ -667,7 +667,7 @@ class E_DragCursor extends Entity<LevelEditor> {
             shape: 'LINE',
             start: { x: 0.5, y: 0 },
             end: { x: HANDLE_ARROW_LENGTH, y: 0 },
-            style: { lineWidth: 0.15, fillStyle: 'green' },
+            style: { lineWidth: 0.15, strokeStyle: 'green' },
             endTip: { type: 'arrow', length: 0.5 },
         });
         const shape = this.addComponents(C_Shape<LevelEditor>, {

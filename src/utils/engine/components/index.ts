@@ -78,7 +78,7 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    queueRenderCommands(_out: RenderCommandStream, _camera: Camera): void {}
+    queueRenderCommands(_stream: RenderCommandStream, _camera: Camera): void {}
 
     setZIndex(zIndex: number): this {
         if (this._zIndex !== zIndex && !isNaN(zIndex)) {
@@ -149,6 +149,7 @@ export abstract class C_Drawable<TEngine extends Engine = Engine> extends Compon
         return this;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    queueRenderCommands(_out: RenderCommandStream): void {}
+    queueRenderCommands(stream: RenderCommandStream): void {
+        stream.setStyle(this._style);
+    }
 }

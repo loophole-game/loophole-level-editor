@@ -41,10 +41,12 @@ export class C_Image<TEngine extends Engine = Engine> extends C_Drawable<TEngine
         this.#repeat = repeat ? new Vector(repeat) : null;
     }
 
-    override queueRenderCommands(out: RenderCommandStream): void {
+    override queueRenderCommands(stream: RenderCommandStream): void {
         if (!this._entity || !this.#imageName) {
             return;
         }
+
+        super.queueRenderCommands(stream);
 
         const data: DrawDataImage = {
             x: -this.origin.x * this.scale.x,
@@ -58,6 +60,6 @@ export class C_Image<TEngine extends Engine = Engine> extends C_Drawable<TEngine
             data.ry = this.#repeat.y;
         }
 
-        out.push(new RenderCommand(RENDER_CMD.DRAW_IMAGE, this.style, data));
+        stream.push(new RenderCommand(RENDER_CMD.DRAW_IMAGE, data));
     }
 }

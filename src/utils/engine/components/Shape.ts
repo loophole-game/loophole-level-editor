@@ -4,7 +4,6 @@ import {
     type DrawDataLine,
     type DrawDataShape,
     type RenderCommandStream,
-    type RenderStyle,
 } from '../systems/render';
 import { Vector, type IVector, type VectorConstructor } from '../math';
 import { C_Drawable, type C_DrawableOptions } from './index';
@@ -140,7 +139,7 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
         return this;
     }
 
-    override queueRenderCommands(out: RenderCommandStream): void {
+    override queueRenderCommands(stream: RenderCommandStream): void {
         if (!this.entity?.transform) {
             return;
         }
@@ -153,6 +152,8 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
                 if (this.#start.equals(this.#end)) {
                     return;
                 }
+
+                super.queueRenderCommands(stream);
 
                 const data: DrawDataLine = {
                     x1: this.#start.x,
@@ -170,15 +171,15 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
                     }
                 }
 
-                out.push(
-                    new RenderCommand(RENDER_CMD.DRAW_LINE, this.style, {
+                stream.push(
+                    new RenderCommand(RENDER_CMD.DRAW_LINE, {
                         ...data,
                         ...extraData,
                     }),
                 );
 
-                this.#drawTip(this.#startTip, this.#start, -1, out, extraData);
-                this.#drawTip(this.#endTip, this.#end, 1, out, extraData);
+                this.#drawTip(this.#startTip, this.#start, -1, stream, extraData);
+                this.#drawTip(this.#endTip, this.#end, 1, stream, extraData);
 
                 break;
             }
@@ -198,7 +199,8 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
                     }
                 }
 
-                out.push(new RenderCommand(RENDER_CMD.DRAW_RECT, this.style, data));
+                super.queueRenderCommands(stream);
+                stream.push(new RenderCommand(RENDER_CMD.DRAW_RECT, data));
 
                 break;
             }
@@ -218,7 +220,8 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
                     }
                 }
 
-                out.push(new RenderCommand(RENDER_CMD.DRAW_ELLIPSE, this.style, data));
+                super.queueRenderCommands(stream);
+                stream.push(new RenderCommand(RENDER_CMD.DRAW_ELLIPSE, data));
 
                 break;
             }
@@ -229,7 +232,7 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
         tip: Tip | null,
         origin: IVector<number>,
         angMult: number,
-        out: RenderCommandStream,
+        stream: RenderCommandStream,
         extraData: Partial<DrawDataLine>,
     ) {
         if (!this.#start || !this.#end) {
@@ -242,14 +245,14 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
             angle *= angMult;
             const baseAng = Math.atan2(this.#end.x - this.#start.x, this.#end.y - this.#start.y);
 
-            const tipStyle: RenderStyle = {
+            stream.setStyle({
                 ...this.style,
                 lineCap: 'round',
                 lineJoin: 'round',
-            };
+            });
 
-            out.push(
-                new RenderCommand(RENDER_CMD.DRAW_LINE, tipStyle, {
+            stream.push(
+                new RenderCommand(RENDER_CMD.DRAW_LINE, {
                     ...extraData,
                     x1: origin.x,
                     y1: origin.y,
@@ -257,8 +260,8 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
                     y2: origin.y + -Math.sin(baseAng + (angle / 180) * Math.PI) * length,
                 }),
             );
-            out.push(
-                new RenderCommand(RENDER_CMD.DRAW_LINE, tipStyle, {
+            stream.push(
+                new RenderCommand(RENDER_CMD.DRAW_LINE, {
                     ...extraData,
                     x1: origin.x,
                     y1: origin.y,

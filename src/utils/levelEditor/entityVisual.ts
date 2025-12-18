@@ -284,7 +284,10 @@ export class E_EntityVisual extends Entity<LevelEditor> {
                     shapeOptions: {
                         name: 'arrow',
                         shape: 'LINE',
-                        style: { fillStyle: 'orange', lineCap: 'round', lineJoin: 'round' },
+                        style: {
+                            strokeStyle: 'orange',
+                            lineCap: 'round',
+                        },
                         endTip: { type: 'arrow', length: 3 },
                     },
                     tileSize: TILE_SIZE * 3,

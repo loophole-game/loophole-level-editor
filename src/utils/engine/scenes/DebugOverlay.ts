@@ -12,46 +12,48 @@ export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Compone
         super({ name, ...rest });
     }
 
-    override queueRenderCommands(out: RenderCommandStream): void {
+    override queueRenderCommands(stream: RenderCommandStream): void {
         if (!this._entity) return;
 
         const inverseWorldMatrix = this._entity.transform.worldMatrix.inverse();
-        out.push(
-            new RenderCommand(RENDER_CMD.PUSH_TRANSFORM, null, {
+        stream.push(
+            new RenderCommand(RENDER_CMD.PUSH_TRANSFORM, {
                 t: inverseWorldMatrix,
             }),
         );
 
-        this.#drawEntityBoundingBox(this._engine.rootEntity, out);
+        this.#drawEntityBoundingBox(this._engine.rootEntity, stream);
 
-        out.push(new RenderCommand(RENDER_CMD.POP_TRANSFORM, null));
-        this.#drawBoundingBox(this._engine.camera.boundingBox, out);
+        stream.push(new RenderCommand(RENDER_CMD.POP_TRANSFORM));
+        this.#drawBoundingBox(this._engine.camera.boundingBox, stream);
     }
 
-    #drawEntityBoundingBox(entity: Readonly<Entity>, out: RenderCommandStream, level = 0): void {
+    #drawEntityBoundingBox(entity: Readonly<Entity>, stream: RenderCommandStream, level = 0): void {
         if (!entity.enabled) return;
 
         const culled = entity.isCulled(this._engine.camera);
         if (!culled) {
-            this.#drawBoundingBox(entity.transform.boundingBox, out, level);
+            this.#drawBoundingBox(entity.transform.boundingBox, stream, level);
         }
 
         for (const child of entity.children) {
-            this.#drawEntityBoundingBox(child, out, level + 1);
+            this.#drawEntityBoundingBox(child, stream, level + 1);
         }
     }
 
-    #drawBoundingBox(bbox: BoundingBox, out: RenderCommandStream, level = 0): void {
-        out.push(
-            new RenderCommand(
-                RENDER_CMD.DRAW_RECT,
-                {
-                    strokeStyle: `rgba(255, 0, 0, ${1 - level * 0.05})`,
-                    fillStyle: '',
-                    lineWidth: 1,
-                },
-                { x: bbox.x1, y: bbox.y1, w: bbox.x2 - bbox.x1, h: bbox.y2 - bbox.y1 },
-            ),
+    #drawBoundingBox(bbox: BoundingBox, stream: RenderCommandStream, level = 0): void {
+        stream.setStyle({
+            strokeStyle: `rgba(255, 0, 0, ${1 - level * 0.05})`,
+            fillStyle: '',
+            lineWidth: 1,
+        });
+        stream.push(
+            new RenderCommand(RENDER_CMD.DRAW_RECT, {
+                x: bbox.x1,
+                y: bbox.y1,
+                w: bbox.x2 - bbox.x1,
+                h: bbox.y2 - bbox.y1,
+            }),
         );
     }
 }

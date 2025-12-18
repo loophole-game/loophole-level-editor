@@ -19,7 +19,7 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     }, rules: {
-      "no-console": ["error", { "allow": ["error"] }]
+      "no-console": ["error", { "allow": ["error", "warn"] }]
     }
   },
 ])

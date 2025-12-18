@@ -380,7 +380,7 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         return this._components.find((c) => c.name === typeString) ?? null;
     }
 
-    queueRenderCommands(out: RenderCommandStream, camera: Camera): void {
+    queueRenderCommands(stream: RenderCommandStream, camera: Camera): void {
         if (!this._enabled || this._children.length + this._components.length === 0) {
             return;
         }
@@ -401,8 +401,8 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
             this.#componentsZIndexDirty = false;
         }
 
-        out.push(
-            new RenderCommand(RENDER_CMD.PUSH_TRANSFORM, null, {
+        stream.push(
+            new RenderCommand(RENDER_CMD.PUSH_TRANSFORM, {
                 t: this._transform.localMatrix,
             }),
         );
@@ -411,7 +411,7 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
             // Negative z-index children first
             for (const child of this._children) {
                 if (child.zIndex < 0 && child.enabled) {
-                    child.queueRenderCommands(out, camera);
+                    child.queueRenderCommands(stream, camera);
                 }
             }
         }
@@ -420,7 +420,7 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
             // Then components
             for (const component of this._components) {
                 if (component.enabled) {
-                    component.queueRenderCommands(out, camera);
+                    component.queueRenderCommands(stream, camera);
                 }
             }
         }
@@ -429,12 +429,12 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
             // Then non-negative z-index children
             for (const child of this._children) {
                 if (child.zIndex >= 0 && child.enabled) {
-                    child.queueRenderCommands(out, camera);
+                    child.queueRenderCommands(stream, camera);
                 }
             }
         }
 
-        out.push(new RenderCommand(RENDER_CMD.POP_TRANSFORM, null));
+        stream.push(new RenderCommand(RENDER_CMD.POP_TRANSFORM, null));
     }
 
     isCulled(camera: Camera): boolean {
