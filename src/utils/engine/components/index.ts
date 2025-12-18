@@ -73,6 +73,7 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
     }
 
     destroy(): void {
+        this._entity?.onChildComponentsOfTypeChanged(this.typeString);
         this._entity = null;
     }
 
@@ -84,6 +85,7 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
             this._zIndex = zIndex;
             if (this._entity) {
                 this._entity.componentsZIndexDirty = true;
+                this._entity.onChildComponentsOfTypeChanged(this.typeString);
             }
         }
 

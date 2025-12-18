@@ -150,161 +150,165 @@ export class RenderSystem extends System {
 
         this.#applyStyle(ctx, DEFAULT_RENDER_STYLE);
 
-        for (const command of stream) {
-            const { style: _style, data } = command;
-            const style = { ...DEFAULT_RENDER_STYLE, ..._style };
+        this._engine.trace(`renderCommands(${stream.length})`, () => {
+            for (const command of stream) {
+                const { style: _style, data } = command;
+                const style = { ...DEFAULT_RENDER_STYLE, ..._style };
 
-            switch (command.cmd) {
-                case RENDER_CMD.PUSH_TRANSFORM: {
-                    if (!data || !('t' in data)) {
-                        continue;
-                    }
-
-                    const { t } = data;
-                    ctx.save();
-                    ctx.transform(t.a, t.b, t.c, t.d, t.e, t.f);
-
-                    break;
-                }
-                case RENDER_CMD.POP_TRANSFORM: {
-                    ctx.restore();
-
-                    break;
-                }
-                case RENDER_CMD.DRAW_RECT: {
-                    if (!data || !('w' in data)) {
-                        continue;
-                    }
-
-                    if (style.globalAlpha > 0) {
-                        const { x, y, w, h, rx = 1, ry = 1, gx = 1, gy = 1 } = data;
-                        this.#applyStyle(ctx, style);
-
-                        // Fill first so stroke remains visible on top
-                        if (style.fillStyle) {
-                            for (let i = 0; i < rx; i++) {
-                                for (let j = 0; j < ry; j++) {
-                                    ctx.fillRect(x + i * gx, y + j * gy, w, h);
-                                }
-                            }
-                        }
-
-                        // Draw strokes without scaling line width with transform
-                        if (style.strokeStyle && style.lineWidth && style.lineWidth > 0) {
-                            const m = ctx.getTransform();
-                            const scaleX = Math.hypot(m.a, m.b);
-                            const scaleY = Math.hypot(m.c, m.d);
-                            const denom = Math.max(scaleX || 1, scaleY || 1) || 1;
-                            const adjusted = style.lineWidth / denom;
-                            const prevWidth = ctx.lineWidth;
-                            ctx.lineWidth = adjusted > 0 ? adjusted : 1;
-
-                            for (let i = 0; i < rx; i++) {
-                                for (let j = 0; j < ry; j++) {
-                                    ctx.strokeRect(x + i * gx, y + j * gy, w, h);
-                                }
-                            }
-
-                            ctx.lineWidth = prevWidth;
-                        }
-                    }
-
-                    break;
-                }
-                case RENDER_CMD.DRAW_ELLIPSE: {
-                    if (!data || !('w' in data)) {
-                        continue;
-                    }
-
-                    if (style.globalAlpha > 0) {
-                        const { x, y, w, h, rx = 1, ry = 1, gx = 1, gy = 1 } = data;
-                        this.#applyStyle(ctx, style);
-
-                        for (let i = 0; i < rx; i++) {
-                            for (let j = 0; j < ry; j++) {
-                                ctx.beginPath();
-                                ctx.ellipse(
-                                    x + i * gx,
-                                    y + j * gy,
-                                    w / 2,
-                                    h / 2,
-                                    0,
-                                    0,
-                                    2 * Math.PI,
-                                );
-                                if (style.fillStyle) {
-                                    ctx.fill();
-                                }
-                                if (style.strokeStyle) {
-                                    const m = ctx.getTransform();
-                                    const scaleX = Math.hypot(m.a, m.b);
-                                    const scaleY = Math.hypot(m.c, m.d);
-                                    const denom = Math.max(scaleX || 1, scaleY || 1) || 1;
-                                    const adjusted =
-                                        (style.lineWidth && style.lineWidth > 0
-                                            ? style.lineWidth
-                                            : 1) / denom;
-                                    const prevWidth = ctx.lineWidth;
-                                    ctx.lineWidth = adjusted > 0 ? adjusted : 1;
-                                    ctx.stroke();
-                                    ctx.lineWidth = prevWidth;
-                                }
-                                ctx.closePath();
-                            }
-                        }
-                    }
-
-                    break;
-                }
-                case RENDER_CMD.DRAW_LINE: {
-                    if (!data || !('x1' in data)) {
-                        continue;
-                    }
-
-                    if (style.globalAlpha > 0) {
-                        const { x1, y1, x2, y2, rx = 1, ry = 1, gx = 1, gy = 1 } = data;
-                        this.#applyStyle(ctx, style);
-
-                        const strokeColor = style.strokeStyle ? style.strokeStyle : style.fillStyle;
-                        if (strokeColor !== undefined) {
-                            ctx.strokeStyle = strokeColor;
-                        }
-
-                        ctx.lineWidth =
-                            style.lineWidth && style.lineWidth > 0 ? style.lineWidth : 1;
-
-                        for (let i = 0; i < rx; i++) {
-                            for (let j = 0; j < ry; j++) {
-                                ctx.beginPath();
-                                ctx.moveTo(x1 + i * gx, y1 + j * gy);
-                                ctx.lineTo(x2 + i * gx, y2 + j * gy);
-                                ctx.stroke();
-                                ctx.closePath();
-                            }
-                        }
-                    }
-
-                    break;
-                }
-                default:
-                    break;
-                case RENDER_CMD.DRAW_IMAGE: {
-                    if (!data || !('img' in data)) {
-                        continue;
-                    }
-
-                    if (style.globalAlpha > 0) {
-                        const { x, y, w, h, img: imageName } = data;
-                        this.#applyStyle(ctx, style);
-                        const image = this._engine.getImage(imageName);
-                        if (!image) {
+                switch (command.cmd) {
+                    case RENDER_CMD.PUSH_TRANSFORM: {
+                        if (!data || !('t' in data)) {
                             continue;
                         }
-                        ctx.drawImage(image.image, x, y, w, h);
+
+                        const { t } = data;
+                        ctx.save();
+                        ctx.transform(t.a, t.b, t.c, t.d, t.e, t.f);
+
+                        break;
+                    }
+                    case RENDER_CMD.POP_TRANSFORM: {
+                        ctx.restore();
+
+                        break;
+                    }
+                    case RENDER_CMD.DRAW_RECT: {
+                        if (!data || !('w' in data)) {
+                            continue;
+                        }
+
+                        if (style.globalAlpha > 0) {
+                            const { x, y, w, h, rx = 1, ry = 1, gx = 1, gy = 1 } = data;
+                            this.#applyStyle(ctx, style);
+
+                            // Fill first so stroke remains visible on top
+                            if (style.fillStyle) {
+                                for (let i = 0; i < rx; i++) {
+                                    for (let j = 0; j < ry; j++) {
+                                        ctx.fillRect(x + i * gx, y + j * gy, w, h);
+                                    }
+                                }
+                            }
+
+                            // Draw strokes without scaling line width with transform
+                            if (style.strokeStyle && style.lineWidth && style.lineWidth > 0) {
+                                const m = ctx.getTransform();
+                                const scaleX = Math.hypot(m.a, m.b);
+                                const scaleY = Math.hypot(m.c, m.d);
+                                const denom = Math.max(scaleX || 1, scaleY || 1) || 1;
+                                const adjusted = style.lineWidth / denom;
+                                const prevWidth = ctx.lineWidth;
+                                ctx.lineWidth = adjusted > 0 ? adjusted : 1;
+
+                                for (let i = 0; i < rx; i++) {
+                                    for (let j = 0; j < ry; j++) {
+                                        ctx.strokeRect(x + i * gx, y + j * gy, w, h);
+                                    }
+                                }
+
+                                ctx.lineWidth = prevWidth;
+                            }
+                        }
+
+                        break;
+                    }
+                    case RENDER_CMD.DRAW_ELLIPSE: {
+                        if (!data || !('w' in data)) {
+                            continue;
+                        }
+
+                        if (style.globalAlpha > 0) {
+                            const { x, y, w, h, rx = 1, ry = 1, gx = 1, gy = 1 } = data;
+                            this.#applyStyle(ctx, style);
+
+                            for (let i = 0; i < rx; i++) {
+                                for (let j = 0; j < ry; j++) {
+                                    ctx.beginPath();
+                                    ctx.ellipse(
+                                        x + i * gx,
+                                        y + j * gy,
+                                        w / 2,
+                                        h / 2,
+                                        0,
+                                        0,
+                                        2 * Math.PI,
+                                    );
+                                    if (style.fillStyle) {
+                                        ctx.fill();
+                                    }
+                                    if (style.strokeStyle) {
+                                        const m = ctx.getTransform();
+                                        const scaleX = Math.hypot(m.a, m.b);
+                                        const scaleY = Math.hypot(m.c, m.d);
+                                        const denom = Math.max(scaleX || 1, scaleY || 1) || 1;
+                                        const adjusted =
+                                            (style.lineWidth && style.lineWidth > 0
+                                                ? style.lineWidth
+                                                : 1) / denom;
+                                        const prevWidth = ctx.lineWidth;
+                                        ctx.lineWidth = adjusted > 0 ? adjusted : 1;
+                                        ctx.stroke();
+                                        ctx.lineWidth = prevWidth;
+                                    }
+                                    ctx.closePath();
+                                }
+                            }
+                        }
+
+                        break;
+                    }
+                    case RENDER_CMD.DRAW_LINE: {
+                        if (!data || !('x1' in data)) {
+                            continue;
+                        }
+
+                        if (style.globalAlpha > 0) {
+                            const { x1, y1, x2, y2, rx = 1, ry = 1, gx = 1, gy = 1 } = data;
+                            this.#applyStyle(ctx, style);
+
+                            const strokeColor = style.strokeStyle
+                                ? style.strokeStyle
+                                : style.fillStyle;
+                            if (strokeColor !== undefined) {
+                                ctx.strokeStyle = strokeColor;
+                            }
+
+                            ctx.lineWidth =
+                                style.lineWidth && style.lineWidth > 0 ? style.lineWidth : 1;
+
+                            for (let i = 0; i < rx; i++) {
+                                for (let j = 0; j < ry; j++) {
+                                    ctx.beginPath();
+                                    ctx.moveTo(x1 + i * gx, y1 + j * gy);
+                                    ctx.lineTo(x2 + i * gx, y2 + j * gy);
+                                    ctx.stroke();
+                                    ctx.closePath();
+                                }
+                            }
+                        }
+
+                        break;
+                    }
+                    default:
+                        break;
+                    case RENDER_CMD.DRAW_IMAGE: {
+                        if (!data || !('img' in data)) {
+                            continue;
+                        }
+
+                        if (style.globalAlpha > 0) {
+                            const { x, y, w, h, img: imageName } = data;
+                            this.#applyStyle(ctx, style);
+                            const image = this._engine.getImage(imageName);
+                            if (!image) {
+                                continue;
+                            }
+                            ctx.drawImage(image.image, x, y, w, h);
+                        }
                     }
                 }
             }
-        }
+        });
     }
 
     #applyStyle = (ctx: CanvasRenderingContext2D, style: RenderStyle) => {

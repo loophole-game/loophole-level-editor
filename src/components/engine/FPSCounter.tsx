@@ -59,7 +59,7 @@ export function TraceFrameList({
         const name = trace.name;
         const { subFrames, time, numCalls = 1 } = trace;
 
-        const key = parentName ? `${parentName} > ${name}` : name;
+        const key = (parentName ? `${parentName} > ${name}` : name).split('(')[0];
         if (depth > 0) {
             if (time >= IMPORTANT_TRACE_THRESHOLD) importantTraces.set(key, currentTime);
             else {

@@ -1,6 +1,6 @@
 import type { Component, ComponentOptions } from '../components';
 import { RENDER_CMD, RenderCommand, type RenderCommandStream } from '../systems/render';
-import type { Camera, RecursiveArray, Renderable } from '../types';
+import type { Camera, Renderable } from '../types';
 import { Vector, type IVector } from '../math';
 import { C_Transform } from '../components/transforms';
 import { boundingBoxesIntersect, zoomToScale } from '../utils';
@@ -49,6 +49,8 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
 
     protected _components: Component<TEngine>[] = [];
     #componentsZIndexDirty: boolean = false;
+
+    protected _cachedComponentsInTree: Record<string, Component<TEngine>[]> = {};
 
     constructor(options: EntityOptions<TEngine>) {
         const { name = `entity-${this._id}`, engine, ...rest } = options;
@@ -206,6 +208,7 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
             this._components.push(component);
             return component;
         });
+
         return components.length === 1 ? components[0] : components;
     }
 
@@ -213,8 +216,23 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         this._children.push(child);
     }
 
-    getComponentsInTree<T extends Component>(typeString: string): T[] {
-        return this.#getComponentsInTree<T>(typeString).flat() as T[];
+    getComponentsInTree<T extends Component<TEngine>>(typeString: string): T[] {
+        if (typeString in this._cachedComponentsInTree) {
+            return this._cachedComponentsInTree[typeString] as T[];
+        }
+
+        const out: T[] = [];
+        this.#getComponentsInTree<T>(typeString, out);
+        this._cachedComponentsInTree[typeString] = out;
+
+        return out;
+    }
+
+    onChildComponentsOfTypeChanged(typeString: string): void {
+        delete this._cachedComponentsInTree[typeString];
+        if (this._parent) {
+            this._parent.onChildComponentsOfTypeChanged(typeString);
+        }
     }
 
     engineUpdate(deltaTime: number): boolean {
@@ -447,16 +465,19 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         this._components.sort(this.#sortByZIndex);
     }
 
-    #getComponentsInTree<T extends Component>(typeString: string): RecursiveArray<T> {
+    #getComponentsInTree<T extends Component<TEngine>>(typeString: string, out: T[]): void {
         if (!this.enabled) {
-            return [];
+            return;
         }
 
-        return [
-            ...this._children.map((c) => c.getComponentsInTree<T>(typeString)),
-            ...this._components.filter((c) => {
-                return c.typeString === typeString && c.enabled;
-            }),
-        ].filter((item) => Object.values(item).length > 0) as RecursiveArray<T>;
+        for (const child of this._children) {
+            child.#getComponentsInTree(typeString, out);
+        }
+
+        for (const comp of this._components) {
+            if (comp.enabled && comp.typeString === typeString) {
+                out.push(comp as T);
+            }
+        }
     }
 }

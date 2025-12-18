@@ -524,7 +524,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
                 });
             }
 
-            this.trace('EngineUpdate', () => {
+            this.trace('engineUpdate', () => {
                 const engineUpdated = this.#engineUpdate(deltaTime);
                 if (engineUpdated) {
                     this.#forceRender = true;
