@@ -10,7 +10,6 @@ export interface ComponentOptions<TEngine extends Engine = Engine> {
     engine: TEngine;
     name?: string;
     enabled?: boolean;
-    opacity?: number;
     zIndex?: number;
     cullable?: boolean;
 }
@@ -23,7 +22,6 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
     protected _engine: TEngine;
 
     protected _enabled: boolean;
-    protected _opacity: number;
     protected _zIndex: number;
     protected _cullable: boolean;
 
@@ -34,7 +32,6 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
         this._name = name;
         this._engine = engine;
         this._enabled = rest?.enabled ?? true;
-        this._opacity = rest?.opacity ?? 1;
         this._zIndex = rest?.zIndex ?? 0;
         this._cullable = rest?.cullable ?? true;
     }
@@ -57,10 +54,6 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
 
     get enabled(): boolean {
         return this._enabled;
-    }
-
-    get opacity(): number {
-        return this._opacity;
     }
 
     get zIndex(): number {
@@ -87,17 +80,6 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     queueRenderCommands(_stream: RenderCommandStream, _camera: Camera): void {}
-
-    setOpacity(opacity: number): this {
-        if (this._opacity !== opacity) {
-            this._opacity = opacity;
-            if (this._entity) {
-                this._entity.onChildComponentsOfTypeChanged(this.typeString);
-            }
-        }
-
-        return this;
-    }
 
     setZIndex(zIndex: number): this {
         if (this._zIndex !== zIndex && !isNaN(zIndex)) {
@@ -126,12 +108,14 @@ export interface C_DrawableOptions<TEngine extends Engine = Engine>
     origin?: VectorConstructor;
     scale?: VectorConstructor;
     style?: RenderStyle;
+    opacity?: number;
 }
 
 export abstract class C_Drawable<TEngine extends Engine = Engine> extends Component<TEngine> {
     protected _origin: Vector;
     protected _scale: Vector;
     protected _style: RenderStyle;
+    protected _opacity: number;
 
     constructor(options: C_DrawableOptions<TEngine>) {
         const { name = 'drawable', ...rest } = options;
@@ -140,14 +124,16 @@ export abstract class C_Drawable<TEngine extends Engine = Engine> extends Compon
         this._origin = new Vector(options.origin ?? 0.5);
         this._scale = new Vector(options.scale ?? 1);
         this._style = options.style ?? {};
+        this._opacity = rest?.opacity ?? 1;
     }
 
     get style(): RenderStyle {
         return this._style;
     }
 
-    set style(style: RenderStyle) {
+    setStyle(style: RenderStyle): this {
         this._style = { ...this._style, ...style };
+        return this;
     }
 
     get origin(): Readonly<Vector> {
@@ -165,6 +151,21 @@ export abstract class C_Drawable<TEngine extends Engine = Engine> extends Compon
 
     setScale(scale: VectorConstructor): this {
         this._scale.set(scale);
+        return this;
+    }
+
+    get opacity(): number {
+        return this._opacity;
+    }
+
+    setOpacity(opacity: number): this {
+        if (this._opacity !== opacity) {
+            this._opacity = opacity;
+            if (this._entity) {
+                this._entity.onChildComponentsOfTypeChanged(this.typeString);
+            }
+        }
+
         return this;
     }
 

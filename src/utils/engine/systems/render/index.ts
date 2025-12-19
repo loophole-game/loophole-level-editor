@@ -1,10 +1,12 @@
 import { System } from '..';
+import { ItemCache } from '../../itemCache';
 import type { Entity } from '../../entities';
 import { HashFactory } from '../../hashFactory';
 import type { Camera } from '../../types';
 import { zoomToScale } from '../../utils';
 import { RenderCommandStream, RenderCommandType } from './command';
 import { DEFAULT_RENDER_STYLE, TRANSPARENT_STYLE_COLOR, type RenderStyle } from './style';
+import type { LoadedImage } from '../image';
 
 const HASH_STYLE_KEYS: (keyof Required<RenderStyle>)[] = [
     'fillStyle',
@@ -33,6 +35,15 @@ export class RenderSystem extends System {
     );
     #hashedImages: HashFactory<string> = new HashFactory<string>((image) => image);
 
+    #imageCache = new ItemCache<Readonly<LoadedImage>, number>((imageID: number) => {
+        const id = this.#hashedImages.idToItem(imageID);
+        if (id === null) {
+            return null;
+        }
+
+        return this._engine.getImage(id.value);
+    });
+
     destroy(): void {}
 
     render(ctx: CanvasRenderingContext2D, rootEntity: Entity, camera: Camera) {
@@ -49,105 +60,110 @@ export class RenderSystem extends System {
                 .scale(zoomToScale(camera.zoom)),
         );
 
-        rootEntity.queueRenderCommands(this.#stream, camera);
+        this._engine.trace(`queueCommands`, () => {
+            rootEntity.queueRenderCommands(this.#stream!, camera);
+        });
 
         this._engine.trace(`renderCommands(${this.#stream.length})`, () => {
-            let opacity = 1;
-            const activeStyle = { ...DEFAULT_RENDER_STYLE };
-            this.#applyStyle(ctx, {
-                ...activeStyle,
-                globalAlpha: opacity,
-            });
+            this.#renderCommands(ctx);
+        });
+    }
 
-            const commands = this.#stream!.commands;
-            const commandsLength = this.#stream!.commandsLength;
-            for (let i = 0; i < commandsLength; i++) {
-                const commandType = commands[i] as RenderCommandType;
-                switch (commandType) {
-                    case RenderCommandType.PUSH_TRANSFORM:
-                        ctx.save();
-                        ctx.transform(
-                            commands[i + 1],
-                            commands[i + 2],
-                            commands[i + 3],
-                            commands[i + 4],
-                            commands[i + 5],
-                            commands[i + 6],
-                        );
-                        i += 6;
+    #renderCommands(ctx: CanvasRenderingContext2D) {
+        let opacity = 1;
+        const activeStyle = { ...DEFAULT_RENDER_STYLE };
+        this.#applyStyle(ctx, {
+            ...activeStyle,
+            globalAlpha: opacity,
+        });
 
-                        break;
-                    case RenderCommandType.POP_TRANSFORM:
-                        ctx.restore();
+        const commands = this.#stream!.commands;
+        const commandsLength = this.#stream!.commandsLength;
+        for (let i = 0; i < commandsLength; i++) {
+            const commandType = commands[i] as RenderCommandType;
+            switch (commandType) {
+                case RenderCommandType.PUSH_TRANSFORM:
+                    ctx.save();
+                    ctx.transform(
+                        commands[i + 1],
+                        commands[i + 2],
+                        commands[i + 3],
+                        commands[i + 4],
+                        commands[i + 5],
+                        commands[i + 6],
+                    );
+                    i += 6;
 
-                        break;
-                    case RenderCommandType.SET_MATERIAL: {
-                        const styleID = commands[i + 1];
-                        const style = this.#hashedMaterials.idToItem(styleID);
-                        if (style) {
-                            activeStyle.fillStyle =
-                                style.value.fillStyle ?? DEFAULT_RENDER_STYLE.fillStyle;
-                            activeStyle.strokeStyle =
-                                style.value.strokeStyle ?? DEFAULT_RENDER_STYLE.strokeStyle;
-                            activeStyle.lineWidth =
-                                style.value.lineWidth ?? DEFAULT_RENDER_STYLE.lineWidth;
-                            activeStyle.lineJoin =
-                                style.value.lineJoin ?? DEFAULT_RENDER_STYLE.lineJoin;
-                            activeStyle.lineCap =
-                                style.value.lineCap ?? DEFAULT_RENDER_STYLE.lineCap;
-                            activeStyle.imageSmoothingEnabled =
-                                style.value.imageSmoothingEnabled ??
-                                DEFAULT_RENDER_STYLE.imageSmoothingEnabled;
-                            this.#applyStyle(ctx, activeStyle);
-                        }
-                        i += 1;
+                    break;
+                case RenderCommandType.POP_TRANSFORM:
+                    ctx.restore();
 
+                    break;
+                case RenderCommandType.SET_MATERIAL: {
+                    const styleID = commands[i + 1];
+                    const style = this.#hashedMaterials.idToItem(styleID);
+                    if (style) {
+                        activeStyle.fillStyle =
+                            style.value.fillStyle ?? DEFAULT_RENDER_STYLE.fillStyle;
+                        activeStyle.strokeStyle =
+                            style.value.strokeStyle ?? DEFAULT_RENDER_STYLE.strokeStyle;
+                        activeStyle.lineWidth =
+                            style.value.lineWidth ?? DEFAULT_RENDER_STYLE.lineWidth;
+                        activeStyle.lineJoin =
+                            style.value.lineJoin ?? DEFAULT_RENDER_STYLE.lineJoin;
+                        activeStyle.lineCap = style.value.lineCap ?? DEFAULT_RENDER_STYLE.lineCap;
+                        activeStyle.imageSmoothingEnabled =
+                            style.value.imageSmoothingEnabled ??
+                            DEFAULT_RENDER_STYLE.imageSmoothingEnabled;
+                        this.#applyStyle(ctx, activeStyle);
+                    }
+                    i += 1;
+
+                    break;
+                }
+                case RenderCommandType.SET_OPACITY: {
+                    opacity = commands[i + 1];
+                    ctx.globalAlpha = opacity;
+                    i += 1;
+
+                    break;
+                }
+                default: {
+                    const x = commands[i + 1];
+                    const y = commands[i + 2];
+                    const w = commands[i + 3];
+                    const h = commands[i + 4];
+                    const rx = commands[i + 5];
+                    const ry = commands[i + 6];
+                    const gx = commands[i + 7];
+                    const gy = commands[i + 8];
+                    i += 8 + (commandType === RenderCommandType.DRAW_IMAGE ? 1 : 0);
+
+                    if (opacity === 0) {
                         break;
                     }
-                    case RenderCommandType.SET_OPACITY: {
-                        opacity = commands[i + 1];
-                        ctx.globalAlpha = opacity;
-                        i += 1;
 
-                        break;
-                    }
-                    default: {
-                        const x = commands[i + 1];
-                        const y = commands[i + 2];
-                        const w = commands[i + 3];
-                        const h = commands[i + 4];
-                        const rx = commands[i + 5];
-                        const ry = commands[i + 6];
-                        const gx = commands[i + 7];
-                        const gy = commands[i + 8];
-                        i += 8 + (commandType === RenderCommandType.DRAW_IMAGE ? 1 : 0);
-
-                        if (opacity === 0) {
+                    switch (commandType) {
+                        case RenderCommandType.DRAW_RECT:
+                            this.#drawRect(x, y, w, h, rx, ry, gx, gy, ctx, activeStyle);
                             break;
-                        }
-
-                        switch (commandType) {
-                            case RenderCommandType.DRAW_RECT:
-                                this.#drawRect(x, y, w, h, rx, ry, gx, gy, ctx, activeStyle);
-                                break;
-                            case RenderCommandType.DRAW_ELLIPSE:
-                                this.#drawEllipse(x, y, w, h, rx, ry, gx, gy, ctx, activeStyle);
-                                break;
-                            case RenderCommandType.DRAW_LINE:
-                                this.#drawLine(x, y, w, h, rx, ry, gx, gy, ctx, activeStyle);
-                                break;
-                            case RenderCommandType.DRAW_IMAGE:
-                                this.#drawImage(x, y, w, h, commands[i], ctx);
-                                break;
-                            default:
-                                break;
-                        }
-
-                        break;
+                        case RenderCommandType.DRAW_ELLIPSE:
+                            this.#drawEllipse(x, y, w, h, rx, ry, gx, gy, ctx, activeStyle);
+                            break;
+                        case RenderCommandType.DRAW_LINE:
+                            this.#drawLine(x, y, w, h, rx, ry, gx, gy, ctx, activeStyle);
+                            break;
+                        case RenderCommandType.DRAW_IMAGE:
+                            this.#drawImage(x, y, w, h, commands[i], ctx);
+                            break;
+                        default:
+                            break;
                     }
+
+                    break;
                 }
             }
-        });
+        }
     }
 
     #applyStyle = (ctx: CanvasRenderingContext2D, style: CanvasStyle) => {
@@ -296,15 +312,8 @@ export class RenderSystem extends System {
         imageID: number,
         ctx: CanvasRenderingContext2D,
     ) {
-        const hashedImage = this.#hashedImages.idToItem(imageID);
-        if (hashedImage === null) {
-            console.error(`Image ${imageID} not found in hash factory`);
-            return;
-        }
-
-        const image = this._engine.getImage(hashedImage.value);
+        const image = this.#imageCache.get(imageID);
         if (!image) {
-            console.error(`Image ${imageID} not found in engine`);
             return;
         }
 
