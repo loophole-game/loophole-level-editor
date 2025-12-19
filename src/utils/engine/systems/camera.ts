@@ -34,7 +34,12 @@ export class CameraSystem extends System {
     }
 
     set cameraTarget(cameraTarget: CameraData | null) {
-        this.#cameraTarget = cameraTarget;
+        this.#cameraTarget = cameraTarget
+            ? {
+                  ...cameraTarget,
+                  zoom: this.clampCameraZoom(cameraTarget?.zoom),
+              }
+            : null;
     }
 
     get worldToScreenMatrix(): Readonly<DOMMatrix> {
@@ -104,7 +109,7 @@ export class CameraSystem extends System {
     setCameraZoom(zoom: number): void {
         if (this.#camera.zoom !== zoom) {
             this.#camera.zoom = zoom;
-            this.clampCameraZoom();
+            this.applyCameraZoomClamp();
             this.#onCameraChanged();
         }
     }
@@ -113,7 +118,7 @@ export class CameraSystem extends System {
         const oldZoom = this.#camera.zoom;
         const oldScale = zoomToScale(oldZoom);
         this.#camera.zoom += delta * this._engine.options.zoomSpeed;
-        this.clampCameraZoom();
+        this.applyCameraZoomClamp();
         const newScale = zoomToScale(this.#camera.zoom);
 
         if (focalPoint) {
@@ -204,11 +209,12 @@ export class CameraSystem extends System {
         this.#camera.dirty = false;
     }
 
-    clampCameraZoom(): void {
-        this.#camera.zoom = Math.max(
-            this._engine.options.minZoom,
-            Math.min(this._engine.options.maxZoom, this.#camera.zoom),
-        );
+    clampCameraZoom(zoom: number): number {
+        return Math.max(this._engine.options.minZoom, Math.min(this._engine.options.maxZoom, zoom));
+    }
+
+    applyCameraZoomClamp(): void {
+        this.#camera.zoom = this.clampCameraZoom(this.#camera.zoom);
     }
 
     #onCameraChanged(): void {

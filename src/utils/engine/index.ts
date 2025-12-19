@@ -603,7 +603,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
     #applyOptions(newOptions: Partial<TOptions>): void {
         this._options = { ...this._options, ...newOptions };
 
-        this._cameraSystem.clampCameraZoom();
+        this._cameraSystem.applyCameraZoomClamp();
 
         Object.entries(this._options.images).forEach(([name, src]) => {
             this._imageSystem.loadImage(name, src);
