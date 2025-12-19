@@ -31,6 +31,7 @@ interface E_EntityVisualOptions extends EntityOptions<LevelEditor> {
     mode: Mode;
     tile?: E_Tile;
     variant?: Variant;
+    opacity?: number;
 }
 
 export class E_EntityVisual extends Entity<LevelEditor> {
@@ -47,8 +48,9 @@ export class E_EntityVisual extends Entity<LevelEditor> {
     #explosionDecals: ExplosionDecals | null = null;
 
     constructor(options: E_EntityVisualOptions) {
-        const { name = 'entity_visual', ...rest } = options;
+        const { name = 'entity_visual', opacity, ...rest } = options;
         super({ name, ...rest });
+        this.#opacity = opacity ?? 1;
         this.#tileImage = this.addComponents(C_Image<LevelEditor>, {
             name: `${name}-image`,
             imageName: '',
@@ -56,6 +58,7 @@ export class E_EntityVisual extends Entity<LevelEditor> {
                 imageSmoothingEnabled: false,
             },
             zIndex: -1,
+            opacity: this.#opacity,
         });
 
         this.#mode = options.mode;
@@ -153,9 +156,9 @@ export class E_EntityVisual extends Entity<LevelEditor> {
         if (this.#mode === 'tile' && type === 'EXPLOSION') {
             this.#requestTileShapes('RECT');
             this.#tileShapes[0].setOpacity(0.5);
-            this.#tileShapes[0].style = {
+            this.#tileShapes[0].setStyle({
                 fillStyle: 'orange',
-            };
+            });
             this.#createExplosionDecals();
         } else {
             switch (type) {
@@ -221,6 +224,7 @@ export class E_EntityVisual extends Entity<LevelEditor> {
                 end: { x: 0.3, y: 0 },
                 style: { strokeStyle: 'white', lineWidth: 0.1, lineCap: 'round' },
                 endTip: { type: 'arrow', length: 0.25 },
+                opacity: this.#opacity,
             });
 
             const wallVariant = this.#variant === 'entrance' ? 'entrance' : 'default';
@@ -230,23 +234,27 @@ export class E_EntityVisual extends Entity<LevelEditor> {
                     mode: 'tile',
                     position: { x: -0.5, y: 0 },
                     zIndex: 1,
+                    opacity: this.#opacity,
                 },
                 {
                     mode: 'tile',
                     position: { x: 0.5, y: 0 },
                     zIndex: 1,
+                    opacity: this.#opacity,
                 },
                 {
                     mode: 'tile',
                     position: { x: 0, y: 0.5 },
                     rotation: 90,
                     zIndex: 1,
+                    opacity: this.#opacity,
                 },
                 {
                     mode: 'tile',
                     position: { x: 0, y: -0.5 },
                     rotation: 90,
                     zIndex: 1,
+                    opacity: this.#opacity,
                 },
             );
             walls[0]

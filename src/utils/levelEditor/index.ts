@@ -335,6 +335,11 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         return tiles;
     }
 
+    canPlaceEntity(entityType: Loophole_ExtendedEntityType | null): boolean {
+        const { lockedLayers } = getAppStore();
+        return this.entityCount < MAX_ENTITY_COUNT && (!entityType || !lockedLayers[entityType]);
+    }
+
     placeTile(
         position: Loophole_Int2,
         entityType: Loophole_ExtendedEntityType,
@@ -343,8 +348,8 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         flipDirection: boolean,
         hash?: string | null,
     ): E_Tile[] {
-        const { selectedTiles, lockedLayers } = getAppStore();
-        if (this.entityCount >= MAX_ENTITY_COUNT || lockedLayers[entityType]) {
+        if (!this.canPlaceEntity(entityType)) {
+            const { selectedTiles } = getAppStore();
             return Array.from(Object.values(selectedTiles));
         }
 

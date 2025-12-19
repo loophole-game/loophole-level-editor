@@ -11,7 +11,6 @@ import { Entity, type EntityOptions } from '../../engine/entities';
 import { Scene } from '../../engine/systems/scene';
 import { getAppStore } from '@/utils/stores';
 import {
-    MAX_ENTITY_COUNT,
     type Loophole_EdgeAlignment,
     type Loophole_EntityWithID,
     type Loophole_ExtendedEntityType,
@@ -64,7 +63,7 @@ class E_TileCursor extends Entity<LevelEditor> {
     #entityVisual: E_EntityVisual;
 
     #positionLerp: C_LerpPosition<Vector>;
-    #tileOpacityLerp: C_Lerp<number>;
+    #tileOpacityLerp: C_LerpOpacity;
     #tileRotationLerp: C_Lerp<number>;
 
     #targetPosition: IVector<number> | null = null;
@@ -90,6 +89,7 @@ class E_TileCursor extends Entity<LevelEditor> {
             target: this.#entityVisual,
             speed: 4,
         });
+        this.#entityVisual.setOpacity(this.#getBrushOpacity());
 
         this.setZIndex(50);
         this.#positionLerp = this.addComponents(C_LerpPosition<Vector, LevelEditor>, {
@@ -116,24 +116,6 @@ class E_TileCursor extends Entity<LevelEditor> {
             isDraggingToPlace,
             setIsDraggingToPlace,
         } = getAppStore();
-
-        if (
-            this._engine.pointerState.onScreen &&
-            !multiSelectIsActive(this._engine) &&
-            !cameraDragIsActive(this._engine) &&
-            !isMovingTiles &&
-            brushEntityType
-        ) {
-            if (isDraggingToPlace) {
-                this._engine.requestCursor(
-                    'tile-cursor-dragging',
-                    'grabbing',
-                    CURSOR_PRIORITY.DRAGGING,
-                );
-            } else {
-                this._engine.requestCursor('tile-cursor', 'crosshair', CURSOR_PRIORITY.BRUSH);
-            }
-        }
 
         if (
             this._engine.pointerState.onScreen &&
@@ -302,8 +284,7 @@ class E_TileCursor extends Entity<LevelEditor> {
 
         const positionTarget = this.#targetPosition || this.position;
         this.#positionLerp.target = new Vector(positionTarget);
-        this.#tileOpacityLerp.target =
-            this.#active && this._engine.entityCount < MAX_ENTITY_COUNT ? 0.5 : 0;
+        this.#tileOpacityLerp.target = this.#getBrushOpacity();
         if (!isDraggingToPlace) {
             const targetRotation = this.#targetRotation ?? this.rotation;
             if (this.#prevBrushEntityType !== brushEntityType) {
@@ -313,7 +294,36 @@ class E_TileCursor extends Entity<LevelEditor> {
             this.#tileRotationLerp.target = targetRotation;
         }
 
+        if (
+            this._engine.pointerState.onScreen &&
+            !multiSelectIsActive(this._engine) &&
+            !cameraDragIsActive(this._engine) &&
+            !isMovingTiles &&
+            brushEntityType
+        ) {
+            if (!this.#cursorCanPlaceEntity()) {
+                this._engine.requestCursor('tile-cursor', 'not-allowed', CURSOR_PRIORITY.BRUSH);
+            } else if (isDraggingToPlace) {
+                this._engine.requestCursor(
+                    'tile-cursor-dragging',
+                    'grabbing',
+                    CURSOR_PRIORITY.DRAGGING,
+                );
+            } else {
+                this._engine.requestCursor('tile-cursor', 'crosshair', CURSOR_PRIORITY.BRUSH);
+            }
+        }
+
         return updated;
+    }
+
+    #cursorCanPlaceEntity(): boolean {
+        const { brushEntityType } = getAppStore();
+        return this.#active && this._engine.canPlaceEntity(brushEntityType);
+    }
+
+    #getBrushOpacity(): number {
+        return this.#cursorCanPlaceEntity() ? 0.5 : 0;
     }
 
     #handleDragPlacement(
