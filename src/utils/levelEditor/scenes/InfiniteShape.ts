@@ -94,15 +94,25 @@ export class E_InfiniteShape<TEngine extends Engine = Engine> extends Entity<TEn
         if (this._engine.canvasSize) {
             const scale = zoomToScale(this._engine.camera.zoom);
             if (this.#zoomCullThresh === null || scale >= this.#zoomCullThresh) {
-                const topLeft = this._engine.screenToWorld({ x: 0, y: 0 }),
-                    bottomRight = this._engine.screenToWorld(this._engine.canvasSize);
+                const corners = [
+                    this._engine.screenToWorld({ x: 0, y: 0 }),
+                    this._engine.screenToWorld({ x: this._engine.canvasSize.x, y: 0 }),
+                    this._engine.screenToWorld({ x: 0, y: this._engine.canvasSize.y }),
+                    this._engine.screenToWorld(this._engine.canvasSize),
+                ];
+
+                const minX = Math.min(...corners.map((c) => c.x));
+                const maxX = Math.max(...corners.map((c) => c.x));
+                const minY = Math.min(...corners.map((c) => c.y));
+                const maxY = Math.max(...corners.map((c) => c.y));
+
                 const gridTopLeft = {
-                        x: Math.floor((topLeft.x - this.#tileSize.x / 2) / this.#tileSize.x),
-                        y: Math.floor((topLeft.y - this.#tileSize.y / 2) / this.#tileSize.y),
+                        x: Math.floor((minX - this.#tileSize.x / 2) / this.#tileSize.x),
+                        y: Math.floor((minY - this.#tileSize.y / 2) / this.#tileSize.y),
                     },
                     gridBottomRight = {
-                        x: Math.floor((bottomRight.x + this.#tileSize.x / 2) / this.#tileSize.x),
-                        y: Math.floor((bottomRight.y + this.#tileSize.y / 2) / this.#tileSize.y),
+                        x: Math.floor((maxX + this.#tileSize.x / 2) / this.#tileSize.x),
+                        y: Math.floor((maxY + this.#tileSize.y / 2) / this.#tileSize.y),
                     };
 
                 super.setPosition({

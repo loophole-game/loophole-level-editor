@@ -4,6 +4,7 @@ import type { Engine } from '..';
 import { Entity } from '../entities';
 import type { BoundingBox } from '../types';
 import type { RenderCommandStream } from '../systems/render/command';
+import type { RenderStyle } from '../systems/render/style';
 
 export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Component<TEngine> {
     constructor(options: ComponentOptions<TEngine>) {
@@ -18,7 +19,10 @@ export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Compone
         this.#drawEntityBoundingBox(this._engine.rootEntity, stream);
         stream.popTransform();
 
-        this.#drawBoundingBox(this._engine.camera.boundingBox, stream);
+        this.#drawBoundingBox(this._engine.camera.boundingBox, stream, {
+            strokeStyle: 'blue',
+            lineWidth: 4,
+        });
     }
 
     #drawEntityBoundingBox(entity: Readonly<Entity>, stream: RenderCommandStream, level = 0): void {
@@ -26,7 +30,11 @@ export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Compone
 
         const culled = entity.isCulled(this._engine.camera);
         if (!culled) {
-            this.#drawBoundingBox(entity.transform.boundingBox, stream, level);
+            this.#drawBoundingBox(entity.transform.boundingBox, stream, {
+                strokeStyle: `rgba(255, 0, 0, ${1 - level * 0.05})`,
+                fillStyle: '',
+                lineWidth: 1,
+            });
         }
 
         for (const child of entity.children) {
@@ -34,13 +42,9 @@ export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Compone
         }
     }
 
-    #drawBoundingBox(bbox: BoundingBox, stream: RenderCommandStream, level = 0): void {
+    #drawBoundingBox(bbox: BoundingBox, stream: RenderCommandStream, style: RenderStyle): void {
         stream.setOpacity(1);
-        stream.setStyle({
-            strokeStyle: `rgba(255, 0, 0, ${1 - level * 0.05})`,
-            fillStyle: '',
-            lineWidth: 1,
-        });
+        stream.setStyle(style);
         stream.drawRect(bbox.x1, bbox.y1, bbox.x2 - bbox.x1, bbox.y2 - bbox.y1);
     }
 }

@@ -1,6 +1,6 @@
 import { System } from '.';
 import type { Engine } from '..';
-import type { IVector, Vector } from '../math';
+import { Vector, type IVector } from '../math';
 import type { BoundingBox, Camera, CameraData } from '../types';
 import { calculateRectangleBoundingBox, DEFAULT_CAMERA_OPTIONS, lerp, zoomToScale } from '../utils';
 
@@ -118,9 +118,12 @@ export class CameraSystem extends System {
 
         if (focalPoint) {
             const scaleDelta = oldScale - newScale;
+            const rotationRad = (this.#camera.rotation * Math.PI) / 180;
+            const rotatedFocalPoint = new Vector(focalPoint).rotate(rotationRad);
+
             this.#camera.position = {
-                x: this.#camera.position.x + focalPoint.x * scaleDelta,
-                y: this.#camera.position.y + focalPoint.y * scaleDelta,
+                x: this.#camera.position.x + rotatedFocalPoint.x * scaleDelta,
+                y: this.#camera.position.y + rotatedFocalPoint.y * scaleDelta,
             };
         }
 
@@ -211,18 +214,19 @@ export class CameraSystem extends System {
     #onCameraChanged(): void {
         this.#camera.dirty = true;
 
-        // Calculate the world space bounding box (what's visible in the viewport)
         if (this._engine.canvasSize) {
             const scale = zoomToScale(this.#camera.zoom);
             const worldSize = {
                 x: this._engine.canvasSize.x / scale,
                 y: this._engine.canvasSize.y / scale,
             };
-            // The world center visible is the inverse of camera position, scaled
-            const worldCenter = {
+            const worldCenterOffset = {
                 x: -this.#camera.position.x / scale,
                 y: -this.#camera.position.y / scale,
             };
+
+            const rotationRad = (-this.#camera.rotation * Math.PI) / 180;
+            const worldCenter = new Vector(worldCenterOffset).rotate(rotationRad).extract();
 
             const bbox = calculateRectangleBoundingBox(
                 worldCenter,
