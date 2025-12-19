@@ -135,8 +135,11 @@ export class CameraSystem extends System {
     }
 
     override lateUpdate(deltaTime: number): boolean {
-        if (this._engine.canvasSize && this._engine.canvasSize !== this.#prevCanvasSize) {
-            this.#prevCanvasSize = this._engine.canvasSize;
+        if (
+            this._engine.canvasSize &&
+            (!this.#prevCanvasSize || !this._engine.canvasSize.equals(this.#prevCanvasSize))
+        ) {
+            this.#prevCanvasSize = this._engine.canvasSize.clone();
             this.#onCameraChanged();
         }
 
