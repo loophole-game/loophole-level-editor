@@ -35,7 +35,7 @@ export interface Renderable {
 }
 
 // prettier-ignore
-export type WebKey = 
+export type WebKey =
     // Modifier keys
     "Alt" | "AltGraph" | "CapsLock" | "Control" | "Fn" | "FnLock" | "Meta" | "NumLock" | "ScrollLock" | "Shift" | "Symbol" | "SymbolLock"
     // Whitespace / navigation

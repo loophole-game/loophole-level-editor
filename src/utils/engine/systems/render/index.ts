@@ -139,10 +139,6 @@ export class RenderSystem extends System {
                     const gy = commands[i + 8];
                     i += 8 + (commandType === RenderCommandType.DRAW_IMAGE ? 1 : 0);
 
-                    if (opacity === 0) {
-                        break;
-                    }
-
                     switch (commandType) {
                         case RenderCommandType.DRAW_RECT:
                             this.#drawRect(x, y, w, h, rx, ry, gx, gy, ctx, activeStyle);

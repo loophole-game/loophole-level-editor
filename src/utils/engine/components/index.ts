@@ -5,6 +5,7 @@ import type { RenderCommandStream } from '../systems/render/command';
 import type { RenderStyle } from '../systems/render/style';
 
 import type { Engine } from '..';
+import { OPACITY_THRESHOLD } from '../utils';
 
 export interface ComponentOptions<TEngine extends Engine = Engine> {
     engine: TEngine;
@@ -170,7 +171,9 @@ export abstract class C_Drawable<TEngine extends Engine = Engine> extends Compon
     }
 
     queueRenderCommands(stream: RenderCommandStream): void {
-        stream.setStyle(this._style);
         stream.setOpacity(this._opacity);
+        if (this._opacity >= OPACITY_THRESHOLD) {
+            stream.setStyle(this._style);
+        }
     }
 }

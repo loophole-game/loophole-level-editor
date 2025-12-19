@@ -1,5 +1,6 @@
 import { HashFactory } from '../../hashFactory';
 import { type RenderStyle } from './style';
+import { OPACITY_THRESHOLD } from '../../utils';
 
 export const RenderCommandType = {
     PUSH_TRANSFORM: 0,
@@ -187,6 +188,10 @@ export class RenderCommandStream {
         gx?: number,
         gy?: number,
     ) {
+        if (this.#currentOpacity < OPACITY_THRESHOLD) {
+            return;
+        }
+
         this.#commands.pushCommand(RenderCommandType.DRAW_RECT);
         this.#commands.pushValue(x1);
         this.#commands.pushValue(y1);
@@ -208,6 +213,10 @@ export class RenderCommandStream {
         gx?: number,
         gy?: number,
     ) {
+        if (this.#currentOpacity < OPACITY_THRESHOLD) {
+            return;
+        }
+
         this.#commands.pushCommand(RenderCommandType.DRAW_ELLIPSE);
         this.#commands.pushValue(x1);
         this.#commands.pushValue(y1);
@@ -229,6 +238,10 @@ export class RenderCommandStream {
         gx?: number,
         gy?: number,
     ) {
+        if (this.#currentOpacity < OPACITY_THRESHOLD) {
+            return;
+        }
+
         this.#commands.pushCommand(RenderCommandType.DRAW_LINE);
         this.#commands.pushValue(x1);
         this.#commands.pushValue(y1);
@@ -251,6 +264,10 @@ export class RenderCommandStream {
         gx?: number,
         gy?: number,
     ) {
+        if (this.#currentOpacity < OPACITY_THRESHOLD) {
+            return;
+        }
+
         const imageID = this.#hashedImages.itemToID(image);
         this.#commands.pushCommand(RenderCommandType.DRAW_IMAGE);
         this.#commands.pushValue(x1);
