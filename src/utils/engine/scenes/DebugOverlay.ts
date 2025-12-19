@@ -1,10 +1,9 @@
 import { Scene } from '../systems/scene';
 import { Component, type ComponentOptions } from '../components';
-import type { RenderCommandStream } from '../systems/render';
-import { RENDER_CMD, RenderCommand } from '../systems/render';
 import type { Engine } from '..';
 import { Entity } from '../entities';
 import type { BoundingBox } from '../types';
+import type { RenderCommandStream } from '../systems/render/command';
 
 export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Component<TEngine> {
     constructor(options: ComponentOptions<TEngine>) {
@@ -15,16 +14,10 @@ export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Compone
     override queueRenderCommands(stream: RenderCommandStream): void {
         if (!this._entity) return;
 
-        const inverseWorldMatrix = this._entity.transform.worldMatrix.inverse();
-        stream.push(
-            new RenderCommand(RENDER_CMD.PUSH_TRANSFORM, {
-                t: inverseWorldMatrix,
-            }),
-        );
-
+        stream.pushTransform(this._entity.transform.worldMatrix.inverse());
         this.#drawEntityBoundingBox(this._engine.rootEntity, stream);
+        stream.popTransform();
 
-        stream.push(new RenderCommand(RENDER_CMD.POP_TRANSFORM));
         this.#drawBoundingBox(this._engine.camera.boundingBox, stream);
     }
 
@@ -47,14 +40,7 @@ export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Compone
             fillStyle: '',
             lineWidth: 1,
         });
-        stream.push(
-            new RenderCommand(RENDER_CMD.DRAW_RECT, {
-                x: bbox.x1,
-                y: bbox.y1,
-                w: bbox.x2 - bbox.x1,
-                h: bbox.y2 - bbox.y1,
-            }),
-        );
+        stream.drawRect(bbox.x1, bbox.y1, bbox.x2 - bbox.x1, bbox.y2 - bbox.y1);
     }
 }
 

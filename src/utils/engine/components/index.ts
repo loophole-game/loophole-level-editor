@@ -1,7 +1,8 @@
 import type { Entity } from '../entities';
 import type { Camera, Renderable } from '../types';
 import { Vector, type VectorConstructor } from '../math';
-import type { RenderCommandStream, RenderStyle } from '../systems/render';
+import type { RenderCommandStream } from '../systems/render/command';
+import type { RenderStyle } from '../systems/render/style';
 
 import type { Engine } from '..';
 

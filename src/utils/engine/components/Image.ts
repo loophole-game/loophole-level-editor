@@ -1,12 +1,7 @@
 import { C_Drawable, type C_DrawableOptions } from '.';
 import type { Engine } from '..';
 import { Vector, type VectorConstructor } from '../math';
-import {
-    RENDER_CMD,
-    RenderCommand,
-    type DrawDataImage,
-    type RenderCommandStream,
-} from '../systems/render';
+import type { RenderCommandStream } from '../systems/render/command';
 
 interface C_ImageOptions<TEngine extends Engine = Engine> extends C_DrawableOptions<TEngine> {
     imageName: string;
@@ -48,18 +43,14 @@ export class C_Image<TEngine extends Engine = Engine> extends C_Drawable<TEngine
 
         super.queueRenderCommands(stream);
 
-        const data: DrawDataImage = {
-            x: -this.origin.x * this.scale.x,
-            y: -this.origin.y * this.scale.y,
-            w: this.scale.x,
-            h: this.scale.y,
-            img: this.#imageName,
-        };
-        if (this.#repeat) {
-            data.rx = this.#repeat.x;
-            data.ry = this.#repeat.y;
-        }
-
-        stream.push(new RenderCommand(RENDER_CMD.DRAW_IMAGE, data));
+        stream.drawImage(
+            -this.origin.x * this.scale.x,
+            -this.origin.y * this.scale.y,
+            this.scale.x,
+            this.scale.y,
+            this.#imageName,
+            this.#repeat?.x,
+            this.#repeat?.y,
+        );
     }
 }

@@ -1,5 +1,5 @@
 import type { IVector } from './math';
-import type { RenderCommandStream } from './systems/render';
+import type { RenderCommandStream } from './systems/render/command';
 
 export interface BoundingBox {
     x1: number;
@@ -31,7 +31,7 @@ export interface CameraMetadata {
 export interface Camera extends CameraData, CameraMetadata {}
 
 export interface Renderable {
-    queueRenderCommands(out: RenderCommandStream, camera: Camera): void;
+    queueRenderCommands(stream: RenderCommandStream, camera: Camera): void;
 }
 
 // prettier-ignore

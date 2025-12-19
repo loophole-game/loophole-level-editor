@@ -1,10 +1,10 @@
 import type { Component, ComponentOptions } from '../components';
-import { RENDER_CMD, RenderCommand, type RenderCommandStream } from '../systems/render';
 import type { Camera, Renderable } from '../types';
 import { Vector, type IVector } from '../math';
 import { C_Transform } from '../components/transforms';
 import { boundingBoxesIntersect, zoomToScale } from '../utils';
 import type { Engine } from '..';
+import type { RenderCommandStream } from '../systems/render/command';
 
 interface ScaleToCamera {
     x: boolean;
@@ -401,11 +401,7 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
             this.#componentsZIndexDirty = false;
         }
 
-        stream.push(
-            new RenderCommand(RENDER_CMD.PUSH_TRANSFORM, {
-                t: this._transform.localMatrix,
-            }),
-        );
+        stream.pushTransform(this._transform.localMatrix);
 
         if (!cullChildren) {
             // Negative z-index children first
@@ -434,7 +430,7 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
             }
         }
 
-        stream.push(new RenderCommand(RENDER_CMD.POP_TRANSFORM, null));
+        stream.popTransform();
     }
 
     isCulled(camera: Camera): boolean {

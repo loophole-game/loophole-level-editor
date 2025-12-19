@@ -1,13 +1,7 @@
-import {
-    RENDER_CMD,
-    RenderCommand,
-    type DrawDataLine,
-    type DrawDataShape,
-    type RenderCommandStream,
-} from '../systems/render';
 import { Vector, type IVector, type VectorConstructor } from '../math';
 import { C_Drawable, type C_DrawableOptions } from './index';
 import type { Engine } from '..';
+import type { RenderCommandStream } from '../systems/render/command';
 
 const DEFAULT_ARROW_LENGTH = 1;
 const DEFAULT_ARROW_ANGLE = 45;
@@ -155,73 +149,50 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
 
                 super.queueRenderCommands(stream);
 
-                const data: DrawDataLine = {
-                    x1: this.#start.x,
-                    y1: this.#start.y,
-                    x2: this.#end.x,
-                    y2: this.#end.y,
-                };
-                const extraData: Partial<DrawDataLine> = {};
-                if (this.#repeat) {
-                    extraData.rx = this.#repeat.x;
-                    extraData.ry = this.#repeat.y;
-                    if (this.#gap) {
-                        extraData.gx = this.#gap.x;
-                        extraData.gy = this.#gap.y;
-                    }
-                }
-
-                stream.push(
-                    new RenderCommand(RENDER_CMD.DRAW_LINE, {
-                        ...data,
-                        ...extraData,
-                    }),
+                stream.drawLine(
+                    this.#start.x,
+                    this.#start.y,
+                    this.#end.x,
+                    this.#end.y,
+                    this.#repeat?.x,
+                    this.#repeat?.y,
+                    this.#gap?.x,
+                    this.#gap?.y,
                 );
 
-                this.#drawTip(this.#startTip, this.#start, -1, stream, extraData);
-                this.#drawTip(this.#endTip, this.#end, 1, stream, extraData);
+                this.#drawTip(this.#startTip, this.#start, -1, stream);
+                this.#drawTip(this.#endTip, this.#end, 1, stream);
 
                 break;
             }
             case 'RECT': {
-                const data: DrawDataShape = {
-                    x: (-1 - (this._scale.x - 1)) * this._origin.x,
-                    y: (-1 - (this._scale.y - 1)) * this._origin.y,
-                    w: this._scale.x,
-                    h: this._scale.y,
-                };
-                if (this.#repeat) {
-                    data.rx = this.#repeat.x;
-                    data.ry = this.#repeat.y;
-                    if (this.#gap) {
-                        data.gx = this.#gap.x;
-                        data.gy = this.#gap.y;
-                    }
-                }
-
                 super.queueRenderCommands(stream);
-                stream.push(new RenderCommand(RENDER_CMD.DRAW_RECT, data));
+
+                stream.drawRect(
+                    (-1 - (this._scale.x - 1)) * this._origin.x,
+                    (-1 - (this._scale.y - 1)) * this._origin.y,
+                    this._scale.x,
+                    this._scale.y,
+                    this.#repeat?.x,
+                    this.#repeat?.y,
+                    this.#gap?.x,
+                    this.#gap?.y,
+                );
 
                 break;
             }
             case 'ELLIPSE': {
-                const data: DrawDataShape = {
-                    x: (-1 - (this._scale.x - 1)) * this._origin.x,
-                    y: (-1 - (this._scale.y - 1)) * this._origin.y,
-                    w: this._scale.x,
-                    h: this._scale.y,
-                };
-                if (this.#repeat) {
-                    data.rx = this.#repeat.x;
-                    data.ry = this.#repeat.y;
-                    if (this.#gap) {
-                        data.gx = this.#gap.x;
-                        data.gy = this.#gap.y;
-                    }
-                }
-
                 super.queueRenderCommands(stream);
-                stream.push(new RenderCommand(RENDER_CMD.DRAW_ELLIPSE, data));
+                stream.drawEllipse(
+                    (-1 - (this._scale.x - 1)) * this._origin.x,
+                    (-1 - (this._scale.y - 1)) * this._origin.y,
+                    this._scale.x,
+                    this._scale.y,
+                    this.#repeat?.x,
+                    this.#repeat?.y,
+                    this.#gap?.x,
+                    this.#gap?.y,
+                );
 
                 break;
             }
@@ -233,7 +204,6 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
         origin: IVector<number>,
         angMult: number,
         stream: RenderCommandStream,
-        extraData: Partial<DrawDataLine>,
     ) {
         if (!this.#start || !this.#end) {
             return;
@@ -251,23 +221,25 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
                 lineJoin: 'round',
             });
 
-            stream.push(
-                new RenderCommand(RENDER_CMD.DRAW_LINE, {
-                    ...extraData,
-                    x1: origin.x,
-                    y1: origin.y,
-                    x2: origin.x + Math.cos(baseAng + (angle / 180) * Math.PI) * length,
-                    y2: origin.y + -Math.sin(baseAng + (angle / 180) * Math.PI) * length,
-                }),
+            stream.drawLine(
+                origin.x,
+                origin.y,
+                origin.x + Math.cos(baseAng + (angle / 180) * Math.PI) * length,
+                origin.y + -Math.sin(baseAng + (angle / 180) * Math.PI) * length,
+                this.#repeat?.x,
+                this.#repeat?.y,
+                this.#gap?.x,
+                this.#gap?.y,
             );
-            stream.push(
-                new RenderCommand(RENDER_CMD.DRAW_LINE, {
-                    ...extraData,
-                    x1: origin.x,
-                    y1: origin.y,
-                    x2: origin.x + -Math.cos(baseAng + (-angle / 180) * Math.PI) * length,
-                    y2: origin.y + Math.sin(baseAng + (-angle / 180) * Math.PI) * length,
-                }),
+            stream.drawLine(
+                origin.x,
+                origin.y,
+                origin.x + -Math.cos(baseAng + (-angle / 180) * Math.PI) * length,
+                origin.y + Math.sin(baseAng + (-angle / 180) * Math.PI) * length,
+                this.#repeat?.x,
+                this.#repeat?.y,
+                this.#gap?.x,
+                this.#gap?.y,
             );
         }
     }
