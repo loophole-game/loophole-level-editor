@@ -137,7 +137,7 @@ export class RenderSystem extends System {
                                 this.#drawLine(x, y, w, h, rx, ry, gx, gy, ctx, activeStyle);
                                 break;
                             case RenderCommandType.DRAW_IMAGE:
-                                this.#drawImage(x, y, w, h, commands[i + 1], ctx);
+                                this.#drawImage(x, y, w, h, commands[i], ctx);
                                 break;
                             default:
                                 break;
@@ -298,11 +298,13 @@ export class RenderSystem extends System {
     ) {
         const hashedImage = this.#hashedImages.idToItem(imageID);
         if (hashedImage === null) {
+            console.error(`Image ${imageID} not found in hash factory`);
             return;
         }
 
         const image = this._engine.getImage(hashedImage.value);
         if (!image) {
+            console.error(`Image ${imageID} not found in engine`);
             return;
         }
 
