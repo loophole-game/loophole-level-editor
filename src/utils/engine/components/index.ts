@@ -10,6 +10,7 @@ export interface ComponentOptions<TEngine extends Engine = Engine> {
     engine: TEngine;
     name?: string;
     enabled?: boolean;
+    opacity?: number;
     zIndex?: number;
     cullable?: boolean;
 }
@@ -17,13 +18,14 @@ export interface ComponentOptions<TEngine extends Engine = Engine> {
 export abstract class Component<TEngine extends Engine = Engine> implements Renderable {
     protected static _nextId: number = 1;
     protected readonly _id: string = (Component._nextId++).toString();
+
     protected readonly _name: string;
     protected _engine: TEngine;
 
-    protected _enabled: boolean = true;
-
-    protected _zIndex: number = 0;
-    protected _cullable: boolean = false;
+    protected _enabled: boolean;
+    protected _opacity: number;
+    protected _zIndex: number;
+    protected _cullable: boolean;
 
     protected _entity: Entity | null = null;
 
@@ -32,6 +34,7 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
         this._name = name;
         this._engine = engine;
         this._enabled = rest?.enabled ?? true;
+        this._opacity = rest?.opacity ?? 1;
         this._zIndex = rest?.zIndex ?? 0;
         this._cullable = rest?.cullable ?? true;
     }
@@ -54,6 +57,10 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
 
     get enabled(): boolean {
         return this._enabled;
+    }
+
+    get opacity(): number {
+        return this._opacity;
     }
 
     get zIndex(): number {
@@ -80,6 +87,17 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     queueRenderCommands(_stream: RenderCommandStream, _camera: Camera): void {}
+
+    setOpacity(opacity: number): this {
+        if (this._opacity !== opacity) {
+            this._opacity = opacity;
+            if (this._entity) {
+                this._entity.onChildComponentsOfTypeChanged(this.typeString);
+            }
+        }
+
+        return this;
+    }
 
     setZIndex(zIndex: number): this {
         if (this._zIndex !== zIndex && !isNaN(zIndex)) {
@@ -152,5 +170,6 @@ export abstract class C_Drawable<TEngine extends Engine = Engine> extends Compon
 
     queueRenderCommands(stream: RenderCommandStream): void {
         stream.setStyle(this._style);
+        stream.setOpacity(this._opacity);
     }
 }

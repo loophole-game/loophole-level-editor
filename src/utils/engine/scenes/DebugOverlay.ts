@@ -35,6 +35,7 @@ export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Compone
     }
 
     #drawBoundingBox(bbox: BoundingBox, stream: RenderCommandStream, level = 0): void {
+        stream.setOpacity(1);
         stream.setStyle({
             strokeStyle: `rgba(255, 0, 0, ${1 - level * 0.05})`,
             fillStyle: '',

@@ -6,7 +6,6 @@ export interface RenderStyle {
     lineWidth?: number;
     lineJoin?: CanvasLineJoin;
     lineCap?: CanvasLineCap;
-    globalAlpha?: number;
     imageSmoothingEnabled?: boolean;
 }
 
@@ -16,6 +15,5 @@ export const DEFAULT_RENDER_STYLE: Required<RenderStyle> = {
     lineWidth: 0,
     lineJoin: 'miter',
     lineCap: 'butt',
-    globalAlpha: 1,
     imageSmoothingEnabled: true,
 };

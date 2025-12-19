@@ -5,10 +5,11 @@ export const RenderCommandType = {
     PUSH_TRANSFORM: 0,
     POP_TRANSFORM: 1,
     SET_MATERIAL: 2,
-    DRAW_RECT: 3,
-    DRAW_ELLIPSE: 4,
-    DRAW_LINE: 5,
-    DRAW_IMAGE: 6,
+    SET_OPACITY: 3,
+    DRAW_RECT: 4,
+    DRAW_ELLIPSE: 5,
+    DRAW_LINE: 6,
+    DRAW_IMAGE: 7,
 } as const;
 export type RenderCommandType = (typeof RenderCommandType)[keyof typeof RenderCommandType];
 
@@ -24,6 +25,11 @@ export type PopTransform = [
 export interface SetMaterial {
     type: typeof RenderCommandType.SET_MATERIAL;
     id: number;
+}
+
+export interface SetOpacity {
+    type: typeof RenderCommandType.SET_OPACITY;
+    opacity: number;
 }
 
 const DEFAULT_RX = 1;
@@ -69,16 +75,16 @@ export type RenderCommand =
     | DrawImage;
 
 class CommandBuffer {
-    #buffer: Float64Array;
+    #buffer: Float32Array;
     #pointer: number = 0;
     #commandCount: number = 0;
 
     constructor(initialCapacity: number) {
-        this.#buffer = new Float64Array(initialCapacity);
+        this.#buffer = new Float32Array(initialCapacity);
         this.#pointer = 0;
     }
 
-    get buffer(): Float64Array {
+    get buffer(): Float32Array {
         return this.#buffer;
     }
 
@@ -92,7 +98,7 @@ class CommandBuffer {
 
     pushValue(value: number) {
         if (this.#pointer >= this.#buffer.length) {
-            const newBuffer = new Float64Array(this.#buffer.length * 2);
+            const newBuffer = new Float32Array(this.#buffer.length * 2);
             newBuffer.set(this.#buffer);
             this.#buffer = newBuffer;
         }
@@ -117,6 +123,7 @@ export class RenderCommandStream {
 
     #commands: CommandBuffer = new CommandBuffer(1024);
     #currentStyleID: number | null = null;
+    #currentOpacity: number = 1;
 
     constructor(hashedMaterials: HashFactory<RenderStyle>, hashedImages: HashFactory<string>) {
         this.#hashedMaterials = hashedMaterials;
@@ -127,7 +134,7 @@ export class RenderCommandStream {
         return this.#commands.commandCount;
     }
 
-    get commands(): Float64Array {
+    get commands(): Float32Array {
         return this.#commands.buffer;
     }
 
@@ -158,6 +165,16 @@ export class RenderCommandStream {
         this.#currentStyleID = styleID;
         this.#commands.pushCommand(RenderCommandType.SET_MATERIAL);
         this.#commands.pushValue(styleID);
+    }
+
+    setOpacity(opacity: number) {
+        if (opacity === this.#currentOpacity) {
+            return;
+        }
+
+        this.#currentOpacity = opacity;
+        this.#commands.pushCommand(RenderCommandType.SET_OPACITY);
+        this.#commands.pushValue(opacity);
     }
 
     drawRect(
@@ -250,5 +267,6 @@ export class RenderCommandStream {
     clear() {
         this.#commands.clear();
         this.#currentStyleID = null;
+        this.#currentOpacity = 1;
     }
 }

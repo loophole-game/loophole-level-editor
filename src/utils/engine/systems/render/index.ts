@@ -12,9 +12,12 @@ const HASH_STYLE_KEYS: (keyof Required<RenderStyle>)[] = [
     'lineWidth',
     'lineJoin',
     'lineCap',
-    'globalAlpha',
     'imageSmoothingEnabled',
 ];
+
+interface CanvasStyle extends RenderStyle {
+    globalAlpha?: number;
+}
 
 export class RenderSystem extends System {
     #stream: RenderCommandStream | null = null;
@@ -49,8 +52,12 @@ export class RenderSystem extends System {
         rootEntity.queueRenderCommands(this.#stream, camera);
 
         this._engine.trace(`renderCommands(${this.#stream.length})`, () => {
+            let opacity = 1;
             const activeStyle = { ...DEFAULT_RENDER_STYLE };
-            this.#applyStyle(ctx, activeStyle);
+            this.#applyStyle(ctx, {
+                ...activeStyle,
+                globalAlpha: opacity,
+            });
 
             const commands = this.#stream!.commands;
             const commandsLength = this.#stream!.commandsLength;
@@ -88,13 +95,18 @@ export class RenderSystem extends System {
                                 style.value.lineJoin ?? DEFAULT_RENDER_STYLE.lineJoin;
                             activeStyle.lineCap =
                                 style.value.lineCap ?? DEFAULT_RENDER_STYLE.lineCap;
-                            activeStyle.globalAlpha =
-                                style.value.globalAlpha ?? DEFAULT_RENDER_STYLE.globalAlpha;
                             activeStyle.imageSmoothingEnabled =
                                 style.value.imageSmoothingEnabled ??
                                 DEFAULT_RENDER_STYLE.imageSmoothingEnabled;
                             this.#applyStyle(ctx, activeStyle);
                         }
+                        i += 1;
+
+                        break;
+                    }
+                    case RenderCommandType.SET_OPACITY: {
+                        opacity = commands[i + 1];
+                        ctx.globalAlpha = opacity;
                         i += 1;
 
                         break;
@@ -108,7 +120,11 @@ export class RenderSystem extends System {
                         const ry = commands[i + 6];
                         const gx = commands[i + 7];
                         const gy = commands[i + 8];
-                        i += 8;
+                        i += 8 + (commandType === RenderCommandType.DRAW_IMAGE ? 1 : 0);
+
+                        if (opacity === 0) {
+                            break;
+                        }
 
                         switch (commandType) {
                             case RenderCommandType.DRAW_RECT:
@@ -122,7 +138,6 @@ export class RenderSystem extends System {
                                 break;
                             case RenderCommandType.DRAW_IMAGE:
                                 this.#drawImage(x, y, w, h, commands[i + 1], ctx);
-                                i += 1;
                                 break;
                             default:
                                 break;
@@ -135,10 +150,7 @@ export class RenderSystem extends System {
         });
     }
 
-    #applyStyle = (ctx: CanvasRenderingContext2D, style: RenderStyle) => {
-        // Apply all properties without comparison since the material system
-        // already deduplicates via string keys, and canvas normalizes values
-        // (e.g., 'transparent' → 'rgba(0,0,0,0)') making comparisons unreliable
+    #applyStyle = (ctx: CanvasRenderingContext2D, style: CanvasStyle) => {
         Object.entries(style).forEach(([_key, value]) => {
             const key = _key as keyof CanvasRenderingContext2D;
             if (value !== undefined) {

@@ -74,23 +74,6 @@ export class E_EntityVisual extends Entity<LevelEditor> {
         return this.#opacity;
     }
 
-    set opacity(opacity: number) {
-        this.#opacity = opacity;
-        this.#tileImage.style.globalAlpha = opacity;
-        this.#tileShapes.forEach((shape) => {
-            shape.style.globalAlpha = opacity;
-        });
-        if (this.#timeMachineDecals) {
-            this.#timeMachineDecals.arrow.style.globalAlpha = opacity;
-            this.#timeMachineDecals.walls.forEach((wall) => {
-                wall.opacity = opacity;
-            });
-        }
-        if (this.#explosionDecals) {
-            this.#explosionDecals.arrows.shape.style.globalAlpha = opacity;
-        }
-    }
-
     get variant(): Variant {
         return this.#variant;
     }
@@ -103,6 +86,23 @@ export class E_EntityVisual extends Entity<LevelEditor> {
         this.#timeMachineDecals?.walls[0].setEntityType(
             this.#variant === 'entrance' ? 'WALL' : 'ONE_WAY',
         );
+    }
+
+    setOpacity(opacity: number) {
+        this.#opacity = opacity;
+        this.#tileImage.setOpacity(opacity);
+        this.#tileShapes.forEach((shape) => {
+            shape.setOpacity(opacity);
+        });
+        if (this.#timeMachineDecals) {
+            this.#timeMachineDecals.arrow.setOpacity(opacity);
+            this.#timeMachineDecals.walls.forEach((wall) => {
+                wall.setOpacity(opacity);
+            });
+        }
+        if (this.#explosionDecals) {
+            this.#explosionDecals.arrows.shape.setOpacity(opacity);
+        }
     }
 
     setEntityType(type: Loophole_ExtendedEntityType, entity?: Loophole_EntityWithID): this {
@@ -152,9 +152,9 @@ export class E_EntityVisual extends Entity<LevelEditor> {
         const { name } = ENTITY_METADATA[type];
         if (this.#mode === 'tile' && type === 'EXPLOSION') {
             this.#requestTileShapes('RECT');
+            this.#tileShapes[0].setOpacity(0.5);
             this.#tileShapes[0].style = {
                 fillStyle: 'orange',
-                globalAlpha: 0.5,
             };
             this.#createExplosionDecals();
         } else {

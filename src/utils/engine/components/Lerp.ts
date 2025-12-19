@@ -145,7 +145,7 @@ export class C_Lerp<
 
 interface OpacityLerpOptions<TEngine extends Engine = Engine>
     extends Omit<C_LerpOptions<number, TEngine>, 'get' | 'set'> {
-    target: { style: { globalAlpha?: number } };
+    target: { opacity?: number; setOpacity?: (value: number) => void };
 }
 
 export class C_LerpOpacity<TEngine extends Engine = Engine> extends C_Lerp<number, TEngine> {
@@ -153,9 +153,13 @@ export class C_LerpOpacity<TEngine extends Engine = Engine> extends C_Lerp<numbe
         const { name = 'opacity_lerp', target, ...rest } = options;
         super({
             name,
-            get: () => target.style.globalAlpha ?? 0,
+            get: () => target.opacity ?? 0,
             set: (value: number) => {
-                target.style.globalAlpha = value;
+                if (target.setOpacity) {
+                    target.setOpacity(value);
+                } else {
+                    target.opacity = value;
+                }
             },
             ...rest,
         });

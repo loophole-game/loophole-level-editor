@@ -23,7 +23,12 @@ import {
 import { PointerButton, type CursorType } from '@/utils/engine/systems/pointer';
 import { Vector, type IVector } from '@/utils/engine/math';
 import type { LevelEditor } from '..';
-import { C_Lerp, C_LerpPosition, C_LerpRotation } from '@/utils/engine/components/Lerp';
+import {
+    C_Lerp,
+    C_LerpOpacity,
+    C_LerpPosition,
+    C_LerpRotation,
+} from '@/utils/engine/components/Lerp';
 import { C_Shape } from '@/utils/engine/components/Shape';
 import { E_Tile, E_TileHighlight } from './grid';
 import { C_PointerTarget } from '@/utils/engine/components/PointerTarget';
@@ -81,11 +86,8 @@ class E_TileCursor extends Entity<LevelEditor> {
         super({ name: 'cursor', ...options });
 
         this.#entityVisual = this.addEntities(E_EntityVisual, { mode: 'brush' });
-        this.#tileOpacityLerp = this.#entityVisual.addComponents(C_Lerp<number, LevelEditor>, {
-            get: () => this.#entityVisual.opacity,
-            set: (value: number) => {
-                this.#entityVisual.opacity = value;
-            },
+        this.#tileOpacityLerp = this.#entityVisual.addComponents(C_LerpOpacity<LevelEditor>, {
+            target: this.#entityVisual,
             speed: 4,
         });
 
@@ -535,11 +537,8 @@ class E_SelectionCursor extends Entity<LevelEditor> {
             style: { fillStyle: 'blue' },
             origin: 0,
         });
-        this.#opacityLerp = this.addComponents(C_Lerp<number, LevelEditor>, {
-            get: () => this.#shapeComp.style.globalAlpha ?? 0,
-            set: (value: number) => {
-                this.#shapeComp.style.globalAlpha = value;
-            },
+        this.#opacityLerp = this.addComponents(C_LerpOpacity<LevelEditor>, {
+            target: this.#shapeComp,
             speed: 5,
         });
     }
@@ -717,7 +716,7 @@ class E_DragCursor extends Entity<LevelEditor> {
 
     set opacity(opacity: number) {
         this.#opacity = opacity;
-        this.#drawables.forEach((d) => (d.style.globalAlpha = opacity));
+        this.#drawables.forEach((d) => d.setOpacity(opacity));
     }
 
     override update(deltaTime: number): boolean {

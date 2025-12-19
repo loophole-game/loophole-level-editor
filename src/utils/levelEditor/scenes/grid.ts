@@ -122,8 +122,8 @@ export class E_Tile extends Entity<LevelEditor> {
             shape: 'RECT',
             style: {
                 fillStyle: 'white',
-                globalAlpha: 0,
             },
+            opacity: 0,
             zIndex: 1,
         });
         this.#opacityLerp = this.#pointerParent.addComponents(C_LerpOpacity<LevelEditor>, {
@@ -214,8 +214,7 @@ export class E_Tile extends Entity<LevelEditor> {
 
     syncVisualState() {
         const { selectedTiles } = getAppStore();
-        this.#highlightShape.style.globalAlpha =
-            this.entity.tID in selectedTiles ? ACTIVE_TILE_OPACITY : 0;
+        this.#highlightShape.setOpacity(this.entity.tID in selectedTiles ? ACTIVE_TILE_OPACITY : 0);
     }
 
     stashTile(): boolean {
@@ -316,11 +315,11 @@ export class GridScene extends Scene {
                     shapeOptions: {
                         name: 'border',
                         shape: 'RECT',
+                        opacity: 0.5,
                         style: {
                             fillStyle: '',
                             strokeStyle: '#BBBBBB',
                             lineWidth: 2,
-                            globalAlpha: 0.5,
                         },
                     },
                     tileSize: SCREEN_BORDER_SIZE,
@@ -336,7 +335,8 @@ export class GridScene extends Scene {
                     shapeOptions: {
                         name: 'dots',
                         shape: 'ELLIPSE',
-                        style: { fillStyle: '#BBBBBB', globalAlpha: 0.5 },
+                        opacity: 0.5,
+                        style: { fillStyle: '#BBBBBB' },
                         gap: DOT_GAP,
                     },
                     tileSize: TILE_SIZE,

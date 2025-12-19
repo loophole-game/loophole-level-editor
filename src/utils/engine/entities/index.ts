@@ -31,14 +31,14 @@ export interface EntityOptions<TEngine extends Engine = Engine> {
 export class Entity<TEngine extends Engine = Engine> implements Renderable {
     protected static _nextId: number = 1;
     protected readonly _id: string = (Entity._nextId++).toString();
+
     protected readonly _name: string;
     protected _engine: TEngine;
 
-    protected _enabled: boolean = true;
+    protected _enabled: boolean;
+    protected _zIndex: number;
+
     protected _updated: boolean = false;
-
-    protected _zIndex: number = 0;
-
     protected _parent: Entity<TEngine> | null = null;
     protected _transform: C_Transform<TEngine>;
     protected _scaleToCamera: ScaleToCamera = { x: false, y: false };
