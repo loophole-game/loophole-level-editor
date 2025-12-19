@@ -1,6 +1,7 @@
 import { HashFactory } from '../../hashFactory';
 import { type RenderStyle } from './style';
 import { OPACITY_THRESHOLD } from '../../utils';
+import { DynamicNumberArray } from '../../dynamicNumberArray';
 
 export const RenderCommandType = {
     PUSH_TRANSFORM: 0,
@@ -76,21 +77,20 @@ export type RenderCommand =
     | DrawImage;
 
 class CommandBuffer {
-    #buffer: Float32Array;
-    #pointer: number = 0;
+    #array: DynamicNumberArray<Float32Array>;
+
     #commandCount: number = 0;
 
     constructor(initialCapacity: number) {
-        this.#buffer = new Float32Array(initialCapacity);
-        this.#pointer = 0;
+        this.#array = new DynamicNumberArray(Float32Array, initialCapacity);
     }
 
     get buffer(): Float32Array {
-        return this.#buffer;
+        return this.#array.buffer;
     }
 
     get pointer(): number {
-        return this.#pointer;
+        return this.#array.length;
     }
 
     get commandCount(): number {
@@ -98,25 +98,21 @@ class CommandBuffer {
     }
 
     pushValue(value: number) {
-        if (this.#pointer >= this.#buffer.length) {
-            const newBuffer = new Float32Array(this.#buffer.length * 2);
-            newBuffer.set(this.#buffer);
-            this.#buffer = newBuffer;
-        }
-
-        this.#buffer[this.#pointer++] = value;
+        this.#array.push(value);
     }
 
     pushCommand(command: RenderCommandType) {
-        this.pushValue(command);
+        this.#array.push(command);
         this.#commandCount++;
     }
 
     clear() {
-        this.#pointer = 0;
+        this.#array.clear();
         this.#commandCount = 0;
     }
 }
+
+const TRANSFORM_COMPONENTS = 6;
 
 export class RenderCommandStream {
     #hashedMaterials: HashFactory<RenderStyle>;
@@ -125,6 +121,11 @@ export class RenderCommandStream {
     #commands: CommandBuffer = new CommandBuffer(1024);
     #currentStyleID: number | null = null;
     #currentOpacity: number = 1;
+
+    #pushTransfomStack: DynamicNumberArray<Float32Array> = new DynamicNumberArray(
+        Float32Array,
+        TRANSFORM_COMPONENTS * 10,
+    );
 
     constructor(hashedMaterials: HashFactory<RenderStyle>, hashedImages: HashFactory<string>) {
         this.#hashedMaterials = hashedMaterials;
@@ -144,17 +145,20 @@ export class RenderCommandStream {
     }
 
     pushTransform(t: DOMMatrix) {
-        this.#commands.pushCommand(RenderCommandType.PUSH_TRANSFORM);
-        this.#commands.pushValue(t.a);
-        this.#commands.pushValue(t.b);
-        this.#commands.pushValue(t.c);
-        this.#commands.pushValue(t.d);
-        this.#commands.pushValue(t.e);
-        this.#commands.pushValue(t.f);
+        this.#pushTransfomStack.push(t.a);
+        this.#pushTransfomStack.push(t.b);
+        this.#pushTransfomStack.push(t.c);
+        this.#pushTransfomStack.push(t.d);
+        this.#pushTransfomStack.push(t.e);
+        this.#pushTransfomStack.push(t.f);
     }
 
     popTransform() {
-        this.#commands.pushCommand(RenderCommandType.POP_TRANSFORM);
+        if (this.#pushTransfomStack.length === 0) {
+            this.#commands.pushCommand(RenderCommandType.POP_TRANSFORM);
+        } else {
+            this.#pushTransfomStack.pop(TRANSFORM_COMPONENTS);
+        }
     }
 
     setStyle(style: RenderStyle) {
@@ -192,6 +196,8 @@ export class RenderCommandStream {
             return;
         }
 
+        this.#pushDeferredTransforms();
+
         this.#commands.pushCommand(RenderCommandType.DRAW_RECT);
         this.#commands.pushValue(x1);
         this.#commands.pushValue(y1);
@@ -217,6 +223,8 @@ export class RenderCommandStream {
             return;
         }
 
+        this.#pushDeferredTransforms();
+
         this.#commands.pushCommand(RenderCommandType.DRAW_ELLIPSE);
         this.#commands.pushValue(x1);
         this.#commands.pushValue(y1);
@@ -241,6 +249,8 @@ export class RenderCommandStream {
         if (this.#currentOpacity < OPACITY_THRESHOLD) {
             return;
         }
+
+        this.#pushDeferredTransforms();
 
         this.#commands.pushCommand(RenderCommandType.DRAW_LINE);
         this.#commands.pushValue(x1);
@@ -268,6 +278,8 @@ export class RenderCommandStream {
             return;
         }
 
+        this.#pushDeferredTransforms();
+
         const imageID = this.#hashedImages.itemToID(image);
         this.#commands.pushCommand(RenderCommandType.DRAW_IMAGE);
         this.#commands.pushValue(x1);
@@ -285,5 +297,20 @@ export class RenderCommandStream {
         this.#commands.clear();
         this.#currentStyleID = null;
         this.#currentOpacity = 1;
+        this.#pushTransfomStack.clear();
+    }
+
+    #pushDeferredTransforms() {
+        for (let i = 0; i < this.#pushTransfomStack.length; i += TRANSFORM_COMPONENTS) {
+            this.#commands.pushCommand(RenderCommandType.PUSH_TRANSFORM);
+            this.#commands.pushValue(this.#pushTransfomStack.buffer[i]);
+            this.#commands.pushValue(this.#pushTransfomStack.buffer[i + 1]);
+            this.#commands.pushValue(this.#pushTransfomStack.buffer[i + 2]);
+            this.#commands.pushValue(this.#pushTransfomStack.buffer[i + 3]);
+            this.#commands.pushValue(this.#pushTransfomStack.buffer[i + 4]);
+            this.#commands.pushValue(this.#pushTransfomStack.buffer[i + 5]);
+        }
+
+        this.#pushTransfomStack.clear();
     }
 }
