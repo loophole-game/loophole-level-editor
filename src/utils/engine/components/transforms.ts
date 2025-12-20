@@ -11,10 +11,10 @@ export interface C_TransformOptions<TEngine extends Engine = Engine>
 }
 
 export class C_Transform<TEngine extends Engine = Engine> extends Component<TEngine> {
-    #position: Vector = new Vector(0, 0);
+    #position: Vector = new Vector(0);
     #rotation: number = 0;
-    #scale: Vector = new Vector(1, 1);
-    #scaleMult: Vector = new Vector(1, 1);
+    #scale: Vector = new Vector(1);
+    #scaleMult: Vector = new Vector(1);
     #localMatrix: DOMMatrix = new DOMMatrix();
     #localMatrixDirty: boolean = true;
 
@@ -64,14 +64,6 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
 
     get scaleMult(): Readonly<Vector> {
         return this.#scaleMult;
-    }
-
-    get worldScale(): Readonly<Vector> {
-        const matrix = this.worldMatrix;
-        return new Vector(
-            Math.sqrt(matrix.a * matrix.a + matrix.b * matrix.b),
-            Math.sqrt(matrix.c * matrix.c + matrix.d * matrix.d),
-        );
     }
 
     get localMatrix(): Readonly<DOMMatrix> {

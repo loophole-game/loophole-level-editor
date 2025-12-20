@@ -69,9 +69,9 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
     set shape(shape: Shape) {
         this.#shape = shape;
         if (shape === 'ELLIPSE') {
-            this.setOrigin(new Vector(0, 0));
+            this.setOrigin(0);
         } else if (shape === 'RECT') {
-            this.setOrigin(new Vector(0.5, 0.5));
+            this.setOrigin(0.5);
         }
     }
 

@@ -16,7 +16,7 @@ import { KeyboardSystem, type KeyboardKeyState } from './systems/keyboard';
 import type { System } from './systems';
 import { DEFAULT_CAMERA_OPTIONS } from './utils';
 import { CameraSystem } from './systems/camera';
-import { Vector, type IVector } from './math';
+import { type IVector } from './math';
 import { StatsSystem, type Stats } from './systems/stats';
 import { DebugOverlayScene } from './scenes/DebugOverlay';
 
@@ -167,14 +167,12 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         this.addBrowserEventHandler('mouseup', (_, data) =>
             this.#setPointerButtonDown(data.button, false),
         );
-        this.addBrowserEventHandler('mousemove', (_, data) =>
-            this.#setPointerPosition(new Vector(data.x, data.y)),
-        );
+        this.addBrowserEventHandler('mousemove', (_, data) => this.#setPointerPosition(data));
         this.addBrowserEventHandler('mouseenter', (_, data) =>
-            this.#setPointerOnScreen(true, new Vector(data.x, data.y)),
+            this.#setPointerOnScreen(true, data),
         );
         this.addBrowserEventHandler('mouseleave', (_, data) =>
-            this.#setPointerOnScreen(false, new Vector(data.x, data.y)),
+            this.#setPointerOnScreen(false, data),
         );
         this.addBrowserEventHandler('mousewheel', (_, { delta }) =>
             this.#setPointerScrollDelta(delta),
@@ -211,12 +209,12 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         this.#forceRender = true;
     }
 
-    get canvasSize(): Vector | null {
+    get canvasSize(): IVector<number> | null {
         if (!this._canvas) {
             return null;
         }
 
-        return new Vector(this._canvas.width, this._canvas.height);
+        return { x: this._canvas.width, y: this._canvas.height };
     }
 
     get options(): Readonly<TOptions> {
