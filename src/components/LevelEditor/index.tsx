@@ -99,19 +99,19 @@ export function LevelEditorComponent() {
                     editorRef={levelEditorRef}
                     className={clsx('w-fit shrink-0 z-10', panelClassName)}
                 />
-                <div
-                    className={clsx(
-                        'fixed bottom-0 right-0 text-right transition-opacity p-2 bg-linear-to-br from-black/5 to-black/70 rounded-tl-lg',
-                        {
-                            'opacity-0': !showEngineStats,
-                        },
-                    )}
-                >
-                    <FPSCounter editorRef={levelEditorRef} />
-                </div>
             </div>
             <OpenInterfacePanel />
             <ResetViewportPanel />
+            <div
+                className={clsx(
+                    'fixed bottom-0 right-0 text-right transition-opacity p-2 bg-linear-to-br from-black/5 to-black/70 rounded-tl-lg',
+                    {
+                        'opacity-0': !showEngineStats,
+                    },
+                )}
+            >
+                <FPSCounter editorRef={levelEditorRef} />
+            </div>
         </div>
     );
 }

@@ -44,6 +44,9 @@ export class RenderSystem extends System {
         return this._engine.getImage(id.value);
     });
 
+    #canvasStateCache: CanvasStyle = {};
+    #transformScaleStack: number[] = [];
+
     destroy(): void {}
 
     render(ctx: CanvasRenderingContext2D, rootEntity: Entity, camera: Camera) {
@@ -72,6 +75,8 @@ export class RenderSystem extends System {
     #renderCommands(ctx: CanvasRenderingContext2D) {
         let opacity = 1;
         const activeStyle = { ...DEFAULT_RENDER_STYLE };
+        this.#canvasStateCache = {};
+        this.#transformScaleStack = [1];
         this.#applyStyle(ctx, {
             ...activeStyle,
             globalAlpha: opacity,
@@ -82,21 +87,28 @@ export class RenderSystem extends System {
         for (let i = 0; i < commandsLength; i++) {
             const commandType = commands[i] as RenderCommandType;
             switch (commandType) {
-                case RenderCommandType.PUSH_TRANSFORM:
+                case RenderCommandType.PUSH_TRANSFORM: {
                     ctx.save();
-                    ctx.transform(
-                        commands[i + 1],
-                        commands[i + 2],
-                        commands[i + 3],
-                        commands[i + 4],
-                        commands[i + 5],
-                        commands[i + 6],
-                    );
+                    const a = commands[i + 1];
+                    const b = commands[i + 2];
+                    const c = commands[i + 3];
+                    const d = commands[i + 4];
+                    const e = commands[i + 5];
+                    const f = commands[i + 6];
+                    ctx.transform(a, b, c, d, e, f);
+
+                    const scaleX = Math.hypot(a, b);
+                    const scaleY = Math.hypot(c, d);
+                    const maxScale = Math.max(scaleX || 1, scaleY || 1) || 1;
+                    this.#transformScaleStack.push(maxScale);
+
                     i += 6;
 
                     break;
+                }
                 case RenderCommandType.POP_TRANSFORM:
                     ctx.restore();
+                    this.#transformScaleStack.pop();
 
                     break;
                 case RenderCommandType.SET_MATERIAL: {
@@ -164,11 +176,13 @@ export class RenderSystem extends System {
 
     #applyStyle = (ctx: CanvasRenderingContext2D, style: CanvasStyle) => {
         for (const key in style) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const value = (style as any)[key];
-            if (value !== undefined) {
+            const styleKey = key as keyof CanvasStyle;
+            const value = style[styleKey];
+            if (value !== undefined && this.#canvasStateCache[styleKey] !== value) {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (ctx as any)[key] = value;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (this.#canvasStateCache as any)[styleKey] = value;
             }
         }
     };
@@ -201,11 +215,8 @@ export class RenderSystem extends System {
             activeStyle.lineWidth &&
             activeStyle.lineWidth > 0
         ) {
-            const m = ctx.getTransform();
-            const scaleX = Math.hypot(m.a, m.b);
-            const scaleY = Math.hypot(m.c, m.d);
-            const denom = Math.max(scaleX || 1, scaleY || 1) || 1;
-            const adjusted = activeStyle.lineWidth / denom;
+            const currentScale = this.#transformScaleStack[this.#transformScaleStack.length - 1];
+            const adjusted = activeStyle.lineWidth / currentScale;
             const prevWidth = ctx.lineWidth;
             ctx.lineWidth = adjusted > 0 ? adjusted : 1;
 
@@ -231,40 +242,41 @@ export class RenderSystem extends System {
         ctx: CanvasRenderingContext2D,
         activeStyle: RenderStyle,
     ) {
+        const currentScale = this.#transformScaleStack[this.#transformScaleStack.length - 1];
+        const radiusX = (x2 - x1) / 2;
+        const radiusY = (y2 - y1) / 2;
+        const shouldFill =
+            activeStyle.fillStyle && activeStyle.fillStyle !== TRANSPARENT_STYLE_COLOR;
+        const shouldStroke =
+            activeStyle.strokeStyle && activeStyle.strokeStyle !== TRANSPARENT_STYLE_COLOR;
+
+        let prevWidth = 1;
+        if (shouldStroke) {
+            let adjustedWidth = 1;
+            const lineWidth =
+                activeStyle.lineWidth && activeStyle.lineWidth > 0 ? activeStyle.lineWidth : 1;
+            adjustedWidth = lineWidth / currentScale;
+            adjustedWidth = adjustedWidth > 0 ? adjustedWidth : 1;
+            prevWidth = ctx.lineWidth;
+            ctx.lineWidth = adjustedWidth;
+        }
+
         for (let i = 0; i < rx; i++) {
             for (let j = 0; j < ry; j++) {
                 ctx.beginPath();
-                ctx.ellipse(
-                    x1 + i * gx,
-                    y1 + j * gy,
-                    (x2 - x1) / 2,
-                    (y2 - y1) / 2,
-                    0,
-                    0,
-                    2 * Math.PI,
-                );
-                if (activeStyle.fillStyle && activeStyle.fillStyle !== TRANSPARENT_STYLE_COLOR) {
+                ctx.ellipse(x1 + i * gx, y1 + j * gy, radiusX, radiusY, 0, 0, 2 * Math.PI);
+                if (shouldFill) {
                     ctx.fill();
                 }
-                if (
-                    activeStyle.strokeStyle &&
-                    activeStyle.strokeStyle !== TRANSPARENT_STYLE_COLOR
-                ) {
-                    const m = ctx.getTransform();
-                    const scaleX = Math.hypot(m.a, m.b);
-                    const scaleY = Math.hypot(m.c, m.d);
-                    const denom = Math.max(scaleX || 1, scaleY || 1) || 1;
-                    const adjusted =
-                        (activeStyle.lineWidth && activeStyle.lineWidth > 0
-                            ? activeStyle.lineWidth
-                            : 1) / denom;
-                    const prevWidth = ctx.lineWidth;
-                    ctx.lineWidth = adjusted > 0 ? adjusted : 1;
+                if (shouldStroke) {
                     ctx.stroke();
-                    ctx.lineWidth = prevWidth;
                 }
                 ctx.closePath();
             }
+        }
+
+        if (shouldStroke) {
+            ctx.lineWidth = prevWidth;
         }
     }
 
@@ -283,22 +295,27 @@ export class RenderSystem extends System {
         const strokeColor = activeStyle.strokeStyle
             ? activeStyle.strokeStyle
             : activeStyle.fillStyle;
-        if (strokeColor !== undefined) {
+        if (strokeColor !== undefined && this.#canvasStateCache.strokeStyle !== strokeColor) {
             ctx.strokeStyle = strokeColor;
+            this.#canvasStateCache.strokeStyle = strokeColor;
         }
 
-        ctx.lineWidth =
+        const lineWidth =
             activeStyle.lineWidth && activeStyle.lineWidth > 0 ? activeStyle.lineWidth : 1;
+        if (this.#canvasStateCache.lineWidth !== lineWidth) {
+            ctx.lineWidth = lineWidth;
+            this.#canvasStateCache.lineWidth = lineWidth;
+        }
 
+        ctx.beginPath();
         for (let i = 0; i < rx; i++) {
             for (let j = 0; j < ry; j++) {
-                ctx.beginPath();
                 ctx.moveTo(x + i * gx, y + j * gy);
                 ctx.lineTo(w + i * gx, h + j * gy);
-                ctx.stroke();
-                ctx.closePath();
             }
         }
+        ctx.stroke();
+        ctx.closePath();
     }
 
     #drawImage(

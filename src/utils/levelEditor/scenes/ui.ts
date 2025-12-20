@@ -644,6 +644,8 @@ type DragAxis = 'x' | 'y' | 'both';
 class E_DragCursor extends Entity<LevelEditor> {
     #upArrow: C_Shape;
     #rightArrow: C_Shape;
+    #upArrowOutline: C_Shape;
+    #rightArrowOutline: C_Shape;
     #drawables: C_Drawable[];
     #opacityLerp: C_Lerp<number>;
     #positionLerp: C_LerpPosition<Vector>;
@@ -662,6 +664,23 @@ class E_DragCursor extends Entity<LevelEditor> {
 
     constructor(options: EntityOptions<LevelEditor>) {
         super({ name: 'drag_handle', ...options });
+
+        this.#upArrowOutline = this.addComponents(C_Shape<LevelEditor>, {
+            name: 'up-arrow-outline',
+            shape: 'LINE',
+            start: { x: 0, y: -0.5 },
+            end: { x: 0, y: -HANDLE_ARROW_LENGTH },
+            style: { lineWidth: 0.25, strokeStyle: 'white' },
+            endTip: { type: 'arrow', length: 0.5 },
+        });
+        this.#rightArrowOutline = this.addComponents(C_Shape<LevelEditor>, {
+            name: 'right-arrow-outline',
+            shape: 'LINE',
+            start: { x: 0.5, y: 0 },
+            end: { x: HANDLE_ARROW_LENGTH, y: 0 },
+            style: { lineWidth: 0.25, strokeStyle: 'white' },
+            endTip: { type: 'arrow', length: 0.5 },
+        });
 
         this.#upArrow = this.addComponents(C_Shape<LevelEditor>, {
             name: 'up-arrow',
@@ -683,7 +702,13 @@ class E_DragCursor extends Entity<LevelEditor> {
             shape: 'RECT',
             style: { fillStyle: BOX_COLOR_BOTH, strokeStyle: 'red', lineWidth: 2 },
         });
-        this.#drawables = [this.#upArrow, this.#rightArrow, shape];
+        this.#drawables = [
+            this.#upArrowOutline,
+            this.#rightArrowOutline,
+            this.#upArrow,
+            this.#rightArrow,
+            shape,
+        ];
 
         this.#boxPointerTarget = this.addComponents(C_PointerTarget<LevelEditor>, {
             cursorOnHover: 'move',
@@ -858,28 +883,34 @@ class E_DragCursor extends Entity<LevelEditor> {
             ) {
                 this.#upPointerTarget.entity?.setEnabled(false);
                 this.#upArrow.setEnabled(false);
+                this.#upArrowOutline.setEnabled(false);
                 this.#rightPointerTarget.entity?.setEnabled(true);
                 this.#rightArrow.setEnabled(true);
+                this.#rightArrowOutline.setEnabled(true);
 
-                this.#drawables[2].style.fillStyle = BOX_COLOR_X;
-                this.#drawables[2].style.strokeStyle = 'green';
+                this.#drawables[4].style.fillStyle = BOX_COLOR_X;
+                this.#drawables[4].style.strokeStyle = 'green';
             } else {
                 this.#upPointerTarget.entity?.setEnabled(true);
                 this.#upArrow.setEnabled(true);
+                this.#upArrowOutline.setEnabled(true);
                 this.#rightPointerTarget.entity?.setEnabled(false);
                 this.#rightArrow.setEnabled(false);
+                this.#rightArrowOutline.setEnabled(false);
 
-                this.#drawables[2].style.fillStyle = BOX_COLOR_Y;
-                this.#drawables[2].style.strokeStyle = 'blue';
+                this.#drawables[4].style.fillStyle = BOX_COLOR_Y;
+                this.#drawables[4].style.strokeStyle = 'blue';
             }
         } else if (selectedTileArray.length > 0) {
             this.#upPointerTarget.entity?.setEnabled(true);
             this.#upArrow.setEnabled(true);
+            this.#upArrowOutline.setEnabled(true);
             this.#rightPointerTarget.entity?.setEnabled(true);
             this.#rightArrow.setEnabled(true);
+            this.#rightArrowOutline.setEnabled(true);
 
-            this.#drawables[2].style.fillStyle = BOX_COLOR_BOTH;
-            this.#drawables[2].style.strokeStyle = 'red';
+            this.#drawables[4].style.fillStyle = BOX_COLOR_BOTH;
+            this.#drawables[4].style.strokeStyle = 'red';
         }
 
         return updated;
