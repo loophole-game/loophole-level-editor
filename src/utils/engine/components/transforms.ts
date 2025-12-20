@@ -23,6 +23,12 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
 
     #boundingBox: BoundingBox = { x1: 0, x2: 0, y1: 0, y2: 0 };
     #boundingBoxDirty: boolean = true;
+    #corners: [DOMPoint, DOMPoint, DOMPoint, DOMPoint] = [
+        new DOMPoint(),
+        new DOMPoint(),
+        new DOMPoint(),
+        new DOMPoint(),
+    ];
 
     constructor(options: C_TransformOptions<TEngine>) {
         const { name = 'transform', ...rest } = options;
@@ -142,13 +148,18 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
     }
 
     #computeLocalMatrix() {
-        this.#localMatrix = new DOMMatrix();
-        this.#localMatrix.translateSelf(this.#position.x, this.#position.y);
-        this.#localMatrix.rotateSelf(this.#rotation);
-        this.#localMatrix.scaleSelf(
-            this.#scale.x * this.#scaleMult.x,
-            this.#scale.y * this.#scaleMult.y,
-        );
+        // Why is there no easy reset function ._.
+        const localMatrix = this.#localMatrix;
+        localMatrix.a = 1;
+        localMatrix.b = 0;
+        localMatrix.c = 0;
+        localMatrix.d = 1;
+        localMatrix.e = 0;
+        localMatrix.f = 0;
+
+        localMatrix.translateSelf(this.#position.x, this.#position.y);
+        localMatrix.rotateSelf(this.#rotation);
+        localMatrix.scaleSelf(this.#scale.x * this.#scaleMult.x, this.#scale.y * this.#scaleMult.y);
         this.#localMatrixDirty = false;
         this.#worldMatrixDirty = true;
     }
@@ -165,40 +176,33 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
     }
 
     #computeBoundingBox() {
-        // Treat the transform as a unit rectangle (1x1) centered at origin
-        // Get the 4 corners of this rectangle in local space
         const halfScaleX = 0.5;
         const halfScaleY = 0.5;
+        this.#corners[0].x = -halfScaleX;
+        this.#corners[0].y = -halfScaleY;
+        this.#corners[1].x = halfScaleX;
+        this.#corners[1].y = -halfScaleY;
+        this.#corners[2].x = halfScaleX;
+        this.#corners[2].y = halfScaleY;
+        this.#corners[3].x = -halfScaleX;
+        this.#corners[3].y = halfScaleY;
 
-        const corners = [
-            new DOMPoint(-halfScaleX, -halfScaleY),
-            new DOMPoint(halfScaleX, -halfScaleY),
-            new DOMPoint(halfScaleX, halfScaleY),
-            new DOMPoint(-halfScaleX, halfScaleY),
-        ];
-
-        // Transform corners to world space
-        const worldCorners = corners.map((corner) => this.worldMatrix.transformPoint(corner));
-
-        // Find the axis-aligned bounding box that contains all corners
         let minX = Infinity;
         let maxX = -Infinity;
         let minY = Infinity;
         let maxY = -Infinity;
-
-        for (const corner of worldCorners) {
-            minX = Math.min(minX, corner.x);
-            maxX = Math.max(maxX, corner.x);
-            minY = Math.min(minY, corner.y);
-            maxY = Math.max(maxY, corner.y);
+        for (const corner of this.#corners) {
+            const worldCorner = this.worldMatrix.transformPoint(corner);
+            minX = Math.min(minX, worldCorner.x);
+            maxX = Math.max(maxX, worldCorner.x);
+            minY = Math.min(minY, worldCorner.y);
+            maxY = Math.max(maxY, worldCorner.y);
         }
 
-        this.#boundingBox = {
-            x1: minX,
-            x2: maxX,
-            y1: minY,
-            y2: maxY,
-        };
+        this.#boundingBox.x1 = minX;
+        this.#boundingBox.y1 = minY;
+        this.#boundingBox.x2 = maxX;
+        this.#boundingBox.y2 = maxY;
         this.#boundingBoxDirty = false;
     }
 

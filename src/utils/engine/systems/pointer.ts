@@ -224,9 +224,11 @@ export class PointerSystem extends System {
     }
 
     getPointerTargetsWithinBox(bbox: BoundingBox): C_PointerTarget[] {
-        const pointerTargets = this.#getAllPointerTargets();
+        return this._engine.trace('getPointerTargetsWithinBox', () => {
+            const pointerTargets = this.#getAllPointerTargets();
 
-        return pointerTargets.filter((target) => target.checkIfWithinBox(bbox));
+            return pointerTargets.filter((target) => target.checkIfWithinBox(bbox));
+        });
     }
 
     capturePointerButtonClick(button: PointerButton): void {

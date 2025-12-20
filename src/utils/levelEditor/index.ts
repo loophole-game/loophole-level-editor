@@ -100,6 +100,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
                 { key: 'y', meta: true },
                 { key: 'a', meta: true },
                 { key: 'f', meta: true },
+                { key: 'k', meta: true },
             ],
             ...options,
             images: {
@@ -247,7 +248,11 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
             setLevelInViewport(currentLevelInViewport);
         }
 
-        const { showEngineStats } = getSettingsStore();
+        const { showEngineStats, setUserSettings } = getSettingsStore();
+        if (this.getKey('k').pressed && this.getKey('k').meta) {
+            setUserSettings({ showEngineStats: !showEngineStats });
+        }
+
         if (this.options.debugOverlayEnabled != showEngineStats) {
             this.options = {
                 ...this.options,

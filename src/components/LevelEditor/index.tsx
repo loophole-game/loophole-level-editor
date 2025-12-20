@@ -40,10 +40,7 @@ export function LevelEditorComponent() {
     // Create LevelEditor synchronously during render to avoid timing issues with EngineCanvas
     // This ensures engineRef.current is set before EngineCanvas's useEffect runs
     if (!levelEditorRef.current) {
-        levelEditorRef.current = new LevelEditor({
-            engineTracesEnabled: showEngineStats,
-            alwaysRender: showEngineStats,
-        });
+        levelEditorRef.current = new LevelEditor();
     }
 
     useEffect(() => {
@@ -51,6 +48,7 @@ export function LevelEditorComponent() {
 
         // Update options when dependencies change
         levelEditorRef.current.options = {
+            alwaysRender: showEngineStats,
             engineTracesEnabled: showEngineStats,
             debugOverlayEnabled: showEngineStats,
             onLevelChanged: (updatedLevel: Loophole_InternalLevel) => {

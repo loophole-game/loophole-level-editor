@@ -11,6 +11,7 @@ export class CameraSystem extends System {
     #prevCanvasSize: Vector | null = null;
 
     #worldToScreenMatrix: DOMMatrix | null = null;
+    #inverseWorldToScreenMatrix: DOMMatrix | null = null;
     #worldToScreenMatrixDirty: boolean = true;
     #worldBoundingBox: BoundingBox | null = null;
     #worldBoundingBoxDirty: boolean = true;
@@ -44,20 +45,18 @@ export class CameraSystem extends System {
 
     get worldToScreenMatrix(): Readonly<DOMMatrix> {
         if (!this.#worldToScreenMatrix || this.#worldToScreenMatrixDirty) {
-            if (!this._engine.canvasSize) {
-                return new DOMMatrix();
-            }
-
-            const scale = zoomToScale(this.#camera.zoom);
-            this.#worldToScreenMatrix = new DOMMatrix()
-                .translate(this._engine.canvasSize.x / 2, this._engine.canvasSize.y / 2)
-                .translate(this.#camera.position.x, this.#camera.position.y)
-                .rotate(this.#camera.rotation)
-                .scale(scale, scale);
-            this.#worldToScreenMatrixDirty = false;
+            this.#recomputeWorldMatrix();
         }
 
-        return this.#worldToScreenMatrix;
+        return this.#worldToScreenMatrix!;
+    }
+
+    get inverseWorldToScreenMatrix(): Readonly<DOMMatrix> {
+        if (!this.#worldToScreenMatrix || this.#worldToScreenMatrixDirty) {
+            this.#recomputeWorldMatrix();
+        }
+
+        return this.#inverseWorldToScreenMatrix!;
     }
 
     set worldToScreenMatrixDirty(dirty: boolean) {
@@ -247,5 +246,20 @@ export class CameraSystem extends System {
 
         this.#worldToScreenMatrixDirty = true;
         this.#worldBoundingBoxDirty = true;
+    }
+
+    #recomputeWorldMatrix() {
+        if (!this._engine.canvasSize) {
+            return new DOMMatrix();
+        }
+
+        const scale = zoomToScale(this.#camera.zoom);
+        this.#worldToScreenMatrix = new DOMMatrix()
+            .translate(this._engine.canvasSize.x / 2, this._engine.canvasSize.y / 2)
+            .translate(this.#camera.position.x, this.#camera.position.y)
+            .rotate(this.#camera.rotation)
+            .scale(scale, scale);
+        this.#inverseWorldToScreenMatrix = this.#worldToScreenMatrix.inverse();
+        this.#worldToScreenMatrixDirty = false;
     }
 }

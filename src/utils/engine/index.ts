@@ -144,6 +144,9 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
     #forceRender: boolean = true;
     #browserEventHandlers: Partial<Record<BrowserEvent, BrowserEventHandler<BrowserEvent>[]>> = {};
 
+    // Saves needing to re-allocate in temp functions
+    #tempPoint: DOMPoint = new DOMPoint();
+
     constructor(options: Partial<TOptions> = {}) {
         this._rootEntity = new Entity({ name: 'root', engine: this });
 
@@ -244,6 +247,10 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         return this._cameraSystem.worldToScreenMatrix;
     }
 
+    get inverseWorldToScreenMatrix(): Readonly<DOMMatrix> {
+        return this._cameraSystem.inverseWorldToScreenMatrix;
+    }
+
     get pointerState(): Readonly<PointerState> {
         return this._pointerSystem.pointerState;
     }
@@ -339,10 +346,12 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
             return position;
         }
 
-        const screenToWorldMatrix = this.worldToScreenMatrix.inverse();
-        const p = screenToWorldMatrix.transformPoint(new DOMPoint(position.x, position.y));
+        const point = this.#tempPoint;
+        point.x = position.x;
+        point.y = position.y;
+        const p = this.inverseWorldToScreenMatrix.transformPoint(point);
 
-        return new Vector(p.x, p.y);
+        return { x: p.x, y: p.y };
     }
 
     worldToScreen(position: IVector<number>): IVector<number> {
@@ -350,8 +359,12 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
             return position;
         }
 
-        const p = this.worldToScreenMatrix.transformPoint(new DOMPoint(position.x, position.y));
-        return new Vector(p.x, p.y);
+        const point = this.#tempPoint;
+        point.x = position.x;
+        point.y = position.y;
+        const p = this.worldToScreenMatrix.transformPoint(point);
+
+        return { x: p.x, y: p.y };
     }
 
     getKey(keyCode: WebKey): Readonly<KeyboardKeyState> {
