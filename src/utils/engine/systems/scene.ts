@@ -122,9 +122,10 @@ export class SceneSystem<TEngine extends Engine = Engine> extends System<TEngine
     override earlyUpdate(deltaTime: number): boolean {
         let updated = this.#performQueuedUpdate();
 
-        this.#activeScenesByID.forEach((scene) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for (const [_, scene] of this.#activeScenesByID) {
             updated = scene.update(deltaTime) || updated;
-        });
+        }
 
         return updated;
     }
@@ -169,7 +170,9 @@ export class SceneSystem<TEngine extends Engine = Engine> extends System<TEngine
             throw new Error(`Scene root entity for ${sceneObject.name} not found`);
         }
 
-        entities.forEach((e) => (e.parent = rootEntity));
+        for (const entity of entities) {
+            entity.parent = rootEntity;
+        }
     }
 
     #findScene(scene: SceneIdentifier<TEngine>): Scene<TEngine> | null {
@@ -209,24 +212,24 @@ export class SceneSystem<TEngine extends Engine = Engine> extends System<TEngine
         let updated = false;
         this.#isLoadingQueuedScenes = true;
 
-        // Allows new scenes to be opened by a scene's create method
         while (this.#queuedNewScenes.length > 0) {
             const newScenes = [...this.#queuedNewScenes];
+            // Allows new scenes to be opened by a scene's create method
             this.#queuedNewScenes = [];
-            newScenes.forEach((scene) => {
-                this.#makeSceneActive(scene);
-            });
+            for (const newScene of newScenes) {
+                this.#makeSceneActive(newScene);
+            }
             updated = true;
         }
 
-        this.#queuedDestroyedScenes.forEach((scene) => {
+        for (const scene of this.#queuedDestroyedScenes) {
             scene.destroy();
             const rootEntity = this.#sceneRootEntities.get(scene.id);
             if (rootEntity) {
                 rootEntity.destroy();
             }
             updated = true;
-        });
+        }
         this.#queuedDestroyedScenes = [];
         this.#isLoadingQueuedScenes = false;
 

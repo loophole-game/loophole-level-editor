@@ -73,12 +73,12 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
             scale: rest?.scale ?? 1,
         });
 
-        this._components.forEach((component) => {
+        for (const component of this._components) {
             component.entity = this;
-        });
-        this._children.forEach((child) => {
+        }
+        for (const child of this._children) {
             child.parent = this;
-        });
+        }
     }
 
     get id(): string {
@@ -239,15 +239,15 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         let updated = this._updated;
         this._updated = false;
 
-        for (const component of this._components) {
-            if (component.enabled) {
-                updated = component.update(deltaTime) || updated;
-            }
-        }
-
         for (const child of this._children) {
             if (child.enabled) {
                 updated = child.engineUpdate(deltaTime) || updated;
+            }
+        }
+
+        for (const component of this._components) {
+            if (component.enabled) {
+                updated = component.update(deltaTime) || updated;
             }
         }
 
@@ -259,24 +259,6 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     update(_deltaTime: number): boolean {
         return false;
-    }
-
-    engineLateUpdate(_deltaTime: number, engine: Engine) {
-        for (const child of this._children) {
-            if (child.enabled) {
-                child.engineLateUpdate(_deltaTime, engine);
-            }
-        }
-
-        if (this._scaleToCamera.x || this._scaleToCamera.y) {
-            const scale = zoomToScale(engine.camera.zoom);
-            this.transform.setScaleMult(
-                new Vector(
-                    this._scaleToCamera.x ? 1 / scale : 1,
-                    this._scaleToCamera.y ? 1 / scale : 1,
-                ),
-            );
-        }
     }
 
     destroy(): void {
@@ -385,6 +367,17 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
             return;
         }
 
+        // Apply camera scaling only if we need to render
+        if (this._scaleToCamera.x || this._scaleToCamera.y) {
+            const scale = zoomToScale(this._engine.camera.zoom);
+            this.transform.setScaleMult(
+                new Vector(
+                    this._scaleToCamera.x ? 1 / scale : 1,
+                    this._scaleToCamera.y ? 1 / scale : 1,
+                ),
+            );
+        }
+
         const culled = this._cullMode !== 'none' && this.isCulled(camera);
         const cullChildren = culled && this._cullMode !== 'components';
         const cullComponents = culled && this._cullMode !== 'children';
@@ -438,12 +431,12 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
     }
 
     #destroy(): void {
-        this._children.forEach((child) => {
+        for (const child of this._children) {
             child.#destroy();
-        });
-        this._components.forEach((component) => {
+        }
+        for (const component of this._components) {
             component.destroy();
-        });
+        }
 
         this._children = [];
         this._components = [];
@@ -461,9 +454,9 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
 
     #sortChildren(): void {
         this._children.sort(this.#sortByZIndex);
-        this._children.forEach((child) => {
+        for (const child of this._children) {
             child.#sortChildren();
-        });
+        }
     }
 
     #sortComponents(): void {

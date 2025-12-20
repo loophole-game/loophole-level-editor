@@ -163,13 +163,14 @@ export class RenderSystem extends System {
     }
 
     #applyStyle = (ctx: CanvasRenderingContext2D, style: CanvasStyle) => {
-        Object.entries(style).forEach(([_key, value]) => {
-            const key = _key as keyof CanvasRenderingContext2D;
+        for (const key in style) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const value = (style as any)[key];
             if (value !== undefined) {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (ctx as any)[key] = value;
             }
-        });
+        }
     };
 
     #drawRect(

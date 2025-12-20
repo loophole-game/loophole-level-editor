@@ -208,16 +208,20 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
 
     #markLocalDirty() {
         this.#localMatrixDirty = true;
-        this.entity?.children.forEach((child) => {
-            child.transform.#markWorldDirty();
-        });
+        if (this.entity) {
+            for (const child of this.entity.children) {
+                child.transform.#markWorldDirty();
+            }
+        }
     }
 
     #markWorldDirty() {
         this.#worldMatrixDirty = true;
         this.#boundingBoxDirty = true;
-        this.entity?.children.forEach((child) => {
-            child.transform.#markWorldDirty();
-        });
+        if (this.entity) {
+            for (const child of this.entity.children) {
+                child.transform.#markWorldDirty();
+            }
+        }
     }
 }

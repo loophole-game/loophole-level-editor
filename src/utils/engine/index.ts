@@ -187,11 +187,11 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         );
 
         this._options = { ...DEFAULT_ENGINE_OPTIONS, ...options } as TOptions;
-
         this.#applyOptions(this._options);
-        this._options.startScenes.forEach((sceneCtor) => {
+
+        for (const sceneCtor of this._options.startScenes) {
             this.openScene(sceneCtor);
-        });
+        }
 
         window.requestAnimationFrame(this.#engineLoop.bind(this));
     }
@@ -448,9 +448,9 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
     destroy(): void {
         this._rootEntity.destroy();
 
-        this._systems.forEach((system) => {
+        for (const system of this._systems) {
             system.destroy();
-        });
+        }
         this._systems = [];
     }
 
@@ -483,7 +483,6 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
 
         let updated = this.update(deltaTime);
         updated = this._rootEntity.engineUpdate(deltaTime) || updated;
-        this._rootEntity.engineLateUpdate(deltaTime, this);
 
         return updated;
     }
@@ -618,9 +617,10 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
 
         this._cameraSystem.applyCameraZoomClamp();
 
-        Object.entries(this._options.images).forEach(([name, src]) => {
+        for (const name in this._options.images) {
+            const src = this._options.images[name];
             this._imageSystem.loadImage(name, src);
-        });
+        }
         this._options.images = {};
 
         if (this._options.debugOverlayEnabled !== Boolean(this.#debugOverlayScene)) {
