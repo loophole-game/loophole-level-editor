@@ -8,15 +8,6 @@ import { RenderCommandStream, RenderCommandType } from './command';
 import { DEFAULT_RENDER_STYLE, TRANSPARENT_STYLE_COLOR, type RenderStyle } from './style';
 import type { LoadedImage } from '../image';
 
-const HASH_STYLE_KEYS: (keyof Required<RenderStyle>)[] = [
-    'fillStyle',
-    'strokeStyle',
-    'lineWidth',
-    'lineJoin',
-    'lineCap',
-    'imageSmoothingEnabled',
-];
-
 interface CanvasStyle extends RenderStyle {
     globalAlpha?: number;
 }
@@ -26,11 +17,13 @@ export class RenderSystem extends System {
 
     #hashedMaterials: HashFactory<RenderStyle> = new HashFactory<RenderStyle>(
         (style: RenderStyle) => {
-            return HASH_STYLE_KEYS.reduce((prev, key) => {
-                const styleKey = key as keyof RenderStyle;
-                const value = style[styleKey] ?? DEFAULT_RENDER_STYLE[styleKey];
-                return `${prev}${prev ? ',' : ''}${value}`;
-            }, '');
+            return `${style.fillStyle ?? DEFAULT_RENDER_STYLE.fillStyle}|${
+                style.strokeStyle ?? DEFAULT_RENDER_STYLE.strokeStyle
+            }|${style.lineWidth ?? DEFAULT_RENDER_STYLE.lineWidth}|${
+                style.lineJoin ?? DEFAULT_RENDER_STYLE.lineJoin
+            }|${style.lineCap ?? DEFAULT_RENDER_STYLE.lineCap}|${
+                style.imageSmoothingEnabled ?? DEFAULT_RENDER_STYLE.imageSmoothingEnabled
+            }`;
         },
     );
     #hashedImages: HashFactory<string> = new HashFactory<string>((image) => image);

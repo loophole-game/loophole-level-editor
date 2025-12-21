@@ -45,7 +45,7 @@ export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Compone
     #drawBoundingBox(bbox: BoundingBox, stream: RenderCommandStream, style: RenderStyle): void {
         stream.setOpacity(1);
         stream.setStyle(style);
-        stream.drawRect(bbox.x1, bbox.y1, bbox.x2 - bbox.x1, bbox.y2 - bbox.y1);
+        stream.drawRect(bbox.x1, bbox.y1, bbox.x2 - bbox.x1, bbox.y2 - bbox.y1, 1, 1, 1, 1);
     }
 }
 

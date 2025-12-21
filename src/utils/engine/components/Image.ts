@@ -10,14 +10,14 @@ interface C_ImageOptions<TEngine extends Engine = Engine> extends C_DrawableOpti
 
 export class C_Image<TEngine extends Engine = Engine> extends C_Drawable<TEngine> {
     #imageName: string;
-    #repeat: Vector | null;
+    #repeat: Vector;
 
     constructor(options: C_ImageOptions<TEngine>) {
         super(options);
 
         const { imageName, repeat } = options;
         this.#imageName = imageName;
-        this.#repeat = repeat ? new Vector(repeat) : null;
+        this.#repeat = new Vector(repeat ?? 1);
     }
 
     get imageName(): string {
@@ -28,12 +28,12 @@ export class C_Image<TEngine extends Engine = Engine> extends C_Drawable<TEngine
         this.#imageName = imageName;
     }
 
-    get repeat(): Vector | null {
+    get repeat(): Vector {
         return this.#repeat;
     }
 
     set repeat(repeat: VectorConstructor | null) {
-        this.#repeat = repeat ? new Vector(repeat) : null;
+        this.#repeat = new Vector(repeat ?? 1);
     }
 
     override queueRenderCommands(stream: RenderCommandStream): void {
@@ -49,8 +49,10 @@ export class C_Image<TEngine extends Engine = Engine> extends C_Drawable<TEngine
             this.scale.x,
             this.scale.y,
             this.#imageName,
-            this.#repeat?.x,
-            this.#repeat?.y,
+            this.#repeat.x,
+            this.#repeat.y,
+            1,
+            1,
         );
     }
 }

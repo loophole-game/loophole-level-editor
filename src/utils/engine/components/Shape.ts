@@ -29,8 +29,8 @@ export interface C_ShapeOptions<TEngine extends Engine = Engine>
 
 export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine> {
     #shape: Shape;
-    #repeat: Vector | null;
-    #gap: Vector | null;
+    #repeat: Vector;
+    #gap: Vector;
 
     #start: Vector | null = null;
     #end: Vector | null = null;
@@ -53,8 +53,8 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
         super({ name, ...rest });
 
         this.#shape = shape;
-        this.#repeat = repeat !== undefined ? new Vector(repeat) : null;
-        this.#gap = gap !== undefined ? new Vector(gap) : null;
+        this.#repeat = new Vector(repeat ?? 1);
+        this.#gap = new Vector(gap ?? 1);
 
         if (start) this.#start = new Vector(start);
         if (end) this.#end = new Vector(end);
@@ -75,20 +75,20 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
         }
     }
 
-    get repeat(): Vector | null {
+    get repeat(): Vector {
         return this.#repeat;
     }
 
     set repeat(repeat: VectorConstructor | null) {
-        this.#repeat = repeat !== null ? new Vector(repeat) : null;
+        this.#repeat = new Vector(repeat ?? 1);
     }
 
-    get gap(): Vector | null {
+    get gap(): Vector {
         return this.#gap;
     }
 
     set gap(gap: VectorConstructor | null) {
-        this.#gap = gap !== null ? new Vector(gap) : null;
+        this.#gap = new Vector(gap ?? 1);
     }
 
     get start(): Vector | null {
@@ -154,10 +154,10 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
                     this.#start.y,
                     this.#end.x,
                     this.#end.y,
-                    this.#repeat?.x,
-                    this.#repeat?.y,
-                    this.#gap?.x,
-                    this.#gap?.y,
+                    this.#repeat.x,
+                    this.#repeat.y,
+                    this.#gap.x,
+                    this.#gap.y,
                 );
 
                 this.#drawTip(this.#startTip, this.#start, -1, stream);

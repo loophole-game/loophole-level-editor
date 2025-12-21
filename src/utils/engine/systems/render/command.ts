@@ -34,11 +34,6 @@ export interface SetOpacity {
     opacity: number;
 }
 
-const DEFAULT_RX = 1;
-const DEFAULT_RY = 1;
-const DEFAULT_GX = 1;
-const DEFAULT_GY = 1;
-
 interface DrawBase {
     x: number;
     y: number;
@@ -76,48 +71,22 @@ export type RenderCommand =
     | DrawLine
     | DrawImage;
 
-class CommandBuffer {
-    #data: DynamicNumberArray<Float32Array>;
-    #commands: DynamicNumberArray<Uint8Array>;
-
-    constructor(initialCapacity: number) {
-        this.#data = new DynamicNumberArray(Float32Array, initialCapacity * 8);
-        this.#commands = new DynamicNumberArray(Uint8Array, initialCapacity);
-    }
-
-    get data(): Float32Array {
-        return this.#data.buffer;
-    }
-
-    get commands(): Uint8Array {
-        return this.#commands.buffer;
-    }
-
-    get commandCount(): number {
-        return this.#commands.length;
-    }
-
-    pushValue(value: number) {
-        this.#data.push(value);
-    }
-
-    pushCommand(command: RenderCommandType) {
-        this.#commands.push(command);
-    }
-
-    clear() {
-        this.#data.clear();
-        this.#commands.clear();
-    }
-}
-
+const INITIAL_COMMAND_CAPACITY = 200;
 const TRANSFORM_COMPONENTS = 6;
 
 export class RenderCommandStream {
     #hashedMaterials: HashFactory<RenderStyle>;
     #hashedImages: HashFactory<string>;
 
-    #commands: CommandBuffer = new CommandBuffer(200);
+    #data: DynamicNumberArray<Float32Array> = new DynamicNumberArray(
+        Float32Array,
+        INITIAL_COMMAND_CAPACITY * 8,
+    );
+    #commands: DynamicNumberArray<Uint8Array> = new DynamicNumberArray(
+        Uint8Array,
+        INITIAL_COMMAND_CAPACITY,
+    );
+
     #currentStyleID: number | null = null;
     #currentOpacity: number = 1;
 
@@ -132,29 +101,24 @@ export class RenderCommandStream {
     }
 
     get data(): Float32Array {
-        return this.#commands.data;
+        return this.#data.buffer;
     }
 
     get commands(): Uint8Array {
-        return this.#commands.commands;
+        return this.#commands.buffer;
     }
 
     get commandCount(): number {
-        return this.#commands.commandCount;
+        return this.#commands.length;
     }
 
     pushTransform(t: DOMMatrix) {
-        this.#pushTransformStack.push(t.a);
-        this.#pushTransformStack.push(t.b);
-        this.#pushTransformStack.push(t.c);
-        this.#pushTransformStack.push(t.d);
-        this.#pushTransformStack.push(t.e);
-        this.#pushTransformStack.push(t.f);
+        this.#pushTransformStack.pushMultiple(t.a, t.b, t.c, t.d, t.e, t.f);
     }
 
     popTransform() {
         if (this.#pushTransformStack.length === 0) {
-            this.#commands.pushCommand(RenderCommandType.POP_TRANSFORM);
+            this.#commands.push(RenderCommandType.POP_TRANSFORM);
         } else {
             this.#pushTransformStack.pop(TRANSFORM_COMPONENTS);
         }
@@ -167,8 +131,8 @@ export class RenderCommandStream {
         }
 
         this.#currentStyleID = styleID;
-        this.#commands.pushCommand(RenderCommandType.SET_MATERIAL);
-        this.#commands.pushValue(styleID);
+        this.#commands.push(RenderCommandType.SET_MATERIAL);
+        this.#data.push(styleID);
     }
 
     setOpacity(opacity: number) {
@@ -177,8 +141,8 @@ export class RenderCommandStream {
         }
 
         this.#currentOpacity = opacity;
-        this.#commands.pushCommand(RenderCommandType.SET_OPACITY);
-        this.#commands.pushValue(opacity);
+        this.#commands.push(RenderCommandType.SET_OPACITY);
+        this.#data.push(opacity);
     }
 
     drawRect(
@@ -186,10 +150,10 @@ export class RenderCommandStream {
         y1: number,
         x2: number,
         y2: number,
-        rx?: number,
-        ry?: number,
-        gx?: number,
-        gy?: number,
+        rx: number,
+        ry: number,
+        gx: number,
+        gy: number,
     ) {
         if (this.#currentOpacity < OPACITY_THRESHOLD) {
             return;
@@ -197,15 +161,8 @@ export class RenderCommandStream {
 
         this.#pushDeferredTransforms();
 
-        this.#commands.pushCommand(RenderCommandType.DRAW_RECT);
-        this.#commands.pushValue(x1);
-        this.#commands.pushValue(y1);
-        this.#commands.pushValue(x2);
-        this.#commands.pushValue(y2);
-        this.#commands.pushValue(rx ?? 1);
-        this.#commands.pushValue(ry ?? 1);
-        this.#commands.pushValue(gx ?? 1);
-        this.#commands.pushValue(gy ?? 1);
+        this.#commands.push(RenderCommandType.DRAW_RECT);
+        this.#data.pushMultiple(x1, y1, x2, y2, rx, ry, gx, gy);
     }
 
     drawEllipse(
@@ -213,10 +170,10 @@ export class RenderCommandStream {
         y1: number,
         x2: number,
         y2: number,
-        rx?: number,
-        ry?: number,
-        gx?: number,
-        gy?: number,
+        rx: number,
+        ry: number,
+        gx: number,
+        gy: number,
     ) {
         if (this.#currentOpacity < OPACITY_THRESHOLD) {
             return;
@@ -224,15 +181,8 @@ export class RenderCommandStream {
 
         this.#pushDeferredTransforms();
 
-        this.#commands.pushCommand(RenderCommandType.DRAW_ELLIPSE);
-        this.#commands.pushValue(x1);
-        this.#commands.pushValue(y1);
-        this.#commands.pushValue(x2);
-        this.#commands.pushValue(y2);
-        this.#commands.pushValue(rx ?? DEFAULT_RX);
-        this.#commands.pushValue(ry ?? DEFAULT_RY);
-        this.#commands.pushValue(gx ?? DEFAULT_GX);
-        this.#commands.pushValue(gy ?? DEFAULT_GY);
+        this.#commands.push(RenderCommandType.DRAW_ELLIPSE);
+        this.#data.pushMultiple(x1, y1, x2, y2, rx, ry, gx, gy);
     }
 
     drawLine(
@@ -240,10 +190,10 @@ export class RenderCommandStream {
         y1: number,
         x2: number,
         y2: number,
-        rx?: number,
-        ry?: number,
-        gx?: number,
-        gy?: number,
+        rx: number,
+        ry: number,
+        gx: number,
+        gy: number,
     ) {
         if (this.#currentOpacity < OPACITY_THRESHOLD) {
             return;
@@ -251,15 +201,8 @@ export class RenderCommandStream {
 
         this.#pushDeferredTransforms();
 
-        this.#commands.pushCommand(RenderCommandType.DRAW_LINE);
-        this.#commands.pushValue(x1);
-        this.#commands.pushValue(y1);
-        this.#commands.pushValue(x2);
-        this.#commands.pushValue(y2);
-        this.#commands.pushValue(rx ?? DEFAULT_RX);
-        this.#commands.pushValue(ry ?? DEFAULT_RY);
-        this.#commands.pushValue(gx ?? DEFAULT_GX);
-        this.#commands.pushValue(gy ?? DEFAULT_GY);
+        this.#commands.push(RenderCommandType.DRAW_LINE);
+        this.#data.pushMultiple(x1, y1, x2, y2, rx, ry, gx, gy);
     }
 
     drawImage(
@@ -268,10 +211,10 @@ export class RenderCommandStream {
         x2: number,
         y2: number,
         image: string,
-        rx?: number,
-        ry?: number,
-        gx?: number,
-        gy?: number,
+        rx: number,
+        ry: number,
+        gx: number,
+        gy: number,
     ) {
         if (this.#currentOpacity < OPACITY_THRESHOLD) {
             return;
@@ -280,34 +223,29 @@ export class RenderCommandStream {
         this.#pushDeferredTransforms();
 
         const imageID = this.#hashedImages.itemToID(image);
-        this.#commands.pushCommand(RenderCommandType.DRAW_IMAGE);
-        this.#commands.pushValue(x1);
-        this.#commands.pushValue(y1);
-        this.#commands.pushValue(x2);
-        this.#commands.pushValue(y2);
-        this.#commands.pushValue(rx ?? DEFAULT_RX);
-        this.#commands.pushValue(ry ?? DEFAULT_RY);
-        this.#commands.pushValue(gx ?? DEFAULT_GX);
-        this.#commands.pushValue(gy ?? DEFAULT_GY);
-        this.#commands.pushValue(imageID);
+        this.#commands.push(RenderCommandType.DRAW_IMAGE);
+        this.#data.pushMultiple(x1, y1, x2, y2, rx, ry, gx, gy, imageID);
     }
 
     clear() {
         this.#commands.clear();
+        this.#data.clear();
+        this.#pushTransformStack.clear();
         this.#currentStyleID = null;
         this.#currentOpacity = 1;
-        this.#pushTransformStack.clear();
     }
 
     #pushDeferredTransforms() {
         for (let i = 0; i < this.#pushTransformStack.length; i += TRANSFORM_COMPONENTS) {
-            this.#commands.pushCommand(RenderCommandType.PUSH_TRANSFORM);
-            this.#commands.pushValue(this.#pushTransformStack.buffer[i]);
-            this.#commands.pushValue(this.#pushTransformStack.buffer[i + 1]);
-            this.#commands.pushValue(this.#pushTransformStack.buffer[i + 2]);
-            this.#commands.pushValue(this.#pushTransformStack.buffer[i + 3]);
-            this.#commands.pushValue(this.#pushTransformStack.buffer[i + 4]);
-            this.#commands.pushValue(this.#pushTransformStack.buffer[i + 5]);
+            this.#commands.push(RenderCommandType.PUSH_TRANSFORM);
+            this.#data.pushMultiple(
+                this.#pushTransformStack.buffer[i],
+                this.#pushTransformStack.buffer[i + 1],
+                this.#pushTransformStack.buffer[i + 2],
+                this.#pushTransformStack.buffer[i + 3],
+                this.#pushTransformStack.buffer[i + 4],
+                this.#pushTransformStack.buffer[i + 5],
+            );
         }
 
         this.#pushTransformStack.clear();
