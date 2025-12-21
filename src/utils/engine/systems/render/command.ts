@@ -77,38 +77,37 @@ export type RenderCommand =
     | DrawImage;
 
 class CommandBuffer {
-    #array: DynamicNumberArray<Float32Array>;
-
-    #commandCount: number = 0;
+    #data: DynamicNumberArray<Float32Array>;
+    #commands: DynamicNumberArray<Uint8Array>;
 
     constructor(initialCapacity: number) {
-        this.#array = new DynamicNumberArray(Float32Array, initialCapacity);
+        this.#data = new DynamicNumberArray(Float32Array, initialCapacity * 8);
+        this.#commands = new DynamicNumberArray(Uint8Array, initialCapacity);
     }
 
-    get buffer(): Float32Array {
-        return this.#array.buffer;
+    get data(): Float32Array {
+        return this.#data.buffer;
     }
 
-    get pointer(): number {
-        return this.#array.length;
+    get commands(): Uint8Array {
+        return this.#commands.buffer;
     }
 
     get commandCount(): number {
-        return this.#commandCount;
+        return this.#commands.length;
     }
 
     pushValue(value: number) {
-        this.#array.push(value);
+        this.#data.push(value);
     }
 
     pushCommand(command: RenderCommandType) {
-        this.#array.push(command);
-        this.#commandCount++;
+        this.#commands.push(command);
     }
 
     clear() {
-        this.#array.clear();
-        this.#commandCount = 0;
+        this.#data.clear();
+        this.#commands.clear();
     }
 }
 
@@ -118,11 +117,11 @@ export class RenderCommandStream {
     #hashedMaterials: HashFactory<RenderStyle>;
     #hashedImages: HashFactory<string>;
 
-    #commands: CommandBuffer = new CommandBuffer(1024);
+    #commands: CommandBuffer = new CommandBuffer(200);
     #currentStyleID: number | null = null;
     #currentOpacity: number = 1;
 
-    #pushTransfomStack: DynamicNumberArray<Float32Array> = new DynamicNumberArray(
+    #pushTransformStack: DynamicNumberArray<Float32Array> = new DynamicNumberArray(
         Float32Array,
         TRANSFORM_COMPONENTS * 10,
     );
@@ -132,32 +131,32 @@ export class RenderCommandStream {
         this.#hashedImages = hashedImages;
     }
 
-    get length(): number {
+    get data(): Float32Array {
+        return this.#commands.data;
+    }
+
+    get commands(): Uint8Array {
+        return this.#commands.commands;
+    }
+
+    get commandCount(): number {
         return this.#commands.commandCount;
     }
 
-    get commands(): Float32Array {
-        return this.#commands.buffer;
-    }
-
-    get commandsLength(): number {
-        return this.#commands.pointer;
-    }
-
     pushTransform(t: DOMMatrix) {
-        this.#pushTransfomStack.push(t.a);
-        this.#pushTransfomStack.push(t.b);
-        this.#pushTransfomStack.push(t.c);
-        this.#pushTransfomStack.push(t.d);
-        this.#pushTransfomStack.push(t.e);
-        this.#pushTransfomStack.push(t.f);
+        this.#pushTransformStack.push(t.a);
+        this.#pushTransformStack.push(t.b);
+        this.#pushTransformStack.push(t.c);
+        this.#pushTransformStack.push(t.d);
+        this.#pushTransformStack.push(t.e);
+        this.#pushTransformStack.push(t.f);
     }
 
     popTransform() {
-        if (this.#pushTransfomStack.length === 0) {
+        if (this.#pushTransformStack.length === 0) {
             this.#commands.pushCommand(RenderCommandType.POP_TRANSFORM);
         } else {
-            this.#pushTransfomStack.pop(TRANSFORM_COMPONENTS);
+            this.#pushTransformStack.pop(TRANSFORM_COMPONENTS);
         }
     }
 
@@ -297,20 +296,20 @@ export class RenderCommandStream {
         this.#commands.clear();
         this.#currentStyleID = null;
         this.#currentOpacity = 1;
-        this.#pushTransfomStack.clear();
+        this.#pushTransformStack.clear();
     }
 
     #pushDeferredTransforms() {
-        for (let i = 0; i < this.#pushTransfomStack.length; i += TRANSFORM_COMPONENTS) {
+        for (let i = 0; i < this.#pushTransformStack.length; i += TRANSFORM_COMPONENTS) {
             this.#commands.pushCommand(RenderCommandType.PUSH_TRANSFORM);
-            this.#commands.pushValue(this.#pushTransfomStack.buffer[i]);
-            this.#commands.pushValue(this.#pushTransfomStack.buffer[i + 1]);
-            this.#commands.pushValue(this.#pushTransfomStack.buffer[i + 2]);
-            this.#commands.pushValue(this.#pushTransfomStack.buffer[i + 3]);
-            this.#commands.pushValue(this.#pushTransfomStack.buffer[i + 4]);
-            this.#commands.pushValue(this.#pushTransfomStack.buffer[i + 5]);
+            this.#commands.pushValue(this.#pushTransformStack.buffer[i]);
+            this.#commands.pushValue(this.#pushTransformStack.buffer[i + 1]);
+            this.#commands.pushValue(this.#pushTransformStack.buffer[i + 2]);
+            this.#commands.pushValue(this.#pushTransformStack.buffer[i + 3]);
+            this.#commands.pushValue(this.#pushTransformStack.buffer[i + 4]);
+            this.#commands.pushValue(this.#pushTransformStack.buffer[i + 5]);
         }
 
-        this.#pushTransfomStack.clear();
+        this.#pushTransformStack.clear();
     }
 }

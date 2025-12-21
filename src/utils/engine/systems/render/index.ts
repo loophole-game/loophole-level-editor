@@ -67,7 +67,7 @@ export class RenderSystem extends System {
             rootEntity.queueRenderCommands(this.#stream!, camera);
         });
 
-        this._engine.trace(`renderCommands(${this.#stream.length})`, () => {
+        this._engine.trace(`renderCommands(${this.#stream.commandCount})`, () => {
             this.#renderCommands(ctx);
         });
     }
@@ -82,27 +82,27 @@ export class RenderSystem extends System {
             globalAlpha: opacity,
         });
 
+        let dataPointer = 0;
+        const data = this.#stream!.data;
         const commands = this.#stream!.commands;
-        const commandsLength = this.#stream!.commandsLength;
-        for (let i = 0; i < commandsLength; i++) {
+        const commandCount = this.#stream!.commandCount;
+        for (let i = 0; i < commandCount; i++) {
             const commandType = commands[i] as RenderCommandType;
             switch (commandType) {
                 case RenderCommandType.PUSH_TRANSFORM: {
                     ctx.save();
-                    const a = commands[i + 1];
-                    const b = commands[i + 2];
-                    const c = commands[i + 3];
-                    const d = commands[i + 4];
-                    const e = commands[i + 5];
-                    const f = commands[i + 6];
+                    const a = data[dataPointer++];
+                    const b = data[dataPointer++];
+                    const c = data[dataPointer++];
+                    const d = data[dataPointer++];
+                    const e = data[dataPointer++];
+                    const f = data[dataPointer++];
                     ctx.transform(a, b, c, d, e, f);
 
                     const scaleX = Math.hypot(a, b);
                     const scaleY = Math.hypot(c, d);
                     const maxScale = Math.max(scaleX || 1, scaleY || 1) || 1;
                     this.#transformScaleStack.push(maxScale);
-
-                    i += 6;
 
                     break;
                 }
@@ -112,7 +112,7 @@ export class RenderSystem extends System {
 
                     break;
                 case RenderCommandType.SET_MATERIAL: {
-                    const styleID = commands[i + 1];
+                    const styleID = data[dataPointer++];
                     const style = this.#hashedMaterials.idToItem(styleID);
                     if (style) {
                         activeStyle.fillStyle =
@@ -129,27 +129,24 @@ export class RenderSystem extends System {
                             DEFAULT_RENDER_STYLE.imageSmoothingEnabled;
                         this.#applyStyle(ctx, activeStyle);
                     }
-                    i += 1;
 
                     break;
                 }
                 case RenderCommandType.SET_OPACITY: {
-                    opacity = commands[i + 1];
+                    opacity = data[dataPointer++];
                     ctx.globalAlpha = opacity;
-                    i += 1;
 
                     break;
                 }
                 default: {
-                    const x = commands[i + 1];
-                    const y = commands[i + 2];
-                    const w = commands[i + 3];
-                    const h = commands[i + 4];
-                    const rx = commands[i + 5];
-                    const ry = commands[i + 6];
-                    const gx = commands[i + 7];
-                    const gy = commands[i + 8];
-                    i += 8 + (commandType === RenderCommandType.DRAW_IMAGE ? 1 : 0);
+                    const x = data[dataPointer++];
+                    const y = data[dataPointer++];
+                    const w = data[dataPointer++];
+                    const h = data[dataPointer++];
+                    const rx = data[dataPointer++];
+                    const ry = data[dataPointer++];
+                    const gx = data[dataPointer++];
+                    const gy = data[dataPointer++];
 
                     switch (commandType) {
                         case RenderCommandType.DRAW_RECT:
@@ -162,7 +159,7 @@ export class RenderSystem extends System {
                             this.#drawLine(x, y, w, h, rx, ry, gx, gy, ctx, activeStyle);
                             break;
                         case RenderCommandType.DRAW_IMAGE:
-                            this.#drawImage(x, y, w, h, commands[i], ctx);
+                            this.#drawImage(x, y, w, h, data[dataPointer++], ctx);
                             break;
                         default:
                             break;
