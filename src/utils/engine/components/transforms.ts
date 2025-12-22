@@ -20,6 +20,7 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
 
     #worldMatrix: DOMMatrix = new DOMMatrix();
     #worldMatrixDirty: boolean = true;
+    #worldPosition: Vector = new Vector(0);
 
     #boundingBox: BoundingBox = { x1: 0, x2: 0, y1: 0, y2: 0 };
     #boundingBoxDirty: boolean = true;
@@ -46,7 +47,10 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
     }
 
     get worldPosition(): Readonly<Vector> {
-        return new Vector(this.worldMatrix.e, this.#worldMatrix.f);
+        this.#worldPosition.x = this.worldMatrix.e;
+        this.#worldPosition.y = this.worldMatrix.f;
+
+        return this.#worldPosition;
     }
 
     get rotation(): number {

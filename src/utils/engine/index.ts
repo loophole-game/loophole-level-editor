@@ -150,6 +150,8 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
     #debugOverlayScene: Scene | null = null;
 
     #forceRender: boolean = true;
+    #boundEngineLoop = this.#engineLoop.bind(this);
+    #animationFrameHandleId: number | null = null;
     #browserEventHandlers: Partial<Record<BrowserEvent, BrowserEventHandler<BrowserEvent>[]>> = {};
 
     // Saves needing to re-allocate in temp functions
@@ -199,7 +201,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
             this.openScene(sceneCtor);
         }
 
-        window.requestAnimationFrame(this.#engineLoop.bind(this));
+        window.requestAnimationFrame(this.#boundEngineLoop);
     }
 
     get id(): string {
@@ -466,6 +468,11 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
             system.destroy();
         }
         this._systems = [];
+
+        if (this.#animationFrameHandleId) {
+            window.cancelAnimationFrame(this.#animationFrameHandleId);
+            this.#animationFrameHandleId = null;
+        }
     }
 
     trace<T>(name: string, callback: () => T): T {
@@ -583,7 +590,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
             this.#forceRender = true;
         }
 
-        window.requestAnimationFrame(this.#engineLoop.bind(this));
+        this.#animationFrameHandleId = window.requestAnimationFrame(this.#boundEngineLoop);
     }
 
     #handleBrowserEvent(event: BrowserEvent, data: BrowserEventMap[BrowserEvent]): boolean {

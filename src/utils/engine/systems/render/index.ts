@@ -14,6 +14,7 @@ interface CanvasStyle extends RenderStyle {
 
 export class RenderSystem extends System {
     #stream: RenderCommandStream | null = null;
+    #cameraTransform: DOMMatrix = new DOMMatrix();
 
     #hashedMaterials: HashFactory<RenderStyle> = new HashFactory<RenderStyle>(
         (style: RenderStyle) => {
@@ -49,12 +50,19 @@ export class RenderSystem extends System {
             this.#stream.clear();
         }
 
-        this.#stream.pushTransform(
-            new DOMMatrix()
-                .translate(camera.position.x, camera.position.y)
-                .rotate(camera.rotation)
-                .scale(zoomToScale(camera.zoom)),
-        );
+        const cameraTransform = this.#cameraTransform;
+        cameraTransform.a = 1;
+        cameraTransform.b = 0;
+        cameraTransform.c = 0;
+        cameraTransform.d = 1;
+        cameraTransform.e = 0;
+        cameraTransform.f = 0;
+        cameraTransform
+            .translateSelf(camera.position.x, camera.position.y)
+            .rotateSelf(camera.rotation)
+            .scaleSelf(zoomToScale(camera.zoom));
+
+        this.#stream.pushTransform(cameraTransform);
 
         this._engine.trace(`queueCommands`, () => {
             rootEntity.queueRenderCommands(this.#stream!, camera);
