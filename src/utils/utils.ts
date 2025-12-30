@@ -436,6 +436,16 @@ export const ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata
         hasDirection: true,
     },
 };
+export const PICKER_ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityMetadata> =
+    Object.values(ENTITY_METADATA).reduce(
+        (acc, metadata) => {
+            if (!metadata.hideInPicker) {
+                acc[metadata.extendedType] = metadata;
+            }
+            return acc;
+        },
+        {} as Record<Loophole_ExtendedEntityType, EntityMetadata>,
+    );
 
 export const createLevelWithMetadata = (name: string, id?: string): Loophole_InternalLevel => ({
     colorPalette: 0,

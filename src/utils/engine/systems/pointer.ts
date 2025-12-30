@@ -49,6 +49,10 @@ export interface PointerState extends Record<PointerButton, PointerButtonState> 
     clickEndPosition: Vector | null;
 }
 
+export type CameraScrollMode = 'none' | 'all' | 'meta' | 'no-meta';
+
+const SCROLL_DELTA_PER_STEP = 120;
+
 export class PointerSystem extends System {
     #pointerState: PointerState = {
         scrollDelta: 0,
@@ -93,6 +97,8 @@ export class PointerSystem extends System {
         position: new Vector(0),
         worldPosition: new Vector(0),
     };
+    #accumulatedScrollDelta: number = 0;
+    #scrollSteps: number = 0;
 
     #dragStartMousePosition: IVector<number> | null = null;
     #dragStartCameraPosition: IVector<number> | null = null;
@@ -156,6 +162,10 @@ export class PointerSystem extends System {
 
     getPointerButton(button: PointerButton): PointerButtonState {
         return this.#pointerState[button];
+    }
+
+    get scrollSteps(): number {
+        return this.#scrollSteps;
     }
 
     pointerButtonStateChange(button: PointerButton, down: boolean) {
@@ -289,12 +299,25 @@ export class PointerSystem extends System {
 
     #updateCameraDrag(): void {
         if (this.#pointerState.scrollDelta !== 0) {
-            this._engine.zoomCamera(
-                this.#pointerState.scrollDelta,
-                this.#pointerState.worldPosition,
-            );
+            const scrollMode = this._engine.options.cameraScrollMode;
+            const meta = this._engine.getKey('Meta').down;
+            if (
+                scrollMode === 'all' ||
+                (scrollMode === 'meta' && meta) ||
+                (scrollMode === 'no-meta' && !meta)
+            ) {
+                this._engine.zoomCamera(
+                    this.#pointerState.scrollDelta,
+                    this.#pointerState.worldPosition,
+                );
+            }
+
+            this.#accumulatedScrollDelta += this.#pointerState.scrollDelta;
+            this.#scrollSteps = Math.trunc(this.#accumulatedScrollDelta / SCROLL_DELTA_PER_STEP);
+            this.#accumulatedScrollDelta -= this.#scrollSteps * SCROLL_DELTA_PER_STEP;
             this.#pointerState.scrollDelta = 0;
-            this._engine.cameraTarget = null;
+        } else {
+            this.#scrollSteps = 0;
         }
 
         const buttonStates = this._engine.options.cameraDragButtons.map(

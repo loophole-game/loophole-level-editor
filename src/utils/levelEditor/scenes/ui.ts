@@ -5,6 +5,7 @@ import {
     getLoopholeExplosionPosition,
     getLoopholeExplosionStartPosition,
     loopholeRotationToDegrees,
+    PICKER_ENTITY_METADATA,
     TILE_SIZE,
 } from '@/utils/utils';
 import { Entity, type EntityOptions } from '../../engine/entities';
@@ -1020,6 +1021,7 @@ export class UIScene extends Scene {
 
         const {
             brushEntityType,
+            prevBrushEntityType,
             setBrushEntityType,
             selectedTiles,
             setSelectedTiles,
@@ -1059,8 +1061,8 @@ export class UIScene extends Scene {
             updated = true;
         }
 
-        const keys = Object.keys(ENTITY_METADATA) as Loophole_ExtendedEntityType[];
-        for (let i = 0; i < Object.keys(ENTITY_METADATA).length && i < 10; i++) {
+        const keys = Object.keys(PICKER_ENTITY_METADATA) as Loophole_ExtendedEntityType[];
+        for (let i = 0; i < keys.length && i < 10; i++) {
             const buttonName = `toggle-${i === 9 ? 0 : i + 1}` as string;
             if (this.#editor.getButton(buttonName).pressed) {
                 const newBrushEntityType = brushEntityType === keys[i] ? null : keys[i];
@@ -1072,6 +1074,26 @@ export class UIScene extends Scene {
 
         if (this.#editor.getButton('focus-level').pressed) {
             centerCameraOnLevel();
+        }
+
+        let scrollSteps = this.#editor.getScrollSteps() * this.#editor.getKey('Meta').downAsNum;
+        if (scrollSteps === 0) {
+            const axis = this.#editor.getAxis('change-brush-tile');
+            scrollSteps = axis.changed ? axis.value.x : 0;
+        }
+        if (scrollSteps !== 0) {
+            let newToolIndex =
+                brushEntityType === null
+                    ? keys.indexOf(prevBrushEntityType)
+                    : keys.indexOf(brushEntityType) + scrollSteps;
+            while (newToolIndex >= keys.length) {
+                newToolIndex -= keys.length;
+            }
+            while (newToolIndex < 0) {
+                newToolIndex += keys.length;
+            }
+            setBrushEntityType(keys[newToolIndex]);
+            updated = true;
         }
 
         return updated;

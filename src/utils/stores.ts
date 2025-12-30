@@ -32,6 +32,7 @@ interface AppStore {
     resetLevel: (id: string) => void;
 
     brushEntityType: Loophole_ExtendedEntityType | null;
+    prevBrushEntityType: Loophole_ExtendedEntityType;
     setBrushEntityType: (entityType: Loophole_ExtendedEntityType | null) => void;
     brushEntityRotation: Loophole_Rotation;
     setBrushEntityRotation: (rotation: Loophole_Rotation) => void;
@@ -138,8 +139,10 @@ export const useAppStore = create<AppStore>()(
                 },
 
                 brushEntityType: null,
+                prevBrushEntityType: 'TIME_MACHINE',
                 setBrushEntityType: (entityType) =>
                     set((state) => ({
+                        prevBrushEntityType: state.brushEntityType || state.prevBrushEntityType,
                         brushEntityType:
                             entityType && state.lockedLayers[entityType]
                                 ? state.brushEntityType

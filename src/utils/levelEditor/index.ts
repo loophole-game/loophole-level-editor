@@ -92,6 +92,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
             minZoom: -3,
             maxZoom: 0.5,
             cameraDrag: true,
+            cameraScrollMode: 'no-meta',
             clearColor: 'transparent',
             inputConfigs: {
                 'move-camera': {
@@ -149,16 +150,23 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
                     inputs: [{ type: 'key', key: 'f', modifier: true }],
                 },
                 'clear-brush': { type: 'button', inputs: [{ type: 'key', key: 'Escape' }] },
-                'toggle-0': { type: 'button', inputs: [{ type: 'key', key: '0' }] },
-                'toggle-1': { type: 'button', inputs: [{ type: 'key', key: '1' }] },
-                'toggle-2': { type: 'button', inputs: [{ type: 'key', key: '2' }] },
-                'toggle-3': { type: 'button', inputs: [{ type: 'key', key: '3' }] },
-                'toggle-4': { type: 'button', inputs: [{ type: 'key', key: '4' }] },
-                'toggle-5': { type: 'button', inputs: [{ type: 'key', key: '5' }] },
-                'toggle-6': { type: 'button', inputs: [{ type: 'key', key: '6' }] },
-                'toggle-7': { type: 'button', inputs: [{ type: 'key', key: '7' }] },
-                'toggle-8': { type: 'button', inputs: [{ type: 'key', key: '8' }] },
-                'toggle-9': { type: 'button', inputs: [{ type: 'key', key: '9' }] },
+                ...Array(10)
+                    .fill(0)
+                    .reduce(
+                        (acc, _, i) => {
+                            acc[`toggle-${i}`] = {
+                                type: 'button',
+                                inputs: [{ type: 'key', key: i.toString() }],
+                            };
+                            return acc;
+                        },
+                        {} as Record<string, unknown>,
+                    ),
+                'change-brush-tile': {
+                    type: 'axis',
+                    right: [{ type: 'key', key: ']' }],
+                    left: [{ type: 'key', key: '[' }],
+                },
             },
             keysToCapture: [
                 { key: 'z', ctrl: true },

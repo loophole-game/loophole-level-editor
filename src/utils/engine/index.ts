@@ -7,6 +7,7 @@ import { SceneSystem } from './systems/scene';
 import {
     PointerButton,
     PointerSystem,
+    type CameraScrollMode,
     type CursorType,
     type PointerButtonState,
     type PointerState,
@@ -84,6 +85,7 @@ export interface EngineOptions {
     cameraDrag: boolean;
     cameraDragButtons: PointerButton[];
     cameraTargetLerpSpeed: number;
+    cameraScrollMode: CameraScrollMode;
 
     images: Record<string, string | HTMLImageElement>;
 
@@ -113,6 +115,7 @@ const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
     cameraDrag: false,
     cameraDragButtons: [PointerButton.MIDDLE, PointerButton.RIGHT],
     cameraTargetLerpSpeed: 0.1,
+    cameraScrollMode: 'none',
 
     images: {},
 
@@ -184,9 +187,9 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         this.addBrowserEventHandler('mouseleave', (_, data) =>
             this.#setPointerOnScreen(false, data),
         );
-        this.addBrowserEventHandler('mousewheel', (_, { delta }) =>
-            this.#setPointerScrollDelta(delta),
-        );
+        this.addBrowserEventHandler('mousewheel', (_, data) => {
+            this.#setPointerScrollDelta(data.delta);
+        });
         this.addBrowserEventHandler('keydown', (_, data) =>
             this.#setKeyDown(data.key, true, data.ctrl, data.meta, data.shift, data.alt),
         );
@@ -393,6 +396,10 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
 
     getPointerButton(button: PointerButton): Readonly<PointerButtonState> {
         return this._pointerSystem.getPointerButton(button);
+    }
+
+    getScrollSteps(): number {
+        return this._pointerSystem.scrollSteps;
     }
 
     capturePointerButtonClick(button: PointerButton): void {

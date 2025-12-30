@@ -19,10 +19,10 @@ interface ButtonConfig {
 
 interface AxisConfig {
     type: 'axis';
-    up: Input[];
-    down: Input[];
-    left: Input[];
-    right: Input[];
+    up?: Input[];
+    down?: Input[];
+    left?: Input[];
+    right?: Input[];
 }
 
 export type InputConfig = ButtonConfig | AxisConfig;
@@ -56,14 +56,12 @@ export interface KeyboardKeyState extends ButtonState {
 
 export interface AxisState {
     value: Vector;
-    pressed: boolean;
-    released: boolean;
+    changed: boolean;
 }
 
 const DEFAULT_AXIS_STATE: AxisState = {
-    value: new Vector(0, 0),
-    pressed: false,
-    released: false,
+    value: new Vector(0),
+    changed: false,
 };
 
 export class InputSystem extends System {
@@ -160,7 +158,8 @@ export class InputSystem extends System {
             const axisState = this.#axisStates[axis];
             if (!axisState) continue;
 
-            axisState.prevState = { ...axisState.currState };
+            axisState.prevState.changed = axisState.currState.changed;
+            axisState.prevState.value.set(axisState.currState.value);
 
             // Collect all active directions for this axis
             let hasUp = false,
@@ -306,7 +305,7 @@ export class InputSystem extends System {
                     { inputs: config.right, up: false, down: false, left: false, right: true },
                 ] as const;
 
-                for (const { inputs, up, down, left, right } of directions) {
+                for (const { inputs = [], up, down, left, right } of directions) {
                     for (const input of inputs) {
                         this.#keyToAxesConfig[input.key] ??= [];
                         this.#keyToAxesConfig[input.key]!.push({
@@ -327,12 +326,14 @@ export class InputSystem extends System {
 
         // Clean up old button/axis states not in new config
         for (const button of Object.keys(this.#buttonStates)) {
-            if (!(button in inputConfigs) || inputConfigs[button]!.type !== 'button') {
+            const config = inputConfigs[button];
+            if (!config || config.type !== 'button') {
                 delete this.#buttonStates[button];
             }
         }
         for (const axis of Object.keys(this.#axisStates)) {
-            if (!(axis in inputConfigs) || inputConfigs[axis]!.type !== 'axis') {
+            const config = inputConfigs[axis];
+            if (!config || config.type !== 'axis') {
                 delete this.#axisStates[axis];
             }
         }
@@ -346,8 +347,14 @@ export class InputSystem extends System {
                 };
             } else if (config.type === 'axis' && !(name in this.#axisStates)) {
                 this.#axisStates[name] = {
-                    currState: { ...DEFAULT_AXIS_STATE },
-                    prevState: { ...DEFAULT_AXIS_STATE },
+                    currState: {
+                        changed: false,
+                        value: new Vector(0),
+                    },
+                    prevState: {
+                        changed: false,
+                        value: new Vector(0),
+                    },
                 };
             }
         }
@@ -413,9 +420,6 @@ export class InputSystem extends System {
     }
 
     #updateAxisState(currAxisState: AxisState, prevAxisState: AxisState) {
-        const currDown = currAxisState.value.length() > 0;
-        const prevDown = prevAxisState.value.length() > 0;
-        currAxisState.pressed = !prevDown && currDown;
-        currAxisState.released = prevDown && !currDown;
+        currAxisState.changed = !currAxisState.value.equals(prevAxisState.value);
     }
 }
