@@ -269,6 +269,7 @@ interface UserSettings {
     showEngineStats: boolean;
     scrollSensitivity: number;
     showGrid: boolean;
+    showKeybindings: boolean;
 }
 
 interface SettingsStore extends UserSettings {
@@ -283,6 +284,7 @@ export const useSettingsStore = create<SettingsStore>()(
                 showEngineStats: false,
                 scrollSensitivity: 1,
                 showGrid: true,
+                showKeybindings: false,
 
                 setUserSettings: (settings) => set({ ...settings }),
             };

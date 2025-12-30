@@ -3,6 +3,7 @@ import {
     Camera,
     File,
     Grid,
+    Keyboard,
     Mouse,
     Paintbrush,
     Plus,
@@ -80,6 +81,7 @@ export default function TopPanel({ className }: TopPanelProps) {
     const scrollSensitivity = useSettingsStore((state) => state.scrollSensitivity);
     const showEngineStats = useSettingsStore((state) => state.showEngineStats);
     const showGrid = useSettingsStore((state) => state.showGrid);
+    const showKeybindings = useSettingsStore((state) => state.showKeybindings);
     const setUserSettings = useSettingsStore((state) => state.setUserSettings);
 
     if (!currentLevel) return null;
@@ -277,8 +279,14 @@ export default function TopPanel({ className }: TopPanelProps) {
                         <Camera /> Reset Viewport
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => setInterfaceHidden(true)}>
-                        <AppWindow /> Hide Panels
+                        <AppWindow /> Hide UI Panels
                     </DropdownMenuItem>
+                    <DropdownMenuCheckboxItem
+                        checked={showKeybindings}
+                        onCheckedChange={(checked) => setUserSettings({ showKeybindings: checked })}
+                    >
+                        <Keyboard /> Show Keybindings
+                    </DropdownMenuCheckboxItem>
                     <DropdownMenuCheckboxItem
                         checked={showGrid}
                         onCheckedChange={(checked) => setUserSettings({ showGrid: checked })}

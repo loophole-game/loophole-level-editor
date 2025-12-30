@@ -13,6 +13,7 @@ import clsx from 'clsx';
 import { OpenInterfacePanel } from '../OpenInterfacePanel';
 import { ScrollArea } from '../ui/scroll-area';
 import { ResetViewportPanel } from './ResetViewportPanel';
+import { KeybindingsPanel } from './KeybindingsPanel';
 
 export function LevelEditorComponent() {
     const levelEditorRef = useRef<LevelEditor | null>(null);
@@ -24,6 +25,7 @@ export function LevelEditorComponent() {
     const scrollDirection = useSettingsStore((state) => state.scrollDirection);
     const scrollSensitivity = useSettingsStore((state) => state.scrollSensitivity);
     const showEngineStats = useSettingsStore((state) => state.showEngineStats);
+    const showKeybindings = useSettingsStore((state) => state.showKeybindings);
     const interfaceHidden = useAppStore((state) => state.interfaceHidden);
 
     const level = levels[activeLevelID];
@@ -98,6 +100,11 @@ export function LevelEditorComponent() {
                 <EntityInspector
                     editorRef={levelEditorRef}
                     className={clsx('w-fit shrink-0 z-10', panelClassName)}
+                />
+                <KeybindingsPanel
+                    className={clsx(panelClassName, 'transition-opacity', {
+                        'opacity-0': !showKeybindings,
+                    })}
                 />
             </div>
             <OpenInterfacePanel />
