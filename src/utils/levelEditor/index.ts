@@ -93,6 +93,73 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
             maxZoom: 0.5,
             cameraDrag: true,
             clearColor: 'transparent',
+            inputConfigs: {
+                'move-camera': {
+                    type: 'axis',
+                    up: [
+                        { type: 'key', key: 'w' },
+                        { type: 'key', key: 'ArrowUp' },
+                    ],
+                    down: [
+                        { type: 'key', key: 's' },
+                        { type: 'key', key: 'ArrowDown' },
+                    ],
+                    left: [
+                        { type: 'key', key: 'a' },
+                        { type: 'key', key: 'ArrowLeft' },
+                    ],
+                    right: [
+                        { type: 'key', key: 'd' },
+                        { type: 'key', key: 'ArrowRight' },
+                    ],
+                },
+                'zoom-in': { type: 'button', inputs: [{ type: 'key', key: '=' }] },
+                'zoom-out': { type: 'button', inputs: [{ type: 'key', key: '-' }] },
+                'rotate-brush': { type: 'button', inputs: [{ type: 'key', key: 'r' }] },
+                'flip-brush': { type: 'button', inputs: [{ type: 'key', key: 'x' }] },
+                'rotate-selection-ccw': {
+                    type: 'button',
+                    inputs: [{ type: 'key', key: 'r' }],
+                },
+                delete: {
+                    type: 'button',
+                    inputs: [
+                        { type: 'key', key: 'Backspace' },
+                        { type: 'key', key: 'Delete' },
+                    ],
+                },
+                'select-all': {
+                    type: 'button',
+                    inputs: [{ type: 'key', key: 'a', modifier: true }],
+                },
+                undo: {
+                    type: 'button',
+                    inputs: [{ type: 'key', key: 'z', modifier: true }],
+                },
+                redo: {
+                    type: 'button',
+                    inputs: [{ type: 'key', key: 'y', modifier: true }],
+                },
+                'toggle-stats': {
+                    type: 'button',
+                    inputs: [{ type: 'key', key: 'k', modifier: true }],
+                },
+                'focus-level': {
+                    type: 'button',
+                    inputs: [{ type: 'key', key: 'f', modifier: true }],
+                },
+                'clear-brush': { type: 'button', inputs: [{ type: 'key', key: 'Escape' }] },
+                'toggle-0': { type: 'button', inputs: [{ type: 'key', key: '0' }] },
+                'toggle-1': { type: 'button', inputs: [{ type: 'key', key: '1' }] },
+                'toggle-2': { type: 'button', inputs: [{ type: 'key', key: '2' }] },
+                'toggle-3': { type: 'button', inputs: [{ type: 'key', key: '3' }] },
+                'toggle-4': { type: 'button', inputs: [{ type: 'key', key: '4' }] },
+                'toggle-5': { type: 'button', inputs: [{ type: 'key', key: '5' }] },
+                'toggle-6': { type: 'button', inputs: [{ type: 'key', key: '6' }] },
+                'toggle-7': { type: 'button', inputs: [{ type: 'key', key: '7' }] },
+                'toggle-8': { type: 'button', inputs: [{ type: 'key', key: '8' }] },
+                'toggle-9': { type: 'button', inputs: [{ type: 'key', key: '9' }] },
+            },
             keysToCapture: [
                 { key: 'z', ctrl: true },
                 { key: 'z', meta: true },
@@ -225,10 +292,10 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
             setCameraTarget(null);
         }
 
-        if (this.getKey('-').pressed) {
+        if (this.getButton('zoom-out').pressed) {
             this.zoomCamera(-0.4 / this.options.zoomSpeed);
         }
-        if (this.getKey('=').pressed) {
+        if (this.getButton('zoom-in').pressed) {
             this.zoomCamera(0.4 / this.options.zoomSpeed);
         }
 
@@ -249,7 +316,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         }
 
         const { showEngineStats, setUserSettings } = getSettingsStore();
-        if (this.getKey('k').pressed && this.getKey('k').meta) {
+        if (this.getButton('toggle-stats').pressed) {
             setUserSettings({ showEngineStats: !showEngineStats });
         }
 

@@ -12,13 +12,19 @@ import {
     type PointerState,
 } from './systems/pointer';
 import { ImageSystem, type LoadedImage } from './systems/image';
-import { KeyboardSystem, type KeyboardKeyState } from './systems/keyboard';
 import type { System } from './systems';
 import { DEFAULT_CAMERA_OPTIONS } from './utils';
 import { CameraSystem } from './systems/camera';
 import { type IVector } from './math';
 import { StatsSystem, type Stats } from './systems/stats';
 import { DebugOverlayScene } from './scenes/DebugOverlay';
+import {
+    InputSystem,
+    type AxisState,
+    type ButtonState,
+    type InputConfig,
+    type KeyboardKeyState,
+} from './systems/input';
 
 const DEBUG_OVERLAY_SCENE_NAME = '__ENGINE_DEBUG_SCENE__';
 const DEBUG_OVERLAY_SCENE_Z_INDEX = 100;
@@ -81,6 +87,7 @@ export interface EngineOptions {
 
     images: Record<string, string | HTMLImageElement>;
 
+    inputConfigs: Record<string, InputConfig>;
     keysToCapture: KeyCapture[];
 
     asyncImageLoading: boolean;
@@ -109,6 +116,7 @@ const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
 
     images: {},
 
+    inputConfigs: {},
     keysToCapture: [],
 
     asyncImageLoading: true,
@@ -129,7 +137,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
 
     protected _renderSystem: RenderSystem;
     protected _sceneSystem: SceneSystem;
-    protected _keyboardSystem: KeyboardSystem;
+    protected _inputSystem: InputSystem;
     protected _pointerSystem: PointerSystem;
     protected _imageSystem: ImageSystem;
     protected _cameraSystem: CameraSystem;
@@ -151,7 +159,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         this._rootEntity = new Entity({ name: 'root', engine: this });
 
         // Order of system creation is important
-        this._keyboardSystem = new KeyboardSystem(this);
+        this._inputSystem = new InputSystem(this);
         this._pointerSystem = new PointerSystem(this);
         this._sceneSystem = new SceneSystem(this, this._rootEntity);
         this._imageSystem = new ImageSystem(this);
@@ -366,11 +374,19 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
     }
 
     getKey(keyCode: WebKey): Readonly<KeyboardKeyState> {
-        return this._keyboardSystem.getKey(keyCode);
+        return this._inputSystem.getKey(keyCode);
+    }
+
+    getButton(button: string): Readonly<ButtonState> {
+        return this._inputSystem.getButton(button);
+    }
+
+    getAxis(axis: string): Readonly<AxisState> {
+        return this._inputSystem.getAxis(axis);
     }
 
     resetAllKeyboardKeys(): void {
-        this._keyboardSystem.releaseAllKeys();
+        this._inputSystem.releaseAllKeys();
     }
 
     getPointerButton(button: PointerButton): Readonly<PointerButtonState> {
@@ -590,7 +606,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         shift: boolean,
         alt: boolean,
     ): boolean {
-        return this._keyboardSystem.keyStateChange(key, down, ctrl, meta, shift, alt);
+        return this._inputSystem.keyStateChange(key, down, ctrl, meta, shift, alt);
     }
 
     #setPointerPosition(position: IVector<number>): void {
@@ -620,6 +636,10 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
             this._imageSystem.loadImage(name, src);
         }
         this._options.images = {};
+
+        if (newOptions.inputConfigs) {
+            this._inputSystem.setInputConfigs(newOptions.inputConfigs);
+        }
 
         if (this._options.debugOverlayEnabled !== Boolean(this.#debugOverlayScene)) {
             if (this._options.debugOverlayEnabled) {

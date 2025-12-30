@@ -1,7 +1,8 @@
 import { System } from '.';
 import { C_PointerTarget } from '../components/PointerTarget';
 import { Vector, type IVector, type VectorConstructor } from '../math';
-import type { BoundingBox, ButtonState } from '../types';
+import type { BoundingBox } from '../types';
+import type { ButtonState } from './input';
 
 const MAX_DISTANCE_DURING_CLICK = 10;
 const DRAG_CURSOR_PRIORITY = 100;
@@ -66,6 +67,7 @@ export class PointerSystem extends System {
             released: false,
             clicked: false,
             downTime: 0,
+            numHeldPresses: 0,
         },
         [PointerButton.MIDDLE]: {
             down: false,
@@ -74,6 +76,7 @@ export class PointerSystem extends System {
             released: false,
             clicked: false,
             downTime: 0,
+            numHeldPresses: 0,
         },
         [PointerButton.RIGHT]: {
             down: false,
@@ -82,6 +85,7 @@ export class PointerSystem extends System {
             released: false,
             clicked: false,
             downTime: 0,
+            numHeldPresses: 0,
         },
     };
     #lastPointerState: PointerState = {

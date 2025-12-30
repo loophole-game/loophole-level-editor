@@ -10,14 +10,6 @@ export interface BoundingBox {
 
 export type RecursiveArray<T> = Array<RecursiveArray<T> | T>;
 
-export interface ButtonState {
-    down: boolean;
-    downAsNum: number;
-    pressed: boolean;
-    released: boolean;
-    downTime: number;
-}
-
 export interface CameraData {
     zoom: number;
     rotation: number;

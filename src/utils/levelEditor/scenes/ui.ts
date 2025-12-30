@@ -34,7 +34,6 @@ import { C_PointerTarget } from '@/utils/engine/components/PointerTarget';
 import { v4 } from 'uuid';
 import { E_EntityVisual } from '../entityVisual';
 import type { C_Drawable } from '@/utils/engine/components';
-import type { WebKey } from '@/utils/engine/types';
 
 const multiSelectIsActive = (editor: LevelEditor) => editor.getKey('Shift').down;
 const cameraDragIsActive = (editor: LevelEditor) =>
@@ -169,7 +168,7 @@ class E_TileCursor extends Entity<LevelEditor> {
 
             let _brushEntityRotation = brushEntityRotation;
             let _brushEntityFlipDirection = brushEntityFlipDirection;
-            if (this._engine.getKey('r').pressed) {
+            if (this._engine.getButton('rotate-brush').pressed) {
                 if (hasRotation) {
                     _brushEntityRotation = degreesToLoopholeRotation(
                         loopholeRotationToDegrees(brushEntityRotation) - 90,
@@ -828,7 +827,7 @@ class E_DragCursor extends Entity<LevelEditor> {
                     setIsMovingTiles(false);
                 }
 
-                if (this._engine.getKey('Escape').pressed) {
+                if (this._engine.getButton('clear-brush').pressed) {
                     this.#cancelDrag(selectedTileArray);
                     this.#isDragging = false;
                     this.#dragStartPosition = null;
@@ -837,7 +836,7 @@ class E_DragCursor extends Entity<LevelEditor> {
             }
 
             if (!this.#isDragging && selectedTileArray.length > 0) {
-                if (this._engine.getKey('r').pressed) {
+                if (this._engine.getButton('rotate-selection-ccw').pressed) {
                     const center = calculateSelectionCenter(selectedTileArray);
                     const entities = selectedTileArray.map((t) => t.entity);
                     const newTiles = this._engine.rotateEntities(
@@ -850,7 +849,7 @@ class E_DragCursor extends Entity<LevelEditor> {
                     );
                     setSelectedTiles(newTiles);
                     newTiles.forEach((t) => t.syncVisualState());
-                } else if (this._engine.getKey('x').pressed) {
+                } else if (this._engine.getButton('flip-brush').pressed) {
                     const oneWayEntities = selectedTileArray
                         .map((t) => t.entity)
                         .filter((e) => e.entityType === 'ONE_WAY');
@@ -999,7 +998,7 @@ export class UIScene extends Scene {
         const { brushEntityType, setBrushEntityType, selectedTiles, setSelectedTiles } =
             getAppStore();
 
-        if (this.#editor.getKey('Escape').pressed) {
+        if (this.#editor.getButton('clear-brush').pressed) {
             if (brushEntityType) {
                 setBrushEntityType(null);
                 updated = true;
@@ -1028,7 +1027,7 @@ export class UIScene extends Scene {
         } = getAppStore();
         let updated = false;
 
-        if (this.#editor.getKey('a').pressed && this.#editor.getKey('a').mod) {
+        if (this.#editor.getButton('select-all').pressed) {
             setSelectedTiles(
                 Object.values(this.#editor.tiles).filter(
                     (t) => t.entity.entityType !== 'EXPLOSION',
@@ -1036,18 +1035,7 @@ export class UIScene extends Scene {
             );
         }
 
-        const cameraOffset = {
-            x:
-                (this.#editor.getKey('ArrowRight').downWithoutModAsNum ||
-                    this.#editor.getKey('d').downWithoutModAsNum) -
-                (this.#editor.getKey('ArrowLeft').downWithoutModAsNum ||
-                    this.#editor.getKey('a').downWithoutModAsNum),
-            y:
-                (this.#editor.getKey('ArrowDown').downWithoutModAsNum ||
-                    this.#editor.getKey('s').downWithoutModAsNum) -
-                (this.#editor.getKey('ArrowUp').downWithoutModAsNum ||
-                    this.#editor.getKey('w').downWithoutModAsNum),
-        };
+        const cameraOffset = this.#editor.getAxis('move-camera').value;
         if (cameraOffset.x !== 0 || cameraOffset.y !== 0) {
             const camera = this.#editor.camera;
             const offsetMagnitude = 500;
@@ -1058,24 +1046,23 @@ export class UIScene extends Scene {
             updated = true;
         }
 
-        if (this.#editor.getKey('Backspace').pressed || this.#editor.getKey('Delete').pressed) {
+        if (this.#editor.getButton('delete').pressed) {
             this.#editor.removeLoopholeEntities(Object.values(selectedTiles).map((t) => t.entity));
             updated = true;
         }
 
-        const zKeyState = this.#editor.getKey('z');
-        const yKeyState = this.#editor.getKey('y');
-        if (zKeyState.pressed && zKeyState.mod) {
+        if (this.#editor.getButton('undo').pressed) {
             this.#editor.undo();
             updated = true;
-        } else if (yKeyState.pressed && yKeyState.mod) {
+        } else if (this.#editor.getButton('redo').pressed) {
             this.#editor.redo();
             updated = true;
         }
 
         const keys = Object.keys(ENTITY_METADATA) as Loophole_ExtendedEntityType[];
-        for (let i = 0; i < Object.keys(ENTITY_METADATA).length; i++) {
-            if (this.#editor.getKey((i === 9 ? 0 : i + 1).toString() as WebKey).pressed) {
+        for (let i = 0; i < Object.keys(ENTITY_METADATA).length && i < 10; i++) {
+            const buttonName = `toggle-${i === 9 ? 0 : i + 1}` as string;
+            if (this.#editor.getButton(buttonName).pressed) {
                 const newBrushEntityType = brushEntityType === keys[i] ? null : keys[i];
                 setBrushEntityType(newBrushEntityType);
                 updated = true;
@@ -1083,7 +1070,7 @@ export class UIScene extends Scene {
             }
         }
 
-        if (this.#editor.getKey('f').pressed && this.#editor.getKey('f').mod) {
+        if (this.#editor.getButton('focus-level').pressed) {
             centerCameraOnLevel();
         }
 
