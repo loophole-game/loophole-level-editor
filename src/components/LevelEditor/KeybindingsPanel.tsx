@@ -11,7 +11,7 @@ import { type ComponentType } from 'react';
 interface Keybinding {
     action: string;
     keys: string[];
-    separators?: ('or' | 'and')[];
+    separator?: 'or' | 'and';
 }
 
 interface Heading {
@@ -22,14 +22,14 @@ interface Heading {
 const META = isMac ? '⌘' : 'Ctrl';
 const KEYBINDINGS: (Keybinding | Heading)[] = [
     { Icon: Camera, heading: 'Camera' },
-    { action: 'Move Camera', keys: ['W/A/S/D', 'Arrow Keys'], separators: ['or'] },
+    { action: 'Move Camera', keys: ['W/A/S/D', 'Arrow Keys'], separator: 'or' },
     { action: 'Zoom', keys: ['+', '-'] },
     { action: 'Reset Viewport', keys: [`${META} + F`] },
     { action: 'Pan Camera', keys: ['Click + Drag'] },
 
     { Icon: Brush, heading: 'Tile Brush' },
-    { action: 'Rotate Brush', keys: ['Q/E', 'R'], separators: ['or'] },
-    { action: 'Cycle Brush', keys: ['[', ']', `${META} + Scroll`], separators: ['and', 'or'] },
+    { action: 'Rotate Brush', keys: ['Q/E/R'], separator: 'or' },
+    { action: 'Cycle Brush', keys: ['[/]', `${META} + Scroll`], separator: 'or' },
     { action: 'Brush Hotkeys', keys: ['0-9'] },
     { action: 'Clear Brush', keys: ['Esc'] },
 
@@ -39,12 +39,12 @@ const KEYBINDINGS: (Keybinding | Heading)[] = [
     { action: 'Select All', keys: [`${META} + A`] },
 
     { Icon: PencilRuler, heading: 'Editing' },
-    { action: 'Delete', keys: ['Delete', 'Backspace'], separators: ['or'] },
-    { action: 'Undo and Redo', keys: [`${META} + Z`, `${META} + Y`], separators: ['and'] },
+    { action: 'Delete', keys: ['Delete', 'Backspace'], separator: 'or' },
+    { action: 'Undo and Redo', keys: [`${META} + Z`, `${META} + Y`], separator: 'and' },
 
     { Icon: PanelRight, heading: 'Interface' },
     { action: 'Toggle UI Panels', keys: [`${META} + /`] },
-    { action: 'Toggle Stats', keys: [`${META} + K`] },
+    { action: 'Toggle Debug Stats', keys: [`${META} + K`] },
 ];
 
 interface KeybindingsPanelProps {
@@ -85,7 +85,7 @@ export function KeybindingsPanel({ className }: KeybindingsPanelProps) {
                         );
                     }
 
-                    const { action, keys, separators = [] } = binding;
+                    const { action, keys, separator = 'or' } = binding;
 
                     return (
                         <div
@@ -102,7 +102,7 @@ export function KeybindingsPanel({ className }: KeybindingsPanelProps) {
                                                 key={`or-${keyIdx}`}
                                                 className="text-xs text-muted"
                                             >
-                                                {separators[keyIdx - 1] || 'or'}
+                                                {separator}
                                             </span>,
                                         );
                                     }

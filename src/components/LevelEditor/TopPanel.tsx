@@ -261,7 +261,6 @@ export default function TopPanel({ className }: TopPanelProps) {
                             </DropdownMenuSubContent>
                         </DropdownMenuPortal>
                     </DropdownMenuSub>
-                    <DropdownMenuSeparator />
                     <DropdownMenuItem
                         onClick={() => {
                             resetLevel(currentLevel.id);
@@ -274,34 +273,10 @@ export default function TopPanel({ className }: TopPanelProps) {
                         <Trash2 className="text-destructive" /> Delete Current Level
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    <DropdownMenuLabel>Editor Settings</DropdownMenuLabel>
+                    <DropdownMenuLabel>Viewport Settings</DropdownMenuLabel>
                     <DropdownMenuItem onClick={() => centerCameraOnLevel()}>
                         <Camera /> Reset Viewport
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setInterfaceHidden(true)}>
-                        <AppWindow /> Hide UI Panels
-                    </DropdownMenuItem>
-                    <DropdownMenuCheckboxItem
-                        checked={showKeybindings}
-                        onCheckedChange={(checked) => setUserSettings({ showKeybindings: checked })}
-                    >
-                        <Keyboard /> Show Keybindings
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                        checked={showGrid}
-                        onCheckedChange={(checked) => setUserSettings({ showGrid: checked })}
-                    >
-                        <Grid /> Show Grid
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                        checked={scrollDirection === -1}
-                        onCheckedChange={(checked) =>
-                            setUserSettings({ scrollDirection: checked ? -1 : 1 })
-                        }
-                    >
-                        <Mouse />
-                        Invert Scroll Direction
-                    </DropdownMenuCheckboxItem>
                     <div className="px-2 py-2">
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-medium">Scroll Sensitivity</span>
@@ -321,10 +296,36 @@ export default function TopPanel({ className }: TopPanelProps) {
                         />
                     </div>
                     <DropdownMenuCheckboxItem
+                        checked={scrollDirection === -1}
+                        onCheckedChange={(checked) =>
+                            setUserSettings({ scrollDirection: checked ? -1 : 1 })
+                        }
+                    >
+                        <Mouse />
+                        Invert Scroll Direction
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel>Editor Settings</DropdownMenuLabel>
+                    <DropdownMenuCheckboxItem checked onClick={() => setInterfaceHidden(true)}>
+                        <AppWindow /> UI Panels
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                        checked={showKeybindings}
+                        onCheckedChange={(checked) => setUserSettings({ showKeybindings: checked })}
+                    >
+                        <Keyboard /> Keybindings
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
+                        checked={showGrid}
+                        onCheckedChange={(checked) => setUserSettings({ showGrid: checked })}
+                    >
+                        <Grid /> Grid
+                    </DropdownMenuCheckboxItem>
+                    <DropdownMenuCheckboxItem
                         checked={showEngineStats}
                         onCheckedChange={(checked) => setUserSettings({ showEngineStats: checked })}
                     >
-                        <Wrench /> Engine Stats
+                        <Wrench /> Debug Stats
                     </DropdownMenuCheckboxItem>
                 </DropdownMenuContent>
             </DropdownMenu>
