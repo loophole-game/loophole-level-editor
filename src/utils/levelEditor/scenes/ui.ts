@@ -169,15 +169,20 @@ class E_TileCursor extends Entity<LevelEditor> {
 
             let _brushEntityRotation = brushEntityRotation;
             let _brushEntityFlipDirection = brushEntityFlipDirection;
-            if (this._engine.getButton('rotate-brush').pressed) {
-                if (hasRotation) {
-                    _brushEntityRotation = degreesToLoopholeRotation(
-                        loopholeRotationToDegrees(brushEntityRotation) - 90,
-                    );
-                    setBrushEntityRotation(_brushEntityRotation);
-                } else if (hasFlipDirection) {
+            const rotateAxis = this._engine.getAxis('rotate');
+            if (rotateAxis.changed && (rotateAxis.value.x !== 0 || rotateAxis.value.y !== 0)) {
+                // Flip entities with flipDirection regardless of rotation direction
+                if (hasFlipDirection) {
                     _brushEntityFlipDirection = !brushEntityFlipDirection;
                     setBrushEntityFlipDirection(_brushEntityFlipDirection);
+                }
+                // Rotate entities with rotation (CW for right, CCW for left)
+                if (hasRotation) {
+                    const rotationDelta = rotateAxis.value.x > 0 ? -90 : 90;
+                    _brushEntityRotation = degreesToLoopholeRotation(
+                        loopholeRotationToDegrees(brushEntityRotation) - rotationDelta,
+                    );
+                    setBrushEntityRotation(_brushEntityRotation);
                 }
             }
 
@@ -837,29 +842,35 @@ class E_DragCursor extends Entity<LevelEditor> {
             }
 
             if (!this.#isDragging && selectedTileArray.length > 0) {
-                if (this._engine.getButton('rotate-selection-ccw').pressed) {
+                const rotateAxis = this._engine.getAxis('rotate');
+                if (rotateAxis.changed && (rotateAxis.value.x !== 0 || rotateAxis.value.y !== 0)) {
                     const center = calculateSelectionCenter(selectedTileArray);
                     const entities = selectedTileArray.map((t) => t.entity);
+
+                    // Rotate entities (CW for right/positive, CCW for left/negative)
+                    const rotationDelta = rotateAxis.value.x > 0 ? 90 : -90;
                     const newTiles = this._engine.rotateEntities(
                         entities,
                         {
                             x: center.x / TILE_SIZE,
                             y: -center.y / TILE_SIZE,
                         },
-                        this._engine.getKey('Shift').down ? -90 : 90,
+                        rotationDelta,
                     );
+
+                    // Also flip entities with flipDirection (like ONE_WAY)
+                    const oneWayEntities = entities.filter((e) => e.entityType === 'ONE_WAY');
+                    if (oneWayEntities.length > 0) {
+                        this._engine.updateEntities(
+                            oneWayEntities,
+                            oneWayEntities.map((e) => ({
+                                flipDirection: !e.flipDirection,
+                            })),
+                        );
+                    }
+
                     setSelectedTiles(newTiles);
                     newTiles.forEach((t) => t.syncVisualState());
-                } else if (this._engine.getButton('flip-brush').pressed) {
-                    const oneWayEntities = selectedTileArray
-                        .map((t) => t.entity)
-                        .filter((e) => e.entityType === 'ONE_WAY');
-                    this._engine.updateEntities(
-                        oneWayEntities,
-                        oneWayEntities.map((e) => ({
-                            flipDirection: !e.flipDirection,
-                        })),
-                    );
                 }
             }
         }

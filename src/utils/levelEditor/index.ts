@@ -116,11 +116,13 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
                 },
                 'zoom-in': { type: 'button', inputs: [{ type: 'key', key: '=' }] },
                 'zoom-out': { type: 'button', inputs: [{ type: 'key', key: '-' }] },
-                'rotate-brush': { type: 'button', inputs: [{ type: 'key', key: 'r' }] },
-                'flip-brush': { type: 'button', inputs: [{ type: 'key', key: 'x' }] },
-                'rotate-selection-ccw': {
-                    type: 'button',
-                    inputs: [{ type: 'key', key: 'r' }],
+                rotate: {
+                    type: 'axis',
+                    left: [{ type: 'key', key: 'q' }],
+                    right: [
+                        { type: 'key', key: 'e' },
+                        { type: 'key', key: 'r' },
+                    ],
                 },
                 delete: {
                     type: 'button',

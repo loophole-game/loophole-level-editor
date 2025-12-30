@@ -28,8 +28,7 @@ const KEYBINDINGS: (Keybinding | Heading)[] = [
     { action: 'Pan Camera', keys: ['Click + Drag'] },
 
     { Icon: Brush, heading: 'Tile Brush' },
-    { action: 'Rotate Brush', keys: ['R'] },
-    { action: 'Flip Brush', keys: ['X'] },
+    { action: 'Rotate Brush', keys: ['Q/E', 'R'], separators: ['or'] },
     { action: 'Cycle Brush', keys: ['[', ']', `${META} + Scroll`], separators: ['and', 'or'] },
     { action: 'Brush Hotkeys', keys: ['0-9'] },
     { action: 'Clear Brush', keys: ['Esc'] },
