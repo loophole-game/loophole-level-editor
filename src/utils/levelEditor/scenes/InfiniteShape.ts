@@ -26,7 +26,7 @@ export class E_InfiniteShape<TEngine extends Engine = Engine> extends Entity<TEn
         super({ name, ...rest });
 
         this.#shape = this.addComponents(C_Shape<TEngine>, options.shapeOptions);
-        if (this.#shape.gap === null) {
+        if (!options.shapeOptions.gap) {
             // set gap to tile size
             this.#shape.gap = new Vector(options.tileSize).div(this.scale);
         }
