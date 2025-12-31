@@ -30,10 +30,14 @@ export default function TilePicker({ className }: TilePickerProps) {
                                             !lockedLayers[entityType as Loophole_ExtendedEntityType]
                                         }
                                         className={cn(
-                                            'relative size-16 aspect-square pixelated-image border-2 border-transparent p-1 rounded-lg transition-all cursor-grab active:cursor-grabbing',
+                                            'relative size-16 aspect-square pixelated-image border-2 p-1 rounded-lg transition-all cursor-grab active:cursor-grabbing',
                                             'disabled:opacity-50 disabled:cursor-not-allowed',
+                                            'focus:outline-none focus-visible:outline-none',
                                             {
-                                                'border-background': brushEntityType === entityType,
+                                                'border-transparent!':
+                                                    brushEntityType !== entityType,
+                                                'border-background!':
+                                                    brushEntityType === entityType,
                                             },
                                         )}
                                         onClick={() =>
