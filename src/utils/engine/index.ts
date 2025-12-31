@@ -553,7 +553,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         let systemLateUpdated = false;
 
         this.trace('Update', () => {
-            this.#forceRender = this.options.alwaysRender;
+            this.#forceRender ||= this.options.alwaysRender;
 
             for (const system of this._systems) {
                 this.trace(`${system.constructor.name}.early`, () => {

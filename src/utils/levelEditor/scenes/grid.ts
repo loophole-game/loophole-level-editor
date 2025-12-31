@@ -242,16 +242,14 @@ export class E_Tile extends Entity<LevelEditor> {
         this.setScale(tileScaleOverride * TILE_SIZE);
 
         const targetRotation = getLoopholeEntityDegreeRotation(this.#entity);
-        this.#rotationLerp.target = targetRotation;
 
         const newPosition = enginePosition.mul(TILE_SIZE);
         this.#positionLerp.target = newPosition;
+        this.#rotationLerp.target = targetRotation;
         if (!this.#initialized) {
             this.setPosition(newPosition);
             this.setRotation(targetRotation);
             this.#initialized = true;
-        } else if (this.#type === 'EXPLOSION') {
-            this.setRotation(targetRotation);
         }
 
         const pointerScale =

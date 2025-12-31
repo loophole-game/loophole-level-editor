@@ -71,7 +71,7 @@ export function LevelEditorComponent() {
     }, [activeLevelID, levelHash, level, updateLevel, showEngineStats]);
 
     const panelClassName = clsx({
-        'pointer-events-auto': !interfaceHidden,
+        'pointer-events-auto': !interfaceHidden && !isDraggingCamera,
     });
 
     return (

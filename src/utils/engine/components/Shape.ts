@@ -105,6 +105,7 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
         } else {
             this.#start.set(start);
         }
+
         return this;
     }
 
@@ -114,6 +115,7 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
         } else {
             this.#end.set(end);
         }
+
         return this;
     }
 
