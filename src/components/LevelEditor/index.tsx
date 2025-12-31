@@ -27,6 +27,7 @@ export function LevelEditorComponent() {
     const showEngineStats = useSettingsStore((state) => state.showEngineStats);
     const showKeybindings = useSettingsStore((state) => state.showKeybindings);
     const interfaceHidden = useAppStore((state) => state.interfaceHidden);
+    const isDraggingCamera = useAppStore((state) => state.isDraggingCamera);
 
     const level = levels[activeLevelID];
     const levelHash = levelHashes[activeLevelID];
@@ -84,40 +85,50 @@ export function LevelEditorComponent() {
             </div>
             <div
                 className={clsx(
-                    'h-full flex flex-col p-4 gap-4 z-10 pointer-events-none transition-all',
+                    'transition-opacity h-screen w-screen flex flex-col overflow-hidden',
                     {
-                        'scale-125 opacity-0': interfaceHidden,
+                        'opacity-100': !isDraggingCamera,
+                        'ui-faded-out': isDraggingCamera,
                     },
                 )}
             >
-                <TopPanel className={panelClassName} />
-                <div className="flex-1 flex flex-col gap-4 max-w-54 min-h-0">
-                    <TilePicker className={panelClassName} />
-                    <ScrollArea className="flex-1 min-h-0">
-                        <LayerButtons groupClassName={panelClassName} />
-                    </ScrollArea>
+                <div
+                    className={clsx(
+                        'h-full flex flex-col p-4 gap-4 z-10 pointer-events-none transition-all',
+                        {
+                            'scale-125 opacity-0': interfaceHidden,
+                        },
+                    )}
+                >
+                    <TopPanel className={panelClassName} />
+                    <div className="flex-1 flex flex-col gap-4 max-w-54 min-h-0">
+                        <TilePicker className={panelClassName} />
+                        <ScrollArea className="flex-1 min-h-0">
+                            <LayerButtons groupClassName={panelClassName} />
+                        </ScrollArea>
+                    </div>
+                    <EntityInspector
+                        editorRef={levelEditorRef}
+                        className={clsx('w-fit shrink-0 z-10', panelClassName)}
+                    />
+                    <KeybindingsPanel
+                        className={clsx(panelClassName, 'transition-opacity', {
+                            'opacity-0 pointer-events-none!': !showKeybindings,
+                        })}
+                    />
                 </div>
-                <EntityInspector
-                    editorRef={levelEditorRef}
-                    className={clsx('w-fit shrink-0 z-10', panelClassName)}
-                />
-                <KeybindingsPanel
-                    className={clsx(panelClassName, 'transition-opacity', {
-                        'opacity-0': !showKeybindings,
-                    })}
-                />
-            </div>
-            <OpenInterfacePanel />
-            <ResetViewportPanel />
-            <div
-                className={clsx(
-                    'pointer-events-none fixed bottom-0 right-0 text-right transition-opacity p-2 bg-linear-to-br from-black/5 to-black/70 rounded-tl-lg',
-                    {
-                        'opacity-0': !showEngineStats,
-                    },
-                )}
-            >
-                <FPSCounter editorRef={levelEditorRef} />
+                <OpenInterfacePanel />
+                <ResetViewportPanel />
+                <div
+                    className={clsx(
+                        'pointer-events-none fixed bottom-0 right-0 text-right transition-opacity p-2 bg-linear-to-br from-black/5 to-black/70 rounded-tl-lg',
+                        {
+                            'opacity-0': !showEngineStats,
+                        },
+                    )}
+                >
+                    <FPSCounter editorRef={levelEditorRef} />
+                </div>
             </div>
         </div>
     );

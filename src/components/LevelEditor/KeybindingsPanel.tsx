@@ -29,7 +29,7 @@ const KEYBINDINGS: (Keybinding | Heading)[] = [
 
     { Icon: Brush, heading: 'Tile Brush' },
     { action: 'Rotate Brush', keys: ['Q/E/R'], separator: 'or' },
-    { action: 'Cycle Brush', keys: ['[/]', `${META} + Scroll`], separator: 'or' },
+    { action: 'Cycle Brush', keys: ['[ / ]', `${META} + Scroll`], separator: 'or' },
     { action: 'Brush Hotkeys', keys: ['0-9'] },
     { action: 'Clear Brush', keys: ['Esc'] },
 

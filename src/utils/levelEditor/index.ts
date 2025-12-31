@@ -277,6 +277,10 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         return this.#levelBoundingBox;
     }
 
+    get isCameraDragging(): boolean {
+        return this.pointerSystem.isCameraDragging;
+    }
+
     addColorPaletteChangedListener(id: string, listener: (palette: Loophole_ColorPalette) => void) {
         this.#colorPaletteChangedListeners.set(id, listener);
         if (this.#colorPalette) {
@@ -296,11 +300,14 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
             activeLevelID,
             levelInViewport,
             setLevelInViewport,
+            setIsDraggingCamera,
         } = getAppStore();
         if (cameraTarget) {
             this.cameraTarget = cameraTarget;
             setCameraTarget(null);
         }
+
+        setIsDraggingCamera(this.isCameraDragging);
 
         if (this.getButton('zoom-out').pressed) {
             this.zoomCamera(-0.4 / this.options.zoomSpeed);

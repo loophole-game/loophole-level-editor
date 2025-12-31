@@ -5,6 +5,7 @@ export function Panel({ className, ...rest }: HTMLAttributes<HTMLDivElement>) {
     return (
         <div
             className={cn(
+                'ui-panel',
                 'bg-primary shadow-lg rounded-md p-2 gap-2 text-primary-foreground transition-colors',
                 className,
             )}

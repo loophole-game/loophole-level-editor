@@ -281,3 +281,11 @@ h5,
 h6 {
     @apply transition-colors;
 }
+
+.ui-faded-out {
+    @apply opacity-50 pointer-events-none;
+}
+
+.ui-faded-out .ui-panel {
+    @apply pointer-events-none;
+}

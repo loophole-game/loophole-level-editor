@@ -62,6 +62,9 @@ interface AppStore {
 
     interfaceHidden: boolean;
     setInterfaceHidden: (hidden: boolean) => void;
+
+    isDraggingCamera: boolean;
+    setIsDraggingCamera: (isDragging: boolean) => void;
 }
 
 export const useAppStore = create<AppStore>()(
@@ -234,6 +237,9 @@ export const useAppStore = create<AppStore>()(
 
                 interfaceHidden: false,
                 setInterfaceHidden: (hidden) => set({ interfaceHidden: hidden }),
+
+                isDraggingCamera: false,
+                setIsDraggingCamera: (isDragging) => set({ isDraggingCamera: isDragging }),
             };
         },
         {

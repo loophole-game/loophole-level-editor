@@ -151,6 +151,10 @@ export class PointerSystem extends System {
         return this.#checkForOverlap;
     }
 
+    get isCameraDragging(): boolean {
+        return this.#dragStartMousePosition !== null;
+    }
+
     get currentCursor(): CursorType {
         return this.#currentCursor;
     }
