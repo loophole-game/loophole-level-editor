@@ -1,5 +1,5 @@
 import type { Component, ComponentOptions } from '../components';
-import type { Camera, Renderable } from '../types';
+import type { BoundingBox, Camera, Renderable } from '../types';
 import { Vector, type IVector } from '../math';
 import { C_Transform } from '../components/transforms';
 import { boundingBoxesIntersect, zoomToScale } from '../utils';
@@ -18,7 +18,7 @@ export interface EntityOptions<TEngine extends Engine = Engine> {
     name?: string;
     enabled?: boolean;
     zIndex?: number;
-    cullMode?: CullMode;
+    cull?: CullMode;
     position?: number | IVector<number> | Vector;
     scale?: number | IVector<number> | Vector;
     rotation?: number;
@@ -38,16 +38,17 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
     protected _enabled: boolean;
     protected _zIndex: number;
 
+    protected _transform: C_Transform<TEngine>;
+    protected _scaleToCamera: ScaleToCamera;
+    protected _cull: CullMode;
+
     protected _updated: boolean = false;
     protected _parent: Entity<TEngine> | null = null;
-    protected _transform: C_Transform<TEngine>;
-    protected _scaleToCamera: ScaleToCamera = { x: false, y: false };
-    protected _cullMode: CullMode = 'none';
 
-    protected _children: Entity<TEngine>[] = [];
+    protected _children: Entity<TEngine>[];
     #childrenZIndexDirty: boolean = false;
 
-    protected _components: Component<TEngine>[] = [];
+    protected _components: Component<TEngine>[];
     #componentsZIndexDirty: boolean = false;
 
     protected _cachedComponentsInTree: Record<string, Component<TEngine>[]> = {};
@@ -63,7 +64,7 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
                 ? { x: rest.scaleToCamera, y: rest.scaleToCamera }
                 : rest.scaleToCamera
             : { x: false, y: false };
-        this._cullMode = rest?.cullMode ?? 'none';
+        this._cull = rest?.cull ?? 'all';
         this._components = rest?.components ?? [];
         this._children = rest?.children ?? [];
 
@@ -125,8 +126,8 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         return this._zIndex;
     }
 
-    get cullMode(): CullMode {
-        return this._cullMode;
+    get cull(): CullMode {
+        return this._cull;
     }
 
     set componentsZIndexDirty(dirty: boolean) {
@@ -344,8 +345,8 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         return this;
     }
 
-    setCullMode(cullMode: CullMode): this {
-        this._cullMode = cullMode;
+    setCull(cull: CullMode): this {
+        this._cull = cull;
         return this;
     }
 
@@ -378,12 +379,13 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
             );
         }
 
-        const culled = this._cullMode !== 'none' && this.isCulled(camera);
-        const cullChildren = culled && this._cullMode !== 'components';
-        const cullComponents = culled && this._cullMode !== 'children';
-        if (culled && this._cullMode === 'all') {
+        const culled = this._cull !== 'none' && this.isCulled(camera.cullBoundingBox);
+        if (culled && this._cull === 'all') {
             return;
         }
+
+        const cullChildren = culled && this._cull === 'children';
+        const cullComponents = culled && this._cull === 'components';
 
         if (this.#childrenZIndexDirty && !cullChildren) {
             this.#sortChildren();
@@ -426,8 +428,8 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         stream.popTransform();
     }
 
-    isCulled(camera: Camera): boolean {
-        return !boundingBoxesIntersect(this.transform.boundingBox, camera.boundingBox);
+    isCulled(cameraBoundingBox: BoundingBox): boolean {
+        return !boundingBoxesIntersect(this.transform.boundingBox, cameraBoundingBox);
     }
 
     #destroy(): void {

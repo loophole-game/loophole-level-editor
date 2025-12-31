@@ -23,11 +23,10 @@ export class E_InfiniteShape<TEngine extends Engine = Engine> extends Entity<TEn
 
     constructor(options: E_InfiniteShapeOptions<TEngine>) {
         const { name = 'infinite_shape', ...rest } = options;
-        super({ name, ...rest });
+        super({ name, cull: 'none', ...rest });
 
         this.#shape = this.addComponents(C_Shape<TEngine>, options.shapeOptions);
         if (!options.shapeOptions.gap) {
-            // set gap to tile size
             this.#shape.gap = new Vector(options.tileSize).div(this.scale);
         }
         this.#tileSize = new Vector(options.tileSize);

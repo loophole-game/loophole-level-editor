@@ -17,6 +17,7 @@ export interface CameraData {
 }
 export interface CameraMetadata {
     boundingBox: BoundingBox;
+    cullBoundingBox: BoundingBox;
     dirty: boolean;
 }
 

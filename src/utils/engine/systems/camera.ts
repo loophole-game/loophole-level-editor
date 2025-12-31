@@ -1,7 +1,7 @@
 import { System } from '.';
 import type { Engine } from '..';
 import { Vector, type IVector } from '../math';
-import type { BoundingBox, Camera, CameraData } from '../types';
+import type { Camera, CameraData } from '../types';
 import { calculateRectangleBoundingBox, DEFAULT_CAMERA_OPTIONS, lerp, zoomToScale } from '../utils';
 
 export class CameraSystem extends System {
@@ -13,8 +13,6 @@ export class CameraSystem extends System {
     #worldToScreenMatrix: DOMMatrix | null = null;
     #inverseWorldToScreenMatrix: DOMMatrix | null = null;
     #worldToScreenMatrixDirty: boolean = true;
-    #worldBoundingBox: BoundingBox | null = null;
-    #worldBoundingBoxDirty: boolean = true;
 
     constructor(engine: Engine, cameraStart: CameraData) {
         super(engine);
@@ -61,41 +59,6 @@ export class CameraSystem extends System {
 
     set worldToScreenMatrixDirty(dirty: boolean) {
         this.#worldToScreenMatrixDirty = dirty;
-    }
-
-    get boundingBox(): Readonly<BoundingBox> {
-        if (!this.#worldBoundingBox || this.#worldBoundingBoxDirty) {
-            if (!this._engine.canvasSize) {
-                return {
-                    x1: 0,
-                    x2: 0,
-                    y1: 0,
-                    y2: 0,
-                };
-            }
-
-            // Convert screen dimensions to world space by dividing by scale
-            const scale = zoomToScale(this.#camera.zoom);
-            const worldSize = {
-                x: this._engine.canvasSize.x / scale,
-                y: this._engine.canvasSize.y / scale,
-            };
-            // The world center visible is the inverse of camera position, scaled
-            const worldCenter = {
-                x: -this.#camera.position.x / scale,
-                y: -this.#camera.position.y / scale,
-            };
-
-            this.#worldBoundingBox = calculateRectangleBoundingBox(
-                worldCenter,
-                worldSize,
-                -this.#camera.rotation,
-                { x: worldSize.x / 2, y: worldSize.y / 2 },
-            );
-            this.#worldBoundingBoxDirty = false;
-        }
-
-        return this.#worldBoundingBox;
     }
 
     setCameraPosition(position: IVector<number>): void {
@@ -238,19 +201,30 @@ export class CameraSystem extends System {
             const rotationRad = (-this.#camera.rotation * Math.PI) / 180;
             const worldCenter = new Vector(worldCenterOffset).rotate(rotationRad).extract();
 
-            const bbox = calculateRectangleBoundingBox(
+            this.#camera.boundingBox = calculateRectangleBoundingBox(
                 worldCenter,
                 worldSize,
                 -this.#camera.rotation,
                 { x: worldSize.x / 2, y: worldSize.y / 2 },
             );
-            this.#camera.boundingBox = bbox;
+
+            const cullScale = this._engine.options.cullScale;
+            const culledWorldSize = {
+                x: worldSize.x * cullScale,
+                y: worldSize.y * cullScale,
+            };
+            this.#camera.cullBoundingBox = calculateRectangleBoundingBox(
+                worldCenter,
+                culledWorldSize,
+                -this.#camera.rotation,
+                { x: culledWorldSize.x / 2, y: culledWorldSize.y / 2 },
+            );
         } else {
             this.#camera.boundingBox = { x1: 0, x2: 0, y1: 0, y2: 0 };
+            this.#camera.cullBoundingBox = { x1: 0, x2: 0, y1: 0, y2: 0 };
         }
 
         this.#worldToScreenMatrixDirty = true;
-        this.#worldBoundingBoxDirty = true;
     }
 
     #recomputeWorldMatrix() {

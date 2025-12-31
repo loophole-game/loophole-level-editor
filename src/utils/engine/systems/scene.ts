@@ -198,6 +198,7 @@ export class SceneSystem<TEngine extends Engine = Engine> extends System<TEngine
         const rootEntity = this.#worldRootEntity.addEntities(Entity<TEngine>, {
             name: `scene-root-${scene.name}-${scene.id}`,
             zIndex: scene.zIndex,
+            cull: 'none',
         });
         this.#sceneRootEntities.set(scene.id, rootEntity);
         if (!this.#defaultScene) {

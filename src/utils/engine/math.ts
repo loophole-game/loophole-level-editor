@@ -245,16 +245,24 @@ export class Vector implements IVector<number> {
     // ==================== Instance Methods (Mutable - modify in place) ====================
 
     /** Sets the x and y components */
-    set(other: VectorConstructor): this {
+    set(other: VectorConstructor): boolean {
         if (typeof other === 'number') {
+            if (this.x === other && this.y === other) {
+                return false;
+            }
+
             this.x = other;
             this.y = other;
         } else {
+            if (this.x === other.x && this.y === other.y) {
+                return false;
+            }
+
             this.x = other.x;
             this.y = other.y;
         }
 
-        return this;
+        return true;
     }
 
     /** Adds another vector to this one (mutates) */

@@ -12,6 +12,7 @@ export const DEFAULT_CAMERA_OPTIONS: Camera = {
     rotation: 0,
     position: { x: 0, y: 0 },
     boundingBox: { x1: 0, x2: 0, y1: 0, y2: 0 },
+    cullBoundingBox: { x1: 0, x2: 0, y1: 0, y2: 0 },
     dirty: false,
 };
 

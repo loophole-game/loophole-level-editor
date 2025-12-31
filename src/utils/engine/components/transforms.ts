@@ -73,6 +73,7 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
     get localMatrix(): Readonly<DOMMatrix> {
         if (this.#localMatrixDirty) {
             this.#computeLocalMatrix();
+            this.#localMatrixDirty = false;
         }
 
         return this.#localMatrix;
@@ -81,6 +82,7 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
     get worldMatrix(): Readonly<DOMMatrix> {
         if (this.#worldMatrixDirty) {
             this.#computeWorldMatrix();
+            this.#boundingBoxDirty = true;
         }
 
         return this.#worldMatrix;
@@ -89,6 +91,7 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
     get boundingBox(): Readonly<BoundingBox> {
         if (this.#boundingBoxDirty) {
             this.#computeBoundingBox();
+            this.#boundingBoxDirty = false;
         }
 
         return this.#boundingBox;
@@ -161,63 +164,70 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
     }
 
     #computeWorldMatrix() {
-        if (this.entity?.parent) {
+        if (this.entity.parent) {
             this.#worldMatrix = this.entity.parent.transform.worldMatrix.multiply(this.localMatrix);
         } else {
             this.#worldMatrix = this.localMatrix;
         }
 
-        this.#worldMatrixDirty = false;
         this.#boundingBoxDirty = true;
     }
 
     #computeBoundingBox() {
-        const halfScaleX = 0.5;
-        const halfScaleY = 0.5;
-        this.#corners[0].x = -halfScaleX;
-        this.#corners[0].y = -halfScaleY;
-        this.#corners[1].x = halfScaleX;
-        this.#corners[1].y = -halfScaleY;
-        this.#corners[2].x = halfScaleX;
-        this.#corners[2].y = halfScaleY;
-        this.#corners[3].x = -halfScaleX;
-        this.#corners[3].y = halfScaleY;
-
         let minX = Infinity;
         let maxX = -Infinity;
         let minY = Infinity;
         let maxY = -Infinity;
-        for (const corner of this.#corners) {
-            const worldCorner = this.worldMatrix.transformPoint(corner);
-            minX = Math.min(minX, worldCorner.x);
-            maxX = Math.max(maxX, worldCorner.x);
-            minY = Math.min(minY, worldCorner.y);
-            maxY = Math.max(maxY, worldCorner.y);
+
+        for (const comp of this.entity.components) {
+            if (comp === this) continue;
+
+            const compBB = comp.boundingBox;
+
+            this.#corners[0].x = compBB.x1;
+            this.#corners[0].y = compBB.y1;
+            this.#corners[1].x = compBB.x2;
+            this.#corners[1].y = compBB.y1;
+            this.#corners[2].x = compBB.x2;
+            this.#corners[2].y = compBB.y2;
+            this.#corners[3].x = compBB.x1;
+            this.#corners[3].y = compBB.y2;
+
+            for (const corner of this.#corners) {
+                const worldCorner = this.worldMatrix.transformPoint(corner);
+                minX = Math.min(minX, worldCorner.x);
+                maxX = Math.max(maxX, worldCorner.x);
+                minY = Math.min(minY, worldCorner.y);
+                maxY = Math.max(maxY, worldCorner.y);
+            }
+        }
+
+        for (const child of this.entity.children) {
+            const childBB = child.transform.boundingBox;
+            minX = Math.min(minX, childBB.x1);
+            maxX = Math.max(maxX, childBB.x2);
+            minY = Math.min(minY, childBB.y1);
+            maxY = Math.max(maxY, childBB.y2);
         }
 
         this.#boundingBox.x1 = minX;
         this.#boundingBox.y1 = minY;
         this.#boundingBox.x2 = maxX;
         this.#boundingBox.y2 = maxY;
-        this.#boundingBoxDirty = false;
     }
 
     #markLocalDirty() {
         this.#localMatrixDirty = true;
-        if (this.entity) {
-            for (const child of this.entity.children) {
-                child.transform.#markWorldDirty();
-            }
+        for (const child of this.entity.children) {
+            child.transform.#markWorldDirty();
         }
     }
 
     #markWorldDirty() {
         this.#worldMatrixDirty = true;
         this.#boundingBoxDirty = true;
-        if (this.entity) {
-            for (const child of this.entity.children) {
-                child.transform.#markWorldDirty();
-            }
+        for (const child of this.entity.children) {
+            child.transform.#markWorldDirty();
         }
     }
 }

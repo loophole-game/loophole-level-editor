@@ -1,5 +1,5 @@
 import type { Entity } from '../entities';
-import type { Camera, Renderable } from '../types';
+import type { BoundingBox, Camera, Renderable } from '../types';
 import { Vector, type VectorConstructor } from '../math';
 import type { RenderCommandStream } from '../systems/render/command';
 import type { RenderStyle } from '../systems/render/style';
@@ -12,7 +12,6 @@ export interface ComponentOptions<TEngine extends Engine = Engine> {
     name?: string;
     enabled?: boolean;
     zIndex?: number;
-    cullable?: boolean;
 }
 
 export abstract class Component<TEngine extends Engine = Engine> implements Renderable {
@@ -24,9 +23,11 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
 
     protected _enabled: boolean;
     protected _zIndex: number;
-    protected _cullable: boolean;
 
-    protected _entity: Entity | null = null;
+    protected _entity!: Entity;
+
+    protected _boundingBox: BoundingBox | null = null;
+    protected _boundingBoxDirty: boolean = true;
 
     constructor(options: ComponentOptions<TEngine>) {
         const { name = `component-${this._id}`, engine, ...rest } = options;
@@ -34,7 +35,6 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
         this._engine = engine;
         this._enabled = rest?.enabled ?? true;
         this._zIndex = rest?.zIndex ?? 0;
-        this._cullable = rest?.cullable ?? true;
     }
 
     get id(): string {
@@ -61,12 +61,21 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
         return this._zIndex;
     }
 
-    get entity(): Entity | null {
+    get entity(): Entity {
         return this._entity;
     }
 
-    set entity(entity: Entity | null) {
+    set entity(entity: Entity) {
         this._entity = entity;
+    }
+
+    get boundingBox(): Readonly<BoundingBox> {
+        if (this._boundingBoxDirty) {
+            this._computeBoundingBox();
+            this._boundingBoxDirty = false;
+        }
+
+        return this._boundingBox!;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -76,7 +85,6 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
 
     destroy(): void {
         this._entity?.onChildComponentsOfTypeChanged(this.typeString);
-        this._entity = null;
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -101,6 +109,10 @@ export abstract class Component<TEngine extends Engine = Engine> implements Rend
         }
 
         return this;
+    }
+
+    protected _computeBoundingBox(): void {
+        this._boundingBox = { x1: 0, x2: 0, y1: 0, y2: 0 };
     }
 }
 
@@ -142,7 +154,8 @@ export abstract class C_Drawable<TEngine extends Engine = Engine> extends Compon
     }
 
     setOrigin(origin: VectorConstructor): this {
-        this._origin.set(origin);
+        this._boundingBoxDirty ||= this._origin.set(origin);
+
         return this;
     }
 
@@ -151,7 +164,8 @@ export abstract class C_Drawable<TEngine extends Engine = Engine> extends Compon
     }
 
     setScale(scale: VectorConstructor): this {
-        this._scale.set(scale);
+        this._boundingBoxDirty ||= this._scale.set(scale);
+
         return this;
     }
 
@@ -170,10 +184,19 @@ export abstract class C_Drawable<TEngine extends Engine = Engine> extends Compon
         return this;
     }
 
-    queueRenderCommands(stream: RenderCommandStream): void {
+    public override queueRenderCommands(stream: RenderCommandStream): void {
         stream.setOpacity(this._opacity);
         if (this._opacity >= OPACITY_THRESHOLD) {
             stream.setStyle(this._style);
         }
+    }
+
+    protected override _computeBoundingBox(): void {
+        this._boundingBox = {
+            x1: -this._origin.x * this._scale.x,
+            x2: this._origin.x * this._scale.x,
+            y1: -this._origin.y * this._scale.y,
+            y2: this._origin.y * this._scale.y,
+        };
     }
 }

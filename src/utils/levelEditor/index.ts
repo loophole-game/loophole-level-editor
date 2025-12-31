@@ -321,7 +321,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         }
 
         const currentLevelInViewport = boundingBoxesIntersect(
-            this._cameraSystem.boundingBox,
+            this.camera.boundingBox,
             this.levelBoundingBox,
         );
         if (currentLevelInViewport !== levelInViewport) {

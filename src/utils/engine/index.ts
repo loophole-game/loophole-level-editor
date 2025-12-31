@@ -86,6 +86,7 @@ export interface EngineOptions {
     cameraDragButtons: PointerButton[];
     cameraTargetLerpSpeed: number;
     cameraScrollMode: CameraScrollMode;
+    cullScale: number;
 
     images: Record<string, string | HTMLImageElement>;
 
@@ -93,6 +94,8 @@ export interface EngineOptions {
     keysToCapture: KeyCapture[];
 
     asyncImageLoading: boolean;
+
+    delayDeltaTimeByNFrames: number;
 
     alwaysRender: boolean;
     engineTracesEnabled: boolean;
@@ -116,6 +119,7 @@ const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
     cameraDragButtons: [PointerButton.MIDDLE, PointerButton.RIGHT],
     cameraTargetLerpSpeed: 0.1,
     cameraScrollMode: 'none',
+    cullScale: 1,
 
     images: {},
 
@@ -123,6 +127,8 @@ const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
     keysToCapture: [],
 
     asyncImageLoading: true,
+
+    delayDeltaTimeByNFrames: 2,
 
     alwaysRender: false,
     engineTracesEnabled: false,
@@ -157,11 +163,13 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
     #animationFrameHandleId: number | null = null;
     #browserEventHandlers: Partial<Record<BrowserEvent, BrowserEventHandler<BrowserEvent>[]>> = {};
 
+    #frameCount: number = 0;
+
     // Saves needing to re-allocate in temp functions
     #tempPoint: DOMPoint = new DOMPoint();
 
     constructor(options: Partial<TOptions> = {}) {
-        this._rootEntity = new Entity({ name: 'root', engine: this });
+        this._rootEntity = new Entity({ name: 'root', engine: this, cull: 'none' });
 
         // Order of system creation is important
         this._inputSystem = new InputSystem(this);
@@ -551,7 +559,10 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
 
     #engineLoop() {
         const currentTime = performance.now();
-        const deltaTime = (currentTime - this._lastTime) * 0.001;
+        const deltaTime =
+            this.#frameCount < this.options.delayDeltaTimeByNFrames
+                ? 0
+                : (currentTime - this._lastTime) * 0.001;
         this._lastTime = currentTime;
         this._statsSystem.update(deltaTime);
         let systemLateUpdated = false;
@@ -600,6 +611,8 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         if (systemLateUpdated) {
             this.#forceRender = true;
         }
+
+        this.#frameCount++;
 
         this.#animationFrameHandleId = window.requestAnimationFrame(this.#boundEngineLoop);
     }

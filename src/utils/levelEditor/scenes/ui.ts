@@ -1002,9 +1002,9 @@ export class UIScene extends Scene {
 
     override create(editor: LevelEditor) {
         this.#editor = editor;
-        this.add(E_SelectionCursor, { scale: 0 });
-        this.add(E_TileCursor);
-        this.add(E_DragCursor, { zIndex: 200, scale: 28, scaleToCamera: true });
+        this.add(E_SelectionCursor, { scale: 0, cull: 'none' });
+        this.add(E_TileCursor, { cull: 'none' });
+        this.add(E_DragCursor, { zIndex: 200, scale: 28, scaleToCamera: true, cull: 'none' });
     }
 
     override update(deltaTime: number): boolean {
