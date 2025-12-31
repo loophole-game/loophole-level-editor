@@ -121,9 +121,9 @@ export function LevelEditorComponent() {
                 <ResetViewportPanel />
                 <div
                     className={clsx(
-                        'pointer-events-none fixed bottom-0 right-0 text-right transition-opacity p-2 bg-linear-to-br from-black/5 to-black/70 rounded-tl-lg',
+                        'fixed bottom-0 right-0 text-right transition-opacity p-2 bg-linear-to-br from-black/5 to-black/70 rounded-tl-lg',
                         {
-                            'opacity-0': !showEngineStats,
+                            'opacity-0 pointer-events-none': !showEngineStats,
                         },
                     )}
                 >

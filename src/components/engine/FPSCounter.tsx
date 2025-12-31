@@ -3,6 +3,8 @@ import type { Stats, TraceFrame } from '@/utils/engine/systems/stats';
 import type { LevelEditor } from '@/utils/levelEditor';
 import clsx from 'clsx';
 import { useEffect, useRef, useState } from 'react';
+import { Slider } from '../ui/slider';
+import { Label } from '../ui/label';
 
 const IMPORTANT_TRACE_THRESHOLD = 0.2;
 const IMPORTANT_TRACE_STALE_TIME = 5000;
@@ -28,15 +30,36 @@ export function FPSCounter({ editorRef, className }: FPSCounterProps) {
     if (!stats) return null;
 
     return (
-        <p className={cn('text-white font-mono', className)}>
-            FPS: {stats.fps}
-            <br />
-            <TraceFrameList
-                traces={stats.traces}
-                importantTraces={importantTraces.current}
-                currentTime={performance.now()}
-            />
-        </p>
+        <div className={cn('text-white font-mono flex flex-col items-end', className)}>
+            <p className="pointer-events-none">
+                FPS: {stats.fps}
+                <br />
+                <br />
+                <TraceFrameList
+                    traces={stats.traces}
+                    importantTraces={importantTraces.current}
+                    currentTime={performance.now()}
+                />
+            </p>
+            <div className="flex items-center gap-2 w-56">
+                <Label htmlFor="cull-scale">Cull</Label>
+                <Slider
+                    id="cull-scale"
+                    min={0.25}
+                    max={1}
+                    step={0.01}
+                    value={[editorRef.current?.options.cullScale ?? 1]}
+                    onValueChange={([value]) => {
+                        if (editorRef.current) {
+                            editorRef.current.options = {
+                                ...editorRef.current.options,
+                                cullScale: value,
+                            };
+                        }
+                    }}
+                />
+            </div>
+        </div>
     );
 }
 

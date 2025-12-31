@@ -64,7 +64,7 @@ export class CameraSystem extends System {
     setCameraPosition(position: IVector<number>): void {
         if (this.#camera.position.x !== position.x || this.#camera.position.y !== position.y) {
             this.#camera.position = { x: position.x, y: position.y };
-            this.#onCameraChanged();
+            this.onCameraChanged();
         }
     }
 
@@ -72,7 +72,7 @@ export class CameraSystem extends System {
         if (this.#camera.zoom !== zoom) {
             this.#camera.zoom = zoom;
             this.applyCameraZoomClamp();
-            this.#onCameraChanged();
+            this.onCameraChanged();
         }
     }
 
@@ -94,13 +94,13 @@ export class CameraSystem extends System {
             };
         }
 
-        this.#onCameraChanged();
+        this.onCameraChanged();
     }
 
     setCameraRotation(rotation: number): void {
         if (this.#camera.rotation !== rotation) {
             this.#camera.rotation = rotation;
-            this.#onCameraChanged();
+            this.onCameraChanged();
         }
     }
 
@@ -115,7 +115,7 @@ export class CameraSystem extends System {
                 this.#prevCanvasSize.set(this._engine.canvasSize);
             }
 
-            this.#onCameraChanged();
+            this.onCameraChanged();
         }
 
         const MIN_POS_DELTA = 0.01;
@@ -166,7 +166,7 @@ export class CameraSystem extends System {
                 this._engine.cameraTarget = null;
             }
 
-            this.#onCameraChanged();
+            this.onCameraChanged();
         }
 
         return this.#camera.dirty;
@@ -184,7 +184,7 @@ export class CameraSystem extends System {
         this.#camera.zoom = this.clampCameraZoom(this.#camera.zoom);
     }
 
-    #onCameraChanged(): void {
+    onCameraChanged(): void {
         this.#camera.dirty = true;
 
         if (this._engine.canvasSize) {

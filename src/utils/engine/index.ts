@@ -658,6 +658,10 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
     }
 
     #applyOptions(newOptions: Partial<TOptions>): void {
+        if (this._options.cullScale !== newOptions.cullScale) {
+            this._cameraSystem.onCameraChanged();
+        }
+
         this._options = { ...this._options, ...newOptions };
 
         this._cameraSystem.applyCameraZoomClamp();
