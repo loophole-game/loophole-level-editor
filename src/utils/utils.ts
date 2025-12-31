@@ -149,6 +149,7 @@ const DEFAULT_WALL_SCALE = 1;
 export const OVERLAPPABLE_ENTITY_TYPES: Loophole_EntityType[][] = [
     ['CURTAIN', 'DOOR'],
     ['EXPLOSION', 'TIME_MACHINE'],
+    ['WIRE', 'WIRE'],
 ];
 
 type TileOwnership = 'ONLY_ENTITY_IN_TILE' | 'ONLY_TYPE_IN_TILE';

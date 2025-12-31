@@ -270,14 +270,18 @@ class E_TileCursor extends Entity<LevelEditor> {
             }
 
             if (rightButton.clicked) {
-                this._engine.removeTiles([
-                    {
-                        position: tilePosition,
-                        positionType,
-                        entityType: type,
-                        edgeAlignment,
-                    },
-                ]);
+                this._engine.removeTiles(
+                    [
+                        {
+                            position: tilePosition,
+                            positionType,
+                            entityType: type,
+                            edgeAlignment,
+                        },
+                    ],
+                    null,
+                    true,
+                );
                 this._engine.capturePointerButtonClick(PointerButton.RIGHT);
             }
 

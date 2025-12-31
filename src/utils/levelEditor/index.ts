@@ -277,10 +277,6 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         return this.#levelBoundingBox;
     }
 
-    get isCameraDragging(): boolean {
-        return this.pointerSystem.isCameraDragging;
-    }
-
     addColorPaletteChangedListener(id: string, listener: (palette: Loophole_ColorPalette) => void) {
         this.#colorPaletteChangedListeners.set(id, listener);
         if (this.#colorPalette) {
@@ -307,7 +303,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
             setCameraTarget(null);
         }
 
-        setIsDraggingCamera(this.isCameraDragging);
+        setIsDraggingCamera(this.getIsCameraDragging(5));
 
         if (this.getButton('zoom-out').pressed) {
             this.zoomCamera(-0.4 / this.options.zoomSpeed);
@@ -482,17 +478,25 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
             edgeAlignment: Loophole_EdgeAlignment | null;
         }[],
         hash?: string | null,
+        removeOnlyOne: boolean = false,
     ): E_Tile[] {
         const overlappingEntities: Loophole_EntityWithID[] = [];
         tiles.forEach((tile) => {
-            overlappingEntities.push(
-                ...this.#getOverlappingEntities(
-                    tile.position,
-                    tile.positionType,
-                    tile.entityType,
-                    tile.edgeAlignment,
-                ),
+            const entities = this.#getOverlappingEntities(
+                tile.position,
+                tile.positionType,
+                tile.entityType,
+                tile.edgeAlignment,
+                true,
             );
+
+            // If removeOnlyOne is true and we have multiple overlapping entities,
+            // only remove the last one (most recent)
+            if (removeOnlyOne && entities.length > 0) {
+                overlappingEntities.push(entities[entities.length - 1]);
+            } else {
+                overlappingEntities.push(...entities);
+            }
         });
 
         return this.#performEditActions({
@@ -950,6 +954,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
         positionType: LoopholePositionType,
         entityType: Loophole_EntityType,
         edgeAlignment: Loophole_EdgeAlignment | null,
+        skipOverlappableCheck: boolean = false,
     ): Loophole_EntityWithID[] {
         if (!this.#level) {
             return [];
@@ -988,6 +993,7 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
             }
 
             if (
+                !skipOverlappableCheck &&
                 OVERLAPPABLE_ENTITY_TYPES.some(
                     ([type1, type2]) =>
                         (type1 === entityType && type2 === type) ||

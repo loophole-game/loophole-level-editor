@@ -406,6 +406,10 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         return this._pointerSystem.capturePointerButtonClick(button);
     }
 
+    getIsCameraDragging(threshold: number = 0): boolean {
+        return this.pointerSystem.getIsCameraDragging(threshold);
+    }
+
     setCamera(camera: CameraData): void {
         this._cameraSystem.setCameraPosition(camera.position);
         this._cameraSystem.setCameraRotation(camera.rotation);

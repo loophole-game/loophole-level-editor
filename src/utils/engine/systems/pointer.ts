@@ -151,10 +151,6 @@ export class PointerSystem extends System {
         return this.#checkForOverlap;
     }
 
-    get isCameraDragging(): boolean {
-        return this.#dragStartMousePosition !== null;
-    }
-
     get currentCursor(): CursorType {
         return this.#currentCursor;
     }
@@ -162,6 +158,13 @@ export class PointerSystem extends System {
     set canvas(canvas: HTMLCanvasElement | null) {
         this.#canvas = canvas;
         this.#applyCursor();
+    }
+
+    getIsCameraDragging(threshold: number = 0): boolean {
+        if (this.#dragStartMousePosition === null) return false;
+
+        const screenDelta = this._engine.pointerState.position.sub(this.#dragStartMousePosition);
+        return screenDelta.length() > threshold;
     }
 
     getPointerButton(button: PointerButton): PointerButtonState {
