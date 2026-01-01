@@ -7,6 +7,7 @@ import { zoomToScale } from '../../utils';
 import { RenderCommandStream, RenderCommandType } from './command';
 import { DEFAULT_RENDER_STYLE, TRANSPARENT_STYLE_COLOR, type RenderStyle } from './style';
 import type { LoadedImage } from '../image';
+import { DynamicNumberArray } from '../../dynamicNumberArray';
 
 interface CanvasStyle extends RenderStyle {
     globalAlpha?: number;
@@ -40,6 +41,7 @@ export class RenderSystem extends System {
 
     #canvasStateCache: CanvasStyle = {};
     #transformScaleStack: number[] = [];
+    #transformInverseStack = new DynamicNumberArray(Float32Array, 256 * 6);
 
     destroy(): void {}
 
@@ -78,6 +80,7 @@ export class RenderSystem extends System {
         const activeStyle = { ...DEFAULT_RENDER_STYLE };
         this.#canvasStateCache = {};
         this.#transformScaleStack = [1];
+        this.#transformInverseStack.clear();
         this.#applyStyle(ctx, {
             ...activeStyle,
             globalAlpha: opacity,
@@ -91,7 +94,6 @@ export class RenderSystem extends System {
             const commandType = commands[i] as RenderCommandType;
             switch (commandType) {
                 case RenderCommandType.PUSH_TRANSFORM: {
-                    ctx.save();
                     const a = data[dataPointer++];
                     const b = data[dataPointer++];
                     const c = data[dataPointer++];
@@ -100,6 +102,22 @@ export class RenderSystem extends System {
                     const f = data[dataPointer++];
                     ctx.transform(a, b, c, d, e, f);
 
+                    // Calculate and store inverse transform for later
+                    const det = a * d - b * c;
+                    if (det !== 0) {
+                        const invDet = 1 / det;
+                        this.#transformInverseStack.pushMultiple(
+                            d * invDet, // a'
+                            -b * invDet, // b'
+                            -c * invDet, // c'
+                            a * invDet, // d'
+                            (c * f - d * e) * invDet, // e'
+                            (b * e - a * f) * invDet, // f'
+                        );
+                    } else {
+                        this.#transformInverseStack.pushMultiple(1, 0, 0, 1, 0, 0);
+                    }
+
                     const scaleX = Math.hypot(a, b);
                     const scaleY = Math.hypot(c, d);
                     const maxScale = Math.max(scaleX || 1, scaleY || 1) || 1;
@@ -107,11 +125,24 @@ export class RenderSystem extends System {
 
                     break;
                 }
-                case RenderCommandType.POP_TRANSFORM:
-                    ctx.restore();
+                case RenderCommandType.POP_TRANSFORM: {
+                    if (this.#transformInverseStack.length >= 6) {
+                        const buffer = this.#transformInverseStack.buffer;
+                        const offset = this.#transformInverseStack.length - 6;
+                        ctx.transform(
+                            buffer[offset],
+                            buffer[offset + 1],
+                            buffer[offset + 2],
+                            buffer[offset + 3],
+                            buffer[offset + 4],
+                            buffer[offset + 5],
+                        );
+                        this.#transformInverseStack.pop(6);
+                    }
                     this.#transformScaleStack.pop();
 
                     break;
+                }
                 case RenderCommandType.SET_MATERIAL: {
                     const styleID = data[dataPointer++];
                     const style = this.#hashedMaterials.idToItem(styleID);
