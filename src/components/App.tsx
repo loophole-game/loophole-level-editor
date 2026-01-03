@@ -8,7 +8,7 @@ function App() {
 
     useEffect(() => {
         const onKeyDown = (e: globalThis.KeyboardEvent) => {
-            if (e.metaKey && e.key === '/') {
+            if ((e.metaKey || e.ctrlKey) && e.key === '/') {
                 e.stopPropagation();
                 setInterfaceHidden(!interfaceHidden);
             }

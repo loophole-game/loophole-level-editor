@@ -2,6 +2,14 @@ import { System } from '.';
 import { Vector } from '../math';
 import type { WebKey } from '../types';
 
+export interface CapturedKey {
+    key: WebKey;
+    ctrl?: boolean;
+    meta?: boolean;
+    shift?: boolean;
+    alt?: boolean;
+}
+
 interface KeyboardInput {
     type: 'key';
     key: WebKey;
@@ -109,6 +117,8 @@ export class InputSystem extends System {
     > = {};
     #keysPressedThisFrame: Set<WebKey> = new Set();
 
+    #capturedKeyHashes: Set<string> = new Set();
+
     override earlyUpdate(deltaTime: number) {
         // Update raw keyboard key state tracking
         for (const keyState of Object.values(this.#keyStates)) {
@@ -213,16 +223,10 @@ export class InputSystem extends System {
         const isModifierKey =
             key === 'Shift' || key === 'Meta' || key === 'Control' || key === 'Alt';
         const shouldForceReleaseNonModifiers = !isDown && (key === 'Meta' || key === 'Control');
-        const keyCaptured = this._engine.options.keysToCapture?.some(
-            (keyCapture) =>
-                keyCapture.key === key &&
-                (keyCapture.ctrl === undefined || keyCapture.ctrl === ctrl) &&
-                (keyCapture.meta === undefined || keyCapture.meta === meta) &&
-                (keyCapture.shift === undefined || keyCapture.shift === shift) &&
-                (keyCapture.alt === undefined || keyCapture.alt === alt),
-        );
+        const hash = this.#keyCaptureHash({ key, ctrl, meta, shift, alt });
+        const keyIsCaptured = this.#capturedKeyHashes.has(hash);
 
-        const effectiveDown = mod && !keyCaptured && !isModifierKey ? false : isDown;
+        const effectiveDown = mod && !keyIsCaptured && !isModifierKey ? false : isDown;
 
         this.#keyStates[key]!.currState = {
             ...this.#keyStates[key]!.currState,
@@ -247,7 +251,7 @@ export class InputSystem extends System {
             this.#releaseNonModifierKeys();
         }
 
-        return keyCaptured;
+        return keyIsCaptured;
     }
 
     getKey(key: WebKey): KeyboardKeyState {
@@ -268,6 +272,7 @@ export class InputSystem extends System {
     getButton(button: string): ButtonState {
         if (!(button in this.#buttonStates)) {
             console.warn(`Button ${button} not found`);
+
             return DEFAULT_BUTTON_STATE;
         }
 
@@ -277,6 +282,7 @@ export class InputSystem extends System {
     getAxis(axis: string): AxisState {
         if (!(axis in this.#axisStates)) {
             console.warn(`Axis ${axis} not found`);
+
             return DEFAULT_AXIS_STATE;
         }
 
@@ -287,7 +293,6 @@ export class InputSystem extends System {
         const newButtonInputs: Record<string, KeyboardInput[]> = {};
         const newAxisToKeys: Record<string, Set<WebKey>> = {};
 
-        // Build configuration maps
         for (const [name, config] of Object.entries(inputConfigs)) {
             if (config.type === 'button') {
                 newButtonInputs[name] = [];
@@ -295,6 +300,8 @@ export class InputSystem extends System {
                     if (input.type === 'key') {
                         newButtonInputs[name]!.push(input);
                     }
+
+                    this.#saveInputAsKeyCapture(input);
                 }
             } else if (config.type === 'axis') {
                 newAxisToKeys[name] = new Set();
@@ -319,12 +326,13 @@ export class InputSystem extends System {
                             alt: input.alt,
                         });
                         newAxisToKeys[name]!.add(input.key);
+
+                        this.#saveInputAsKeyCapture(input);
                     }
                 }
             }
         }
 
-        // Clean up old button/axis states not in new config
         for (const button of Object.keys(this.#buttonStates)) {
             const config = inputConfigs[button];
             if (!config || config.type !== 'button') {
@@ -338,7 +346,6 @@ export class InputSystem extends System {
             }
         }
 
-        // Create new button/axis states
         for (const [name, config] of Object.entries(inputConfigs)) {
             if (config.type === 'button' && !(name in this.#buttonStates)) {
                 this.#buttonStates[name] = {
@@ -359,9 +366,15 @@ export class InputSystem extends System {
             }
         }
 
-        // Update maps
         this.#buttonInputs = newButtonInputs;
         this.#axisToKeys = newAxisToKeys;
+    }
+
+    setCapturedKeys(capturedKeys: CapturedKey[]) {
+        this.#capturedKeyHashes.clear();
+        for (const capturedKey of capturedKeys) {
+            this.#capturedKeyHashes.add(this.#keyCaptureHash(capturedKey));
+        }
     }
 
     #releaseNonModifierKeys() {
@@ -421,5 +434,44 @@ export class InputSystem extends System {
 
     #updateAxisState(currAxisState: AxisState, prevAxisState: AxisState) {
         currAxisState.changed = !currAxisState.value.equals(prevAxisState.value);
+    }
+
+    #keyCaptureHash(capturedKey: CapturedKey): string {
+        return `${capturedKey.key}-${capturedKey.ctrl ? '1' : '0'}-${capturedKey.meta ? '1' : '0'}-${capturedKey.shift ? '1' : '0'}-${capturedKey.alt ? '1' : '0'}`;
+    }
+
+    #saveInputAsKeyCapture(input: Input) {
+        if (input.type === 'key') {
+            this.#capturedKeyHashes.add(
+                this.#keyCaptureHash({
+                    key: input.key,
+                    ctrl: input.modifier ?? false,
+                    meta: input.modifier ?? false,
+                    shift: input.shift ?? false,
+                    alt: input.alt ?? false,
+                }),
+            );
+
+            if (input.modifier) {
+                this.#capturedKeyHashes.add(
+                    this.#keyCaptureHash({
+                        key: input.key,
+                        ctrl: true,
+                        meta: false,
+                        shift: input.shift ?? false,
+                        alt: input.alt ?? false,
+                    }),
+                );
+                this.#capturedKeyHashes.add(
+                    this.#keyCaptureHash({
+                        key: input.key,
+                        ctrl: false,
+                        meta: true,
+                        shift: input.shift ?? false,
+                        alt: input.alt ?? false,
+                    }),
+                );
+            }
+        }
     }
 }

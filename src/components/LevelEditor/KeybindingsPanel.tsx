@@ -21,12 +21,6 @@ interface Heading {
 
 const META = isMac ? '⌘' : 'Ctrl';
 const KEYBINDINGS: (Keybinding | Heading)[] = [
-    { Icon: Camera, heading: 'Camera' },
-    { action: 'Move Camera', keys: ['W/A/S/D', 'Arrow Keys'], separator: 'or' },
-    { action: 'Zoom', keys: ['+', '-'] },
-    { action: 'Reset Viewport', keys: [`${META} + F`] },
-    { action: 'Pan Camera', keys: ['Click + Drag'] },
-
     { Icon: Brush, heading: 'Tile Brush' },
     { action: 'Rotate Brush', keys: ['Q/E/R'], separator: 'or' },
     { action: 'Cycle Brush', keys: ['[ / ]', `${META} + Scroll`], separator: 'or' },
@@ -35,8 +29,14 @@ const KEYBINDINGS: (Keybinding | Heading)[] = [
 
     { Icon: BoxSelectIcon, heading: 'Selection' },
     { action: 'Select', keys: ['Click'] },
-    { action: 'Multi-Select', keys: ['Shift + Click'] },
+    { action: 'Multi-Select', keys: [`${META} + Click`] },
     { action: 'Select All', keys: [`${META} + A`] },
+
+    { Icon: Camera, heading: 'Camera' },
+    { action: 'Move Camera', keys: ['W/A/S/D', 'Arrow Keys'], separator: 'or' },
+    { action: 'Zoom', keys: ['+', '-'] },
+    { action: 'Reset Viewport', keys: [`${META} + F`] },
+    { action: 'Pan Camera', keys: ['Right Click + Drag'] },
 
     { Icon: PencilRuler, heading: 'Editing' },
     { action: 'Delete', keys: ['Delete', 'Backspace'], separator: 'or' },

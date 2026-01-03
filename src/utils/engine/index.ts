@@ -25,6 +25,7 @@ import {
     type ButtonState,
     type InputConfig,
     type KeyboardKeyState,
+    type CapturedKey,
 } from './systems/input';
 
 const DEBUG_OVERLAY_SCENE_NAME = '__ENGINE_DEBUG_SCENE__';
@@ -61,14 +62,6 @@ type BrowserEventHandler<T extends BrowserEvent> = (
     data: BrowserEventMap[T],
 ) => void | boolean;
 
-interface KeyCapture {
-    key: string;
-    ctrl?: boolean;
-    meta?: boolean;
-    shift?: boolean;
-    alt?: boolean;
-}
-
 export type SceneConstructor<T extends Scene = Scene, TEngine extends Engine = Engine> = new (
     options: SceneOptions<TEngine>,
 ) => T;
@@ -91,7 +84,7 @@ export interface EngineOptions {
     images: Record<string, string | HTMLImageElement>;
 
     inputConfigs: Record<string, InputConfig>;
-    keysToCapture: KeyCapture[];
+    capturedKeys: CapturedKey[];
 
     asyncImageLoading: boolean;
 
@@ -124,7 +117,7 @@ const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
     images: {},
 
     inputConfigs: {},
-    keysToCapture: [],
+    capturedKeys: [],
 
     asyncImageLoading: true,
 
@@ -672,6 +665,9 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         }
         this._options.images = {};
 
+        if (newOptions.capturedKeys) {
+            this._inputSystem.setCapturedKeys(newOptions.capturedKeys);
+        }
         if (newOptions.inputConfigs) {
             this._inputSystem.setInputConfigs(newOptions.inputConfigs);
         }

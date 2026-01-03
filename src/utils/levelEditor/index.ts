@@ -170,15 +170,6 @@ export class LevelEditor extends Engine<LevelEditorOptions> {
                     left: [{ type: 'key', key: '[' }],
                 },
             },
-            keysToCapture: [
-                { key: 'z', ctrl: true },
-                { key: 'z', meta: true },
-                { key: 'y', ctrl: true },
-                { key: 'y', meta: true },
-                { key: 'a', meta: true },
-                { key: 'f', meta: true },
-                { key: 'k', meta: true },
-            ],
             ...options,
             images: {
                 ...Object.values(ENTITY_METADATA).reduce(
