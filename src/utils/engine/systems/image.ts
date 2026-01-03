@@ -61,7 +61,7 @@ export class ImageSystem extends System {
                 }
             };
             image.onerror = () => {
-                console.error(`Failed to load image: ${src}`);
+                this._engine.error(`Failed to load image: ${src}`);
                 this.#loadingImages.delete(name);
             };
         } else {

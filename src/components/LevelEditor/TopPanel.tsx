@@ -142,8 +142,9 @@ export default function TopPanel({ className }: TopPanelProps) {
                 // Add the imported level
                 addLevel(internalLevel, true);
             } catch (error) {
+                // eslint-disable-next-line no-console
                 console.error('Failed to import level:', error);
-                alert('Failed to import level. Please check the file format.');
+                alert('Failed to import level.');
             }
         };
         input.click();

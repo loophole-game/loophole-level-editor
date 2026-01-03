@@ -271,7 +271,7 @@ export class InputSystem extends System {
 
     getButton(button: string): ButtonState {
         if (!(button in this.#buttonStates)) {
-            console.warn(`Button ${button} not found`);
+            this._engine.warn(`Button ${button} not found`);
 
             return DEFAULT_BUTTON_STATE;
         }
@@ -281,7 +281,7 @@ export class InputSystem extends System {
 
     getAxis(axis: string): AxisState {
         if (!(axis in this.#axisStates)) {
-            console.warn(`Axis ${axis} not found`);
+            this._engine.warn(`Axis ${axis} not found`);
 
             return DEFAULT_AXIS_STATE;
         }

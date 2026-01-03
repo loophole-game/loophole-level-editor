@@ -27,6 +27,7 @@ import {
     type KeyboardKeyState,
     type CapturedKey,
 } from './systems/input';
+import { LogSystem, type I_Logging, type LogOutput } from './systems/log';
 
 const DEBUG_OVERLAY_SCENE_NAME = '__ENGINE_DEBUG_SCENE__';
 const DEBUG_OVERLAY_SCENE_Z_INDEX = 100;
@@ -93,6 +94,7 @@ export interface EngineOptions {
     alwaysRender: boolean;
     engineTracesEnabled: boolean;
     debugOverlayEnabled: boolean;
+    logOutput: LogOutput | null | undefined;
 }
 
 const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
@@ -126,9 +128,10 @@ const DEFAULT_ENGINE_OPTIONS: EngineOptions = {
     alwaysRender: false,
     engineTracesEnabled: false,
     debugOverlayEnabled: false,
+    logOutput: console,
 };
 
-export class Engine<TOptions extends EngineOptions = EngineOptions> {
+export class Engine<TOptions extends EngineOptions = EngineOptions> implements I_Logging {
     protected static _nextId: number = 1;
     protected readonly _id: string = (Engine._nextId++).toString();
 
@@ -144,6 +147,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
     protected _imageSystem: ImageSystem;
     protected _cameraSystem: CameraSystem;
     protected _statsSystem: StatsSystem;
+    protected _logSystem: LogSystem;
 
     protected _systems: System[] = [];
 
@@ -174,6 +178,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         // Order isn't important since systems are manually updated
         this._statsSystem = new StatsSystem(this);
         this._renderSystem = new RenderSystem(this);
+        this._logSystem = new LogSystem(this);
 
         this.addBrowserEventHandler('mousedown', (_, data) =>
             this.#setPointerButtonDown(data.button, true),
@@ -281,6 +286,10 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
 
     get sceneSystem(): SceneSystem {
         return this._sceneSystem;
+    }
+
+    get frameCount(): number {
+        return this.#frameCount;
     }
 
     requestCursor(id: string, type: CursorType, priority?: number): void {
@@ -509,6 +518,21 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         this.#debugOverlayScene = null;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    update(_deltaTime: number): boolean {
+        return false;
+    }
+
+    log: I_Logging['log'] = (...args) => this._logSystem.log(...args);
+    warn: I_Logging['warn'] = (...args) => this._logSystem.warn(...args);
+    error: I_Logging['error'] = (...args) => this._logSystem.error(...args);
+    logBeforeFrame: I_Logging['logBeforeFrame'] = (n, ...args) =>
+        this._logSystem.logBeforeFrame(n, ...args);
+    warnBeforeFrame: I_Logging['warnBeforeFrame'] = (n, ...args) =>
+        this._logSystem.warnBeforeFrame(n, ...args);
+    errorBeforeFrame: I_Logging['errorBeforeFrame'] = (n, ...args) =>
+        this._logSystem.errorBeforeFrame(n, ...args);
+
     #engineUpdate(deltaTime: number): boolean {
         if (!this._rootEntity.enabled) {
             return false;
@@ -520,11 +544,6 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
         return updated;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    update(_deltaTime: number): boolean {
-        return false;
-    }
-
     #render() {
         if (!this._canvas || !this.canvasSize) {
             return;
@@ -532,7 +551,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
 
         const ctx = this._canvas.getContext('2d');
         if (!ctx) {
-            console.error('Failed to get canvas context');
+            this.error('Failed to get canvas context');
             return;
         }
 
@@ -678,6 +697,10 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> {
             } else {
                 this.closeDebugOverlay();
             }
+        }
+
+        if (newOptions.logOutput !== undefined) {
+            this._logSystem.logOutput = newOptions.logOutput;
         }
     }
 }
