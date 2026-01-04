@@ -35,7 +35,7 @@ const KEYBINDINGS: (Keybinding | Heading)[] = [
     { Icon: Camera, heading: 'Camera' },
     { action: 'Move Camera', keys: ['W/A/S/D', 'Arrow Keys'], separator: 'or' },
     { action: 'Zoom', keys: ['+', '-'] },
-    { action: 'Reset Viewport', keys: [`${META} + F`] },
+    { action: 'Fit to Content', keys: [`${META} + F`] },
     { action: 'Pan Camera', keys: ['Right Click + Drag'] },
 
     { Icon: PencilRuler, heading: 'Editing' },

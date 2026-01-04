@@ -16,7 +16,7 @@ export function ResetViewportPanel() {
         >
             <Button variant="loophole" onClick={() => centerCameraOnLevel()}>
                 <Camera />
-                Reset Viewport
+                Fit to Content
             </Button>
         </Panel>
     );

@@ -276,7 +276,7 @@ export default function TopPanel({ className }: TopPanelProps) {
                     <DropdownMenuSeparator />
                     <DropdownMenuLabel>Viewport Settings</DropdownMenuLabel>
                     <DropdownMenuItem onClick={() => centerCameraOnLevel()}>
-                        <Camera /> Reset Viewport
+                        <Camera /> Fit to Content
                     </DropdownMenuItem>
                     <div className="px-2 py-2">
                         <div className="flex items-center justify-between mb-2">
