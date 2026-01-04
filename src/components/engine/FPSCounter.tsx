@@ -5,6 +5,7 @@ import clsx from 'clsx';
 import { useEffect, useRef, useState } from 'react';
 import { Slider } from '../ui/slider';
 import { Label } from '../ui/label';
+import type { CacheStats } from '@/utils/engine/types';
 
 const IMPORTANT_TRACE_THRESHOLD = 0.2;
 const IMPORTANT_TRACE_STALE_TIME = 5000;
@@ -40,6 +41,28 @@ export function FPSCounter({ editorRef, className }: FPSCounterProps) {
                     importantTraces={importantTraces.current}
                     currentTime={performance.now()}
                 />
+                {stats.renderCommands && (
+                    <>
+                        Render Commands
+                        <span className="text-xs">
+                            <br />
+                            <CacheSummary name="transform" stats={stats.renderCommands.transform} />
+                            <CacheSummary name="setStyle" stats={stats.renderCommands.setStyle} />
+                            <CacheSummary
+                                name="setOpacity"
+                                stats={stats.renderCommands.setOpacity}
+                            />
+                            <CacheSummary name="drawRect" stats={stats.renderCommands.drawRect} />
+                            <CacheSummary
+                                name="drawEllipse"
+                                stats={stats.renderCommands.drawEllipse}
+                            />
+                            <CacheSummary name="drawLine" stats={stats.renderCommands.drawLine} />
+                            <CacheSummary name="drawImage" stats={stats.renderCommands.drawImage} />
+                            <br />
+                        </span>
+                    </>
+                )}
             </p>
             <div className="flex items-center gap-2 w-56">
                 <Label htmlFor="cull-scale">Cull</Label>
@@ -123,4 +146,23 @@ export function TraceFrameList({
             </span>
         );
     });
+}
+
+interface CacheSummaryProps {
+    name: string;
+    stats: CacheStats;
+}
+
+export function CacheSummary({ name, stats }: CacheSummaryProps) {
+    if (stats.total === 0) return null;
+    return (
+        <>
+            {`${name}: ${stats.total}${
+                stats.cached > 0
+                    ? ` (${((stats.cached / (stats.total + stats.cached)) * 100).toFixed(1)}% cached)`
+                    : ''
+            }`}
+            <br />
+        </>
+    );
 }

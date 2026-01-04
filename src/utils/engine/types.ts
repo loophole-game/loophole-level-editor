@@ -57,3 +57,8 @@ export type WebKey =
     | "BrowserBack" | "BrowserFavorites" | "BrowserForward" | "BrowserHome" | "BrowserRefresh" | "BrowserSearch" | "BrowserStop"
     // Gamepad / misc
     | "Soft1" | "Soft2" | "Soft3" | "Soft4"
+
+export interface CacheStats {
+    total: number;
+    cached: number;
+}

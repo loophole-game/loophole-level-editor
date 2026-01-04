@@ -4,7 +4,7 @@ import type { Entity } from '../../entities';
 import { HashFactory } from '../../hashFactory';
 import type { Camera } from '../../types';
 import { zoomToScale } from '../../utils';
-import { RenderCommandStream, RenderCommandType } from './command';
+import { RenderCommandStream, RenderCommandType, type RenderCommandStats } from './command';
 import { DEFAULT_RENDER_STYLE, TRANSPARENT_STYLE_COLOR, type RenderStyle } from './style';
 import type { LoadedImage } from '../image';
 import { DynamicNumberArray } from '../../dynamicNumberArray';
@@ -44,6 +44,10 @@ export class RenderSystem extends System {
     #transformInverseStack = new DynamicNumberArray(Float32Array, 256 * 6);
 
     destroy(): void {}
+
+    getRenderCommandStats(): Readonly<RenderCommandStats> | null {
+        return this.#stream?.stats ?? null;
+    }
 
     render(ctx: CanvasRenderingContext2D, rootEntity: Entity, camera: Camera) {
         if (!this.#stream) {

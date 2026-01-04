@@ -2,6 +2,7 @@ import { HashFactory } from '../../hashFactory';
 import { type RenderStyle } from './style';
 import { OPACITY_THRESHOLD } from '../../utils';
 import { DynamicNumberArray } from '../../dynamicNumberArray';
+import type { CacheStats } from '../../types';
 
 export const RenderCommandType = {
     PUSH_TRANSFORM: 0,
@@ -74,6 +75,16 @@ export type RenderCommand =
 const INITIAL_COMMAND_CAPACITY = 200;
 const TRANSFORM_COMPONENTS = 6;
 
+export interface RenderCommandStats {
+    setStyle: CacheStats;
+    setOpacity: CacheStats;
+    transform: CacheStats;
+    drawRect: CacheStats;
+    drawEllipse: CacheStats;
+    drawLine: CacheStats;
+    drawImage: CacheStats;
+}
+
 export class RenderCommandStream {
     #hashedMaterials: HashFactory<RenderStyle>;
     #hashedImages: HashFactory<string>;
@@ -95,6 +106,16 @@ export class RenderCommandStream {
         TRANSFORM_COMPONENTS * 10,
     );
 
+    #stats: RenderCommandStats = {
+        setStyle: { total: 0, cached: 0 },
+        setOpacity: { total: 0, cached: 0 },
+        transform: { total: 0, cached: 0 },
+        drawRect: { total: 0, cached: 0 },
+        drawEllipse: { total: 0, cached: 0 },
+        drawLine: { total: 0, cached: 0 },
+        drawImage: { total: 0, cached: 0 },
+    };
+
     constructor(hashedMaterials: HashFactory<RenderStyle>, hashedImages: HashFactory<string>) {
         this.#hashedMaterials = hashedMaterials;
         this.#hashedImages = hashedImages;
@@ -112,6 +133,10 @@ export class RenderCommandStream {
         return this.#commands.length;
     }
 
+    get stats(): Readonly<RenderCommandStats> | null {
+        return this.#stats;
+    }
+
     pushTransform(t: DOMMatrix) {
         this.#pushTransformStack.pushMultiple(t.a, t.b, t.c, t.d, t.e, t.f);
     }
@@ -119,7 +144,9 @@ export class RenderCommandStream {
     popTransform() {
         if (this.#pushTransformStack.length === 0) {
             this.#commands.push(RenderCommandType.POP_TRANSFORM);
+            this.#stats.transform.total++;
         } else {
+            this.#stats.transform.cached += 2;
             this.#pushTransformStack.pop(TRANSFORM_COMPONENTS);
         }
     }
@@ -127,22 +154,26 @@ export class RenderCommandStream {
     setStyle(style: RenderStyle) {
         const styleID = this.#hashedMaterials.itemToID(style);
         if (styleID === this.#currentStyleID) {
+            this.#stats.setStyle.cached++;
             return;
         }
 
         this.#currentStyleID = styleID;
         this.#commands.push(RenderCommandType.SET_MATERIAL);
         this.#data.push(styleID);
+        this.#stats.setStyle.total++;
     }
 
     setOpacity(opacity: number) {
         if (opacity === this.#currentOpacity) {
+            this.#stats.setOpacity.cached++;
             return;
         }
 
         this.#currentOpacity = opacity;
         this.#commands.push(RenderCommandType.SET_OPACITY);
         this.#data.push(opacity);
+        this.#stats.setOpacity.total++;
     }
 
     drawRect(
@@ -163,6 +194,7 @@ export class RenderCommandStream {
 
         this.#commands.push(RenderCommandType.DRAW_RECT);
         this.#data.pushMultiple(x1, y1, x2, y2, rx, ry, gx, gy);
+        this.#stats.drawRect.total++;
     }
 
     drawEllipse(
@@ -183,6 +215,7 @@ export class RenderCommandStream {
 
         this.#commands.push(RenderCommandType.DRAW_ELLIPSE);
         this.#data.pushMultiple(x1, y1, x2, y2, rx, ry, gx, gy);
+        this.#stats.drawEllipse.total++;
     }
 
     drawLine(
@@ -203,6 +236,7 @@ export class RenderCommandStream {
 
         this.#commands.push(RenderCommandType.DRAW_LINE);
         this.#data.pushMultiple(x1, y1, x2, y2, rx, ry, gx, gy);
+        this.#stats.drawLine.total++;
     }
 
     drawImage(
@@ -225,6 +259,7 @@ export class RenderCommandStream {
         const imageID = this.#hashedImages.itemToID(image);
         this.#commands.push(RenderCommandType.DRAW_IMAGE);
         this.#data.pushMultiple(x1, y1, x2, y2, rx, ry, gx, gy, imageID);
+        this.#stats.drawImage.total++;
     }
 
     clear() {
@@ -233,9 +268,19 @@ export class RenderCommandStream {
         this.#pushTransformStack.clear();
         this.#currentStyleID = null;
         this.#currentOpacity = 1;
+        this.#stats = {
+            setStyle: { total: 0, cached: 0 },
+            setOpacity: { total: 0, cached: 0 },
+            transform: { total: 0, cached: 0 },
+            drawRect: { total: 0, cached: 0 },
+            drawEllipse: { total: 0, cached: 0 },
+            drawLine: { total: 0, cached: 0 },
+            drawImage: { total: 0, cached: 0 },
+        };
     }
 
     #pushDeferredTransforms() {
+        const transformStat = this.#stats.transform;
         for (let i = 0; i < this.#pushTransformStack.length; i += TRANSFORM_COMPONENTS) {
             this.#commands.push(RenderCommandType.PUSH_TRANSFORM);
             this.#data.pushMultiple(
@@ -246,6 +291,7 @@ export class RenderCommandStream {
                 this.#pushTransformStack.buffer[i + 4],
                 this.#pushTransformStack.buffer[i + 5],
             );
+            transformStat.total++;
         }
 
         this.#pushTransformStack.clear();

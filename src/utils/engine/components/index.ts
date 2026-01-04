@@ -187,6 +187,7 @@ export abstract class C_Drawable<TEngine extends Engine = Engine> extends Compon
     public override queueRenderCommands(stream: RenderCommandStream): void {
         stream.setOpacity(this._opacity);
         if (this._opacity >= OPACITY_THRESHOLD) {
+            this._engine.logBeforeFrame(1, 'setStyle', Object.keys(this._style).toString());
             stream.setStyle(this._style);
         }
     }

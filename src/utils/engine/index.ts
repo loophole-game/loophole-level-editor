@@ -288,6 +288,10 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> implements I
         return this._sceneSystem;
     }
 
+    get renderSystem(): RenderSystem {
+        return this._renderSystem;
+    }
+
     get frameCount(): number {
         return this.#frameCount;
     }

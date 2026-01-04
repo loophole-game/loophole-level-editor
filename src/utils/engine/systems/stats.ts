@@ -1,5 +1,6 @@
 import { System } from '.';
 import type { Engine } from '..';
+import type { RenderCommandStats } from './render/command';
 
 const STATS_BUFFER_SIZE = 1;
 const FPS_UPDATE_INTERVAL = 1.0;
@@ -13,12 +14,14 @@ export interface TraceFrame {
 
 export interface Stats {
     fps: number;
-    traces: TraceFrame[];
+    traces: Readonly<TraceFrame>[];
+    renderCommands: Readonly<RenderCommandStats> | null;
 }
 
 const createEmptyStats = (fps: number = 0): Stats => ({
     fps,
     traces: [],
+    renderCommands: null,
 });
 
 export class StatsSystem extends System<Engine> {
@@ -48,6 +51,8 @@ export class StatsSystem extends System<Engine> {
             this.#frameCount = 0;
             this.#fpsTimeAccumulator = 0;
         }
+
+        this.#currentFrameStats.renderCommands = this._engine.renderSystem.getRenderCommandStats();
 
         this.#syncTraces();
     }
