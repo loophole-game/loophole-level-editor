@@ -307,7 +307,7 @@ export class PointerSystem extends System {
     #updateCameraDrag(): void {
         if (this.#pointerState.scrollDelta !== 0) {
             const scrollMode = this._engine.options.cameraScrollMode;
-            const meta = this._engine.getKey('Meta').down;
+            const meta = this._engine.getKey('Meta').down || this._engine.getKey('Control').down;
             if (
                 scrollMode === 'all' ||
                 (scrollMode === 'meta' && meta) ||
