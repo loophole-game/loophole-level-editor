@@ -1,19 +1,17 @@
 import { Component, type ComponentOptions } from '.';
 import { Vector } from '../math';
 import { boundingBoxesIntersect } from '../utils';
-import type { Engine } from '..';
 import type { CursorType } from '../systems/pointer';
 import type { BoundingBox } from '../types';
 
-export interface C_PointerTargetOptions<TEngine extends Engine = Engine>
-    extends ComponentOptions<TEngine> {
+export interface C_PointerTargetOptions extends ComponentOptions {
     onPointerEnter?: () => void;
     onPointerLeave?: () => void;
     cursorOnHover?: CursorType;
     cursorPriority?: number;
 }
 
-export class C_PointerTarget<TEngine extends Engine = Engine> extends Component<TEngine> {
+export class C_PointerTarget extends Component {
     #onPointerEnter?: C_PointerTargetOptions['onPointerEnter'];
     #onPointerLeave?: C_PointerTargetOptions['onPointerLeave'];
     #cursorOnHover?: CursorType;
@@ -22,7 +20,7 @@ export class C_PointerTarget<TEngine extends Engine = Engine> extends Component<
     #canInteract: boolean = true;
     #isPointerHovered: boolean = false;
 
-    constructor(options: C_PointerTargetOptions<TEngine>) {
+    constructor(options: C_PointerTargetOptions) {
         super(options);
 
         this.#onPointerEnter = options.onPointerEnter;

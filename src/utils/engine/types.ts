@@ -16,6 +16,7 @@ export interface CameraData {
     position: IVector<number>;
 }
 export interface CameraMetadata {
+    size: IVector<number>;
     boundingBox: BoundingBox;
     cullBoundingBox: BoundingBox;
     dirty: boolean;
@@ -62,3 +63,16 @@ export interface CacheStats {
     total: number;
     cached: number;
 }
+
+export type OneAxisAlignment = 'start' | 'center' | 'end';
+
+export type TwoAxisAlignment =
+    | 'top-left'
+    | 'top-center'
+    | 'top-right'
+    | 'left'
+    | 'center'
+    | 'right'
+    | 'bottom-left'
+    | 'bottom-center'
+    | 'bottom-right';

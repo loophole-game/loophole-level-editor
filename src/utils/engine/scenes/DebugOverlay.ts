@@ -1,35 +1,154 @@
 import { Scene } from '../systems/scene';
-import { Component, type ComponentOptions } from '../components';
-import type { Engine } from '..';
+import { C_Drawable, type C_DrawableOptions } from '../components';
 import { Entity } from '../entities';
-import type { BoundingBox } from '../types';
+import type { BoundingBox, CacheStats } from '../types';
 import type { RenderCommandStream } from '../systems/render/command';
 import type { RenderStyle } from '../systems/render/style';
 import { zoomToScale } from '../utils';
+import type { TraceFrame } from '../systems/stats';
+import { C_Text } from '../components/Text';
 
-export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Component<TEngine> {
-    constructor(options: ComponentOptions<TEngine>) {
-        const { name = 'boundingBoxDebug', ...rest } = options;
-        super({ name, ...rest });
+const IMPORTANT_TRACE_THRESHOLD = 0.2;
+const IMPORTANT_TRACE_STALE_TIME = 5000;
+
+export class C_StatsDebug extends C_Drawable {
+    #text: C_Text;
+    #importantTraces: Map<string, number> = new Map();
+
+    constructor(options: C_DrawableOptions) {
+        const {
+            name = 'statsDebug',
+            style = {
+                fillStyle: 'white',
+                font: '12px monospace',
+            },
+            ...rest
+        } = options;
+        super({ name, style, ...rest });
+
+        this.#text = this.entity.addComponents(C_Text, {
+            text: '',
+            fontSize: 12,
+            textAlign: 'top-left',
+            trim: 'ends',
+        });
     }
 
-    override queueRenderCommands(stream: RenderCommandStream): void {
-        if (!this._entity) return;
+    override queueRenderCommands(stream: RenderCommandStream): boolean {
+        const stats = this._engine.stats;
+        if (!stats) {
+            return false;
+        }
+
+        const currentTime = performance.now();
+        let text = `FPS: ${stats.fps}\n\n`;
+
+        text += this.#buildTraceText(stats.traces, 0, '', currentTime);
+
+        if (stats.renderCommands) {
+            text += '\nRender Commands\n';
+            const renderStats = stats.renderCommands;
+            text += this.#buildCacheText('transform', renderStats.transform);
+            text += this.#buildCacheText('setStyle', renderStats.setStyle);
+            text += this.#buildCacheText('setOpacity', renderStats.setOpacity);
+            text += this.#buildCacheText('drawRect', renderStats.drawRect);
+            text += this.#buildCacheText('drawEllipse', renderStats.drawEllipse);
+            text += this.#buildCacheText('drawLine', renderStats.drawLine);
+            text += this.#buildCacheText('drawImage', renderStats.drawImage);
+            text += this.#buildCacheText('drawText', renderStats.drawText);
+        }
+
+        this.#text.text = text;
+
+        return super.queueRenderCommands(stream);
+    }
+
+    #buildTraceText(
+        traces: ReadonlyArray<TraceFrame>,
+        depth: number,
+        parentName: string,
+        currentTime: number,
+    ): string {
+        let text = '';
+
+        for (const trace of traces) {
+            const name = trace.name;
+            const { subFrames, time, numCalls = 1 } = trace;
+
+            const key = (parentName ? `${parentName} > ${name}` : name).split('(')[0];
+            if (depth > 0) {
+                if (time >= IMPORTANT_TRACE_THRESHOLD) {
+                    this.#importantTraces.set(key, currentTime);
+                } else {
+                    const lastTime = this.#importantTraces.get(key);
+                    if (!lastTime || currentTime - lastTime > IMPORTANT_TRACE_STALE_TIME) {
+                        this.#importantTraces.delete(key);
+                        continue;
+                    }
+                }
+            }
+
+            const padding = ' '.repeat(depth * 2);
+            const traceText = `${name}${numCalls > 1 ? ` (${numCalls})` : ''}: ${time.toFixed(1)}ms`;
+            text += padding + traceText + '\n';
+
+            if (subFrames.length > 0) {
+                text += this.#buildTraceText(subFrames, depth + 1, name, currentTime);
+            }
+        }
+
+        return text;
+    }
+
+    #buildCacheText(name: string, stats: CacheStats): string {
+        if (stats.total === 0) return '';
+        const cachedPercent =
+            stats.cached > 0
+                ? ` (${((stats.cached / (stats.total + stats.cached)) * 100).toFixed(1)}% cached)`
+                : '';
+        return `${name}: ${stats.total}${cachedPercent}\n`;
+    }
+}
+
+interface BoundingBoxDebugOptions extends C_DrawableOptions {
+    sceneEntityName: string;
+}
+
+export class C_BoundingBoxDebug extends C_Drawable {
+    #sceneEntityName: string;
+
+    constructor(options: BoundingBoxDebugOptions) {
+        const { name = 'boundingBoxDebug', ...rest } = options;
+        super({ name, ...rest });
+
+        const { sceneEntityName } = options;
+        this.#sceneEntityName = sceneEntityName;
+    }
+
+    override queueRenderCommands(stream: RenderCommandStream): boolean {
+        if (!super.queueRenderCommands(stream)) {
+            return false;
+        }
 
         stream.pushTransform(this._entity.transform.worldMatrix.inverse());
-        this.#drawEntityBoundingBox(this._engine.rootEntity, stream);
+        for (const child of this._engine.rootEntity.children) {
+            this.#drawEntityBoundingBox(child, stream);
+        }
         stream.popTransform();
 
         this.#drawBoundingBox(this._engine.camera.cullBoundingBox, stream, {
             strokeStyle: 'blue',
             lineWidth: 4 / zoomToScale(this.engine.camera.zoom),
         });
+
+        return true;
     }
 
     #drawEntityBoundingBox(entity: Readonly<Entity>, stream: RenderCommandStream, level = 0): void {
-        if (!entity.enabled || entity === this.entity) return;
+        if (!entity.enabled || entity.name === this.#sceneEntityName) return;
 
-        const culled = entity.cull !== 'none' && entity.isCulled(this._engine.camera.cullBoundingBox);
+        const culled =
+            entity.cull !== 'none' && entity.isCulled(this._engine.camera.cullBoundingBox);
         if (culled && entity.cull === 'all') {
             return;
         }
@@ -58,13 +177,18 @@ export class C_BoundingBoxDebug<TEngine extends Engine = Engine> extends Compone
 }
 
 export class DebugOverlayScene extends Scene {
-    #debugEntity: Entity<Engine> | null = null;
-
     override create(): void {
-        this.#debugEntity = this.add(Entity<Engine>, {
-            name: 'boundingBoxDebugEntity',
+        this.add(Entity, {
+            name: 'boundingBoxEntity',
             cull: 'none',
-        });
-        this.#debugEntity.addComponents(C_BoundingBoxDebug, {});
+        }).addComponents(C_BoundingBoxDebug, { sceneEntityName: this.rootEntity.name });
+
+        this.add(Entity, {
+            name: 'statsEntity',
+            cull: 'none',
+            positionRelativeToCamera: { x: 'end', y: 'end' },
+            scaleRelativeToCamera: true,
+            position: -24,
+        }).addComponents(C_StatsDebug, { name: 'statsDebug' });
     }
 }

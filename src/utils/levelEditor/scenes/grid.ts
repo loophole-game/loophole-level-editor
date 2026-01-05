@@ -33,7 +33,7 @@ const ACTIVE_TILE_OPACITY = 0.3;
 
 type TileVariant = 'default' | 'entrance' | 'exit' | 'explosion';
 
-interface E_TileHighlightOptions extends EntityOptions<LevelEditor> {
+interface E_TileHighlightOptions extends EntityOptions {
     tile: E_Tile;
 }
 
@@ -51,11 +51,11 @@ export class E_TileHighlight extends Entity<LevelEditor> {
     }
 }
 
-interface E_TileOptions extends EntityOptions<LevelEditor> {
+interface E_TileOptions extends EntityOptions {
     entity: Loophole_EntityWithID;
 }
 
-export class E_Tile extends Entity<LevelEditor> {
+export class E_Tile extends Entity {
     #entity: Loophole_EntityWithID;
     #type: Loophole_ExtendedEntityType;
     #variant: TileVariant = 'default';
@@ -80,7 +80,7 @@ export class E_Tile extends Entity<LevelEditor> {
 
         this.#entity = options.entity;
         this.#type = getLoopholeEntityExtendedType(options.entity);
-        this.#tileImage = this.addComponents(C_Image<LevelEditor>, {
+        this.#tileImage = this.addComponents(C_Image, {
             name: 'tile-image',
             imageName: '',
             style: {
@@ -88,11 +88,11 @@ export class E_Tile extends Entity<LevelEditor> {
             },
             zIndex: 10,
         });
-        this.#positionLerp = this.addComponents(C_LerpPosition<Vector, LevelEditor>, {
+        this.#positionLerp = this.addComponents(C_LerpPosition<Vector>, {
             target: this,
             speed: 20,
         });
-        this.#rotationLerp = this.addComponents(C_LerpRotation<LevelEditor>, {
+        this.#rotationLerp = this.addComponents(C_LerpRotation, {
             target: this,
             speed: 1000,
         });
@@ -112,12 +112,12 @@ export class E_Tile extends Entity<LevelEditor> {
         });
         this.#pointerParent = this.#highlightEntity.addEntities(Entity, { name: 'pointer_parent' });
 
-        this.#pointerTarget = this.#pointerParent.addComponents(C_PointerTarget<LevelEditor>, {
+        this.#pointerTarget = this.#pointerParent.addComponents(C_PointerTarget, {
             cursorOnHover: 'pointer',
             cursorPriority: 5,
         });
         this.#pointerTarget.canInteract = false;
-        this.#highlightShape = this.#pointerParent.addComponents(C_Shape<LevelEditor>, {
+        this.#highlightShape = this.#pointerParent.addComponents(C_Shape, {
             name: 'shape',
             shape: 'RECT',
             style: {
@@ -126,7 +126,7 @@ export class E_Tile extends Entity<LevelEditor> {
             opacity: 0,
             zIndex: 1,
         });
-        this.#opacityLerp = this.#pointerParent.addComponents(C_LerpOpacity<LevelEditor>, {
+        this.#opacityLerp = this.#pointerParent.addComponents(C_LerpOpacity, {
             target: this.#highlightShape,
             speed: 5,
         });
@@ -307,7 +307,7 @@ export class GridScene extends Scene {
     override create() {
         this.#grids.push(
             ...this._engine.addEntities(
-                E_InfiniteShape<LevelEditor>,
+                E_InfiniteShape,
                 {
                     name: 'border',
                     shapeOptions: {

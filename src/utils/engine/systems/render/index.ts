@@ -25,10 +25,13 @@ export class RenderSystem extends System {
                 style.lineJoin ?? DEFAULT_RENDER_STYLE.lineJoin
             }|${style.lineCap ?? DEFAULT_RENDER_STYLE.lineCap}|${
                 style.imageSmoothingEnabled ?? DEFAULT_RENDER_STYLE.imageSmoothingEnabled
+            }|${style.font ?? DEFAULT_RENDER_STYLE.font}|${
+                style.textBaseline ?? DEFAULT_RENDER_STYLE.textBaseline
             }`;
         },
     );
     #hashedImages: HashFactory<string> = new HashFactory<string>((image) => image);
+    #hashedTexts: HashFactory<string> = new HashFactory<string>((text) => text);
 
     #imageCache = new ItemCache<Readonly<LoadedImage>, number>((imageID: number) => {
         const id = this.#hashedImages.idToItem(imageID);
@@ -51,7 +54,11 @@ export class RenderSystem extends System {
 
     render(ctx: CanvasRenderingContext2D, rootEntity: Entity, camera: Camera) {
         if (!this.#stream) {
-            this.#stream = new RenderCommandStream(this.#hashedMaterials, this.#hashedImages);
+            this.#stream = new RenderCommandStream(
+                this.#hashedMaterials,
+                this.#hashedImages,
+                this.#hashedTexts,
+            );
         } else {
             this.#stream.clear();
         }
@@ -163,6 +170,9 @@ export class RenderSystem extends System {
                         activeStyle.imageSmoothingEnabled =
                             style.value.imageSmoothingEnabled ??
                             DEFAULT_RENDER_STYLE.imageSmoothingEnabled;
+                        activeStyle.font = style.value.font ?? DEFAULT_RENDER_STYLE.font;
+                        activeStyle.textBaseline =
+                            style.value.textBaseline ?? DEFAULT_RENDER_STYLE.textBaseline;
                         this.#applyStyle(ctx, activeStyle);
                     }
 
@@ -172,6 +182,16 @@ export class RenderSystem extends System {
                     opacity = data[dataPointer++];
                     ctx.globalAlpha = opacity;
 
+                    break;
+                }
+                case RenderCommandType.DRAW_TEXT: {
+                    const x = data[dataPointer++];
+                    const y = data[dataPointer++];
+                    const textID = data[dataPointer++];
+                    const text = this.#hashedTexts.idToItem(textID);
+                    if (text) {
+                        this.#drawText(text.value, x, y, ctx, activeStyle);
+                    }
                     break;
                 }
                 default: {
@@ -365,5 +385,26 @@ export class RenderSystem extends System {
         }
 
         ctx.drawImage(image.image, x, y, w, h);
+    }
+
+    #drawText(
+        text: string,
+        x: number,
+        y: number,
+        ctx: CanvasRenderingContext2D,
+        activeStyle: RenderStyle,
+    ) {
+        if (activeStyle.fillStyle && activeStyle.fillStyle !== TRANSPARENT_STYLE_COLOR) {
+            ctx.fillText(text, x, y);
+        }
+
+        if (
+            activeStyle.strokeStyle &&
+            activeStyle.strokeStyle !== TRANSPARENT_STYLE_COLOR &&
+            activeStyle.lineWidth &&
+            activeStyle.lineWidth > 0
+        ) {
+            ctx.strokeText(text, x, y);
+        }
     }
 }

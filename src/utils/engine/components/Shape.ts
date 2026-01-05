@@ -1,6 +1,5 @@
 import { Vector, type IVector, type VectorConstructor } from '../math';
 import { C_Drawable, type C_DrawableOptions } from './index';
-import type { Engine } from '..';
 import type { RenderCommandStream } from '../systems/render/command';
 
 const DEFAULT_ARROW_LENGTH = 1;
@@ -16,8 +15,7 @@ export interface ArrowTip {
 
 export type Tip = ArrowTip;
 
-export interface C_ShapeOptions<TEngine extends Engine = Engine>
-    extends C_DrawableOptions<TEngine> {
+export interface C_ShapeOptions extends C_DrawableOptions {
     shape: Shape;
     repeat?: VectorConstructor;
     gap?: VectorConstructor;
@@ -27,7 +25,7 @@ export interface C_ShapeOptions<TEngine extends Engine = Engine>
     endTip?: Tip;
 }
 
-export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine> {
+export class C_Shape extends C_Drawable {
     #shape: Shape;
     #repeat: Vector;
     #gap: Vector;
@@ -38,7 +36,7 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
     #startTip: Tip | null = null;
     #endTip: Tip | null = null;
 
-    constructor(options: C_ShapeOptions<TEngine>) {
+    constructor(options: C_ShapeOptions) {
         const {
             name = 'shape',
             shape,
@@ -135,21 +133,19 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
         return this;
     }
 
-    override queueRenderCommands(stream: RenderCommandStream): void {
-        if (!this.entity?.transform) {
-            return;
+    override queueRenderCommands(stream: RenderCommandStream): boolean {
+        if (!super.queueRenderCommands(stream)) {
+            return false;
         }
 
         switch (this.#shape) {
             case 'LINE': {
                 if (!this.#start || !this.#end) {
-                    return;
+                    return false;
                 }
                 if (this.#start.equals(this.#end)) {
-                    return;
+                    return false;
                 }
-
-                super.queueRenderCommands(stream);
 
                 stream.drawLine(
                     this.#start.x,
@@ -168,8 +164,6 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
                 break;
             }
             case 'RECT': {
-                super.queueRenderCommands(stream);
-
                 stream.drawRect(
                     (-1 - (this._scale.x - 1)) * this._origin.x,
                     (-1 - (this._scale.y - 1)) * this._origin.y,
@@ -184,7 +178,6 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
                 break;
             }
             case 'ELLIPSE': {
-                super.queueRenderCommands(stream);
                 stream.drawEllipse(
                     (-1 - (this._scale.x - 1)) * this._origin.x,
                     (-1 - (this._scale.y - 1)) * this._origin.y,
@@ -199,6 +192,8 @@ export class C_Shape<TEngine extends Engine = Engine> extends C_Drawable<TEngine
                 break;
             }
         }
+
+        return true;
     }
 
     #drawTip(

@@ -13,6 +13,7 @@ export const RenderCommandType = {
     DRAW_ELLIPSE: 5,
     DRAW_LINE: 6,
     DRAW_IMAGE: 7,
+    DRAW_TEXT: 8,
 } as const;
 export type RenderCommandType = (typeof RenderCommandType)[keyof typeof RenderCommandType];
 
@@ -83,11 +84,13 @@ export interface RenderCommandStats {
     drawEllipse: CacheStats;
     drawLine: CacheStats;
     drawImage: CacheStats;
+    drawText: CacheStats;
 }
 
 export class RenderCommandStream {
     #hashedMaterials: HashFactory<RenderStyle>;
     #hashedImages: HashFactory<string>;
+    #hashedTexts: HashFactory<string>;
 
     #data: DynamicNumberArray<Float32Array> = new DynamicNumberArray(
         Float32Array,
@@ -114,11 +117,17 @@ export class RenderCommandStream {
         drawEllipse: { total: 0, cached: 0 },
         drawLine: { total: 0, cached: 0 },
         drawImage: { total: 0, cached: 0 },
+        drawText: { total: 0, cached: 0 },
     };
 
-    constructor(hashedMaterials: HashFactory<RenderStyle>, hashedImages: HashFactory<string>) {
+    constructor(
+        hashedMaterials: HashFactory<RenderStyle>,
+        hashedImages: HashFactory<string>,
+        hashedTexts: HashFactory<string>,
+    ) {
         this.#hashedMaterials = hashedMaterials;
         this.#hashedImages = hashedImages;
+        this.#hashedTexts = hashedTexts;
     }
 
     get data(): Float32Array {
@@ -262,6 +271,19 @@ export class RenderCommandStream {
         this.#stats.drawImage.total++;
     }
 
+    drawText(text: string, x: number, y: number) {
+        if (this.#currentOpacity < OPACITY_THRESHOLD) {
+            return;
+        }
+
+        this.#pushDeferredTransforms();
+
+        const textID = this.#hashedTexts.itemToID(text);
+        this.#commands.push(RenderCommandType.DRAW_TEXT);
+        this.#data.pushMultiple(x, y, textID);
+        this.#stats.drawText.total++;
+    }
+
     clear() {
         this.#commands.clear();
         this.#data.clear();
@@ -276,6 +298,7 @@ export class RenderCommandStream {
             drawEllipse: { total: 0, cached: 0 },
             drawLine: { total: 0, cached: 0 },
             drawImage: { total: 0, cached: 0 },
+            drawText: { total: 0, cached: 0 },
         };
     }
 

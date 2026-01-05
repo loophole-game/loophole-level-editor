@@ -1,20 +1,14 @@
 import type { Component, ComponentOptions } from '../components';
-import type { BoundingBox, Camera, Renderable } from '../types';
-import { Vector, type IVector } from '../math';
+import type { BoundingBox, Camera, OneAxisAlignment, Renderable } from '../types';
+import { Vector, type IVector, type VectorConstructor } from '../math';
 import { C_Transform } from '../components/transforms';
 import { boundingBoxesIntersect, zoomToScale } from '../utils';
 import type { Engine } from '..';
 import type { RenderCommandStream } from '../systems/render/command';
 
-interface ScaleToCamera {
-    x: boolean;
-    y: boolean;
-}
-
 type CullMode = 'components' | 'children' | 'all' | 'none';
-
-export interface EntityOptions<TEngine extends Engine = Engine> {
-    engine: TEngine;
+type PositionRelativeToCamera = OneAxisAlignment | 'none';
+export interface EntityOptions {
     name?: string;
     enabled?: boolean;
     zIndex?: number;
@@ -22,10 +16,15 @@ export interface EntityOptions<TEngine extends Engine = Engine> {
     position?: number | IVector<number> | Vector;
     scale?: number | IVector<number> | Vector;
     rotation?: number;
-    scaleToCamera?: boolean | ScaleToCamera;
+    positionRelativeToCamera?: VectorConstructor<PositionRelativeToCamera>;
+    scaleRelativeToCamera?: VectorConstructor<boolean>;
     scene?: string;
-    components?: Component<TEngine>[];
-    children?: Entity<TEngine>[];
+    components?: Component[];
+    children?: Entity[];
+}
+
+interface InternalEntityOptions<TEngine extends Engine = Engine> extends EntityOptions {
+    engine: TEngine;
 }
 
 export class Entity<TEngine extends Engine = Engine> implements Renderable {
@@ -38,45 +37,54 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
     protected _enabled: boolean;
     protected _zIndex: number;
 
-    protected _transform: C_Transform<TEngine>;
-    protected _scaleToCamera: ScaleToCamera;
+    protected _transform: C_Transform;
+    protected _positionRelativeToCamera: IVector<PositionRelativeToCamera>;
+    protected _scaleRelativeToCamera: IVector<boolean>;
     protected _cull: CullMode;
 
     protected _updated: boolean = false;
-    protected _parent: Entity<TEngine> | null = null;
+    protected _parent: Entity | null = null;
 
-    protected _children: Entity<TEngine>[];
+    protected _children: Entity[];
     #childrenZIndexDirty: boolean = false;
 
-    protected _components: Component<TEngine>[];
+    protected _components: Component[];
     #componentsZIndexDirty: boolean = false;
 
-    protected _cachedComponentsInTree: Record<string, Component<TEngine>[]> = {};
+    protected _cachedComponentsInTree: Record<string, Component[]> = {};
 
-    constructor(options: EntityOptions<TEngine>) {
-        const { name = `entity-${this._id}`, engine, ...rest } = options;
+    constructor(options: EntityOptions) {
+        const {
+            name = `entity-${this._id}`,
+            engine,
+            ...rest
+        } = options as InternalEntityOptions<TEngine>;
         this._name = name;
         this._engine = engine;
         this._enabled = rest?.enabled ?? true;
         this._zIndex = rest?.zIndex ?? 0;
-        this._scaleToCamera = rest?.scaleToCamera
-            ? typeof rest.scaleToCamera === 'boolean'
-                ? { x: rest.scaleToCamera, y: rest.scaleToCamera }
-                : rest.scaleToCamera
+
+        this._positionRelativeToCamera = rest?.positionRelativeToCamera
+            ? typeof rest.positionRelativeToCamera === 'string'
+                ? { x: rest.positionRelativeToCamera, y: rest.positionRelativeToCamera }
+                : rest.positionRelativeToCamera
+            : { x: 'none', y: 'none' };
+        this._scaleRelativeToCamera = rest?.scaleRelativeToCamera
+            ? typeof rest.scaleRelativeToCamera === 'boolean'
+                ? { x: rest.scaleRelativeToCamera, y: rest.scaleRelativeToCamera }
+                : rest.scaleRelativeToCamera
             : { x: false, y: false };
+
         this._cull = rest?.cull ?? 'all';
         this._components = rest?.components ?? [];
         this._children = rest?.children ?? [];
 
-        this._transform = this.addComponents(C_Transform<TEngine>, {
+        this._transform = this.addComponents(C_Transform, {
             position: rest?.position ?? 0,
             rotation: rest?.rotation ?? 0,
             scale: rest?.scale ?? 1,
         });
 
-        for (const component of this._components) {
-            component.entity = this;
-        }
         for (const child of this._children) {
             child.parent = this;
         }
@@ -138,15 +146,15 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         this.#childrenZIndexDirty = dirty;
     }
 
-    get components(): ReadonlyArray<Component> {
-        return this._components;
+    get components(): ReadonlyArray<Component<TEngine>> {
+        return this._components as Component<TEngine>[];
     }
 
-    get parent(): Readonly<Entity<TEngine>> | null {
+    get parent(): Readonly<Entity> | null {
         return this._parent;
     }
 
-    set parent(parent: Entity<TEngine> | null) {
+    set parent(parent: Entity | null) {
         if (parent) {
             parent.registerChild(this);
             if (this.parent !== parent) {
@@ -157,27 +165,18 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
     }
 
     get children(): ReadonlyArray<Entity<TEngine>> {
-        return this._children;
+        return this._children as Entity<TEngine>[];
     }
 
-    addEntities<
-        T extends Entity<TEngine>,
-        TOptions extends EntityOptions<TEngine> = EntityOptions<TEngine>,
-    >(
+    addEntities<T extends Entity, TOptions extends EntityOptions = EntityOptions>(
         ctor: new (options: TOptions) => T,
         options: Omit<TOptions, 'engine'> & { scene?: string },
     ): T;
-    addEntities<
-        T extends Entity<TEngine>,
-        TOptions extends EntityOptions<TEngine> = EntityOptions<TEngine>,
-    >(
+    addEntities<T extends Entity, TOptions extends EntityOptions = EntityOptions>(
         ctor: new (options: TOptions) => T,
         ...optionObjs: (Omit<TOptions, 'engine'> & { scene?: string })[]
     ): T[];
-    addEntities<
-        T extends Entity<TEngine>,
-        TOptions extends EntityOptions<TEngine> = EntityOptions<TEngine>,
-    >(
+    addEntities<T extends Entity, TOptions extends EntityOptions = EntityOptions>(
         ctor: new (options: TOptions) => T,
         ...optionObjs: (Omit<TOptions, 'engine'> & { scene?: string })[]
     ): T | T[] {
@@ -190,22 +189,25 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         return instances.length === 1 ? instances[0] : instances;
     }
 
-    addComponents<
-        T extends Component<TEngine>,
-        TOptions extends ComponentOptions<TEngine> = ComponentOptions<TEngine>,
-    >(ctor: new (options: TOptions) => T, options: Omit<TOptions, 'engine'>): T;
-    addComponents<
-        T extends Component<TEngine>,
-        TOptions extends ComponentOptions<TEngine> = ComponentOptions<TEngine>,
-    >(ctor: new (options: TOptions) => T, ...optionObjs: Omit<TOptions, 'engine'>[]): T[];
-    addComponents<
-        T extends Component<TEngine>,
-        TOptions extends ComponentOptions<TEngine> = ComponentOptions<TEngine>,
-    >(ctor: new (options: TOptions) => T, ...optionObjs: Omit<TOptions, 'engine'>[]): T | T[] {
+    addComponents<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
+        ctor: new (options: TOptions) => T,
+        options: Omit<TOptions, 'engine' | 'entity'>,
+    ): T;
+    addComponents<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
+        ctor: new (options: TOptions) => T,
+        ...optionObjs: Omit<TOptions, 'engine' | 'entity'>[]
+    ): T[];
+    addComponents<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
+        ctor: new (options: TOptions) => T,
+        ...optionObjs: Omit<TOptions, 'engine' | 'entity'>[]
+    ): T | T[] {
         const components = optionObjs.map((option) => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const component = new ctor({ ...option, engine: this._engine } as any);
-            component.entity = this;
+            const component = new ctor({
+                ...option,
+                engine: this._engine,
+                entity: this,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any) as T;
             this._components.push(component);
             return component;
         });
@@ -213,11 +215,11 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         return components.length === 1 ? components[0] : components;
     }
 
-    registerChild(child: Entity<TEngine>): void {
+    registerChild(child: Entity): void {
         this._children.push(child);
     }
 
-    getComponentsInTree<T extends Component<TEngine>>(typeString: string): T[] {
+    getComponentsInTree<T extends Component>(typeString: string): T[] {
         if (typeString in this._cachedComponentsInTree) {
             return this._cachedComponentsInTree[typeString] as T[];
         }
@@ -268,7 +270,7 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         this.#destroy();
     }
 
-    removeChildren(...entities: Entity<TEngine>[]): void {
+    removeChildren(...entities: Entity[]): void {
         for (const entity of entities) {
             entity.destroy();
         }
@@ -336,11 +338,22 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         return this;
     }
 
-    setScaleToCamera(scaleToCamera: boolean | ScaleToCamera): this {
-        this._scaleToCamera =
-            typeof scaleToCamera === 'boolean'
-                ? { x: scaleToCamera, y: scaleToCamera }
-                : scaleToCamera;
+    setPositionRelativeToCamera(
+        positionRelativeToCamera: VectorConstructor<PositionRelativeToCamera>,
+    ): this {
+        this._positionRelativeToCamera =
+            typeof positionRelativeToCamera === 'string'
+                ? { x: positionRelativeToCamera, y: positionRelativeToCamera }
+                : positionRelativeToCamera;
+
+        return this;
+    }
+
+    setScaleRelativeToCamera(scaleRelativeToCamera: VectorConstructor<boolean>): this {
+        this._scaleRelativeToCamera =
+            typeof scaleRelativeToCamera === 'boolean'
+                ? { x: scaleRelativeToCamera, y: scaleRelativeToCamera }
+                : scaleRelativeToCamera;
 
         return this;
     }
@@ -355,11 +368,11 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         return this;
     }
 
-    hasComponent(component: Component<TEngine>): boolean {
+    hasComponent(component: Component): boolean {
         return this._components.includes(component);
     }
 
-    getComponent(typeString: string): Component<TEngine> | null {
+    getComponent(typeString: string): Component | null {
         return this._components.find((c) => c.name === typeString) ?? null;
     }
 
@@ -369,14 +382,83 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         }
 
         // Apply camera scaling only if we need to render
-        if (this._scaleToCamera.x || this._scaleToCamera.y) {
-            const scale = zoomToScale(this._engine.camera.zoom);
+        if (this._scaleRelativeToCamera.x || this._scaleRelativeToCamera.y) {
+            const scale = zoomToScale(camera.zoom);
             this.transform.setScaleMult(
                 new Vector(
-                    this._scaleToCamera.x ? 1 / scale : 1,
-                    this._scaleToCamera.y ? 1 / scale : 1,
+                    this._scaleRelativeToCamera.x ? 1 / scale : 1,
+                    this._scaleRelativeToCamera.y ? 1 / scale : 1,
                 ),
             );
+        }
+
+        // Apply camera position offset only if we need to render
+        if (
+            this._positionRelativeToCamera.x !== 'none' ||
+            this._positionRelativeToCamera.y !== 'none'
+        ) {
+            const scale = zoomToScale(camera.zoom);
+
+            // Calculate world center of the camera viewport
+            const worldCenterOffset = {
+                x: -camera.position.x / scale,
+                y: -camera.position.y / scale,
+            };
+
+            // Account for camera rotation
+            const rotationRad = (-camera.rotation * Math.PI) / 180;
+            const cosRot = Math.cos(rotationRad);
+            const sinRot = Math.sin(rotationRad);
+            const worldCenterX = worldCenterOffset.x * cosRot - worldCenterOffset.y * sinRot;
+            const worldCenterY = worldCenterOffset.x * sinRot + worldCenterOffset.y * cosRot;
+
+            // Calculate offset based on anchor position (in world space, before rotation)
+            let xOffsetLocal = 0;
+            let yOffsetLocal = 0;
+            switch (this._positionRelativeToCamera.x) {
+                case 'start':
+                    xOffsetLocal = -camera.size.x / 2;
+                    break;
+                case 'center':
+                    xOffsetLocal = 0;
+                    break;
+                case 'end':
+                    xOffsetLocal = camera.size.x / 2;
+                    break;
+            }
+            switch (this._positionRelativeToCamera.y) {
+                case 'start':
+                    yOffsetLocal = -camera.size.y / 2;
+                    break;
+                case 'center':
+                    yOffsetLocal = 0;
+                    break;
+                case 'end':
+                    yOffsetLocal = camera.size.y / 2;
+                    break;
+            }
+
+            // Rotate the offset by camera rotation to get world space offset
+            const xOffsetWorld = xOffsetLocal * cosRot - yOffsetLocal * sinRot;
+            const yOffsetWorld = xOffsetLocal * sinRot + yOffsetLocal * cosRot;
+
+            // Final position offset is: world center + rotated offset
+            this.transform.setPositionOffset({
+                x:
+                    this._positionRelativeToCamera.x !== 'none'
+                        ? worldCenterX +
+                          xOffsetWorld -
+                          this.position.x +
+                          this.position.x * this.transform.scaleMult.x
+                        : 0,
+                y:
+                    this._positionRelativeToCamera.y !== 'none'
+                        ? worldCenterY +
+                          yOffsetWorld -
+                          this.position.y +
+                          this.position.y * this.transform.scaleMult.y
+                        : 0,
+            });
         }
 
         const culled = this._cull !== 'none' && this.isCulled(camera.cullBoundingBox);
@@ -465,7 +547,7 @@ export class Entity<TEngine extends Engine = Engine> implements Renderable {
         this._components.sort(this.#sortByZIndex);
     }
 
-    #getComponentsInTree<T extends Component<TEngine>>(typeString: string, out: T[]): void {
+    #getComponentsInTree<T extends Component>(typeString: string, out: T[]): void {
         if (!this.enabled) {
             return;
         }

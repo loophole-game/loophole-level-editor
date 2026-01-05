@@ -1,5 +1,4 @@
 import { Entity, type EntityOptions } from './entities';
-import { Component, type ComponentOptions } from './components';
 import { RenderSystem } from './systems/render';
 import { type Camera, type CameraData, type WebKey } from './types';
 import { Scene, type SceneIdentifier, type SceneOptions } from './systems/scene';
@@ -137,8 +136,9 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> implements I
 
     protected _canvas: HTMLCanvasElement | null = null;
     protected _options: TOptions = { ...DEFAULT_ENGINE_OPTIONS } as TOptions;
+    protected _devicePixelRatio: number = 1;
 
-    protected _rootEntity: Entity<this>;
+    protected _rootEntity: Entity;
 
     protected _renderSystem: RenderSystem;
     protected _sceneSystem: SceneSystem;
@@ -166,7 +166,8 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> implements I
     #tempPoint: DOMPoint = new DOMPoint();
 
     constructor(options: Partial<TOptions> = {}) {
-        this._rootEntity = new Entity({ name: 'root', engine: this, cull: 'none' });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        this._rootEntity = new Entity({ name: 'root', engine: this, cull: 'none' } as any);
 
         // Order of system creation is important
         this._inputSystem = new InputSystem(this);
@@ -223,6 +224,7 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> implements I
 
     set canvas(canvas: HTMLCanvasElement | null) {
         this._canvas = canvas;
+        this._devicePixelRatio = window.devicePixelRatio || 1;
         this._cameraSystem.worldToScreenMatrixDirty = true;
         this._pointerSystem.canvas = canvas;
         this.#forceRender = true;
@@ -233,7 +235,10 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> implements I
             return null;
         }
 
-        return { x: this._canvas.width, y: this._canvas.height };
+        return {
+            x: this._canvas.width / this._devicePixelRatio,
+            y: this._canvas.height / this._devicePixelRatio,
+        };
     }
 
     get options(): Readonly<TOptions> {
@@ -308,15 +313,15 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> implements I
         this._systems.push(system);
     }
 
-    addEntities<T extends Entity<this>, TOptions extends EntityOptions<this> = EntityOptions<this>>(
+    addEntities<T extends Entity, TOptions extends EntityOptions = EntityOptions>(
         ctor: new (options: TOptions) => T,
         options: Omit<TOptions, 'engine'> & { scene?: string },
     ): T;
-    addEntities<T extends Entity<this>, TOptions extends EntityOptions<this> = EntityOptions<this>>(
+    addEntities<T extends Entity, TOptions extends EntityOptions = EntityOptions>(
         ctor: new (options: TOptions) => T,
         ...optionObjs: (Omit<TOptions, 'engine'> & { scene?: string })[]
     ): T[];
-    addEntities<T extends Entity<this>, TOptions extends EntityOptions<this> = EntityOptions<this>>(
+    addEntities<T extends Entity, TOptions extends EntityOptions = EntityOptions>(
         ctor: new (options: TOptions) => T,
         ...optionObjs: (Omit<TOptions, 'engine'> & { scene?: string })[]
     ): T | T[] {
@@ -331,24 +336,6 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> implements I
 
             return entity;
         });
-        return instances.length === 1 ? instances[0] : instances;
-    }
-
-    createComponent<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
-        ctor: new (options: TOptions) => T,
-        options: Omit<TOptions, 'engine'>,
-    ): T;
-    createComponent<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
-        ctor: new (options: TOptions) => T,
-        ...optionObjs: Omit<TOptions, 'engine'>[]
-    ): T[];
-    createComponent<T extends Component, TOptions extends ComponentOptions = ComponentOptions>(
-        ctor: new (options: TOptions) => T,
-        ...optionObjs: Omit<TOptions, 'engine'>[]
-    ): T | T[] {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const instances = optionObjs.map((option) => new ctor({ ...option, engine: this } as any));
-
         return instances.length === 1 ? instances[0] : instances;
     }
 
@@ -559,8 +546,11 @@ export class Engine<TOptions extends EngineOptions = EngineOptions> implements I
             return;
         }
 
+        const dpr = this._devicePixelRatio;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.textAlign = 'left';
+
         const { x: canvasWidth, y: canvasHeight } = this.canvasSize;
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
         if (this.options.clearColor && this.options.clearColor !== 'transparent') {
             ctx.fillStyle = this.options.clearColor;
             ctx.fillRect(0, 0, canvasWidth, canvasHeight);

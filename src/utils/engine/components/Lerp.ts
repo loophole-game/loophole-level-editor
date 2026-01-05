@@ -1,11 +1,9 @@
 import { Component, type ComponentOptions } from '.';
-import type { Engine } from '..';
 import { type IVector } from '../math';
 
 type LerpValueType = number | IVector<number>;
 
-interface C_LerpOptions<T extends LerpValueType, TEngine extends Engine = Engine>
-    extends ComponentOptions<TEngine> {
+interface C_LerpOptions<T extends LerpValueType> extends ComponentOptions {
     get: () => T;
     set: (value: T) => void;
     speed: number;
@@ -16,10 +14,7 @@ interface C_LerpOptions<T extends LerpValueType, TEngine extends Engine = Engine
 const SNAP_EPSILON = 1e-6;
 const BASELINE_RATE = 1e-3;
 
-export class C_Lerp<
-    T extends LerpValueType,
-    TEngine extends Engine = Engine,
-> extends Component<TEngine> {
+export class C_Lerp<T extends LerpValueType> extends Component {
     #get: () => T;
     #set: (value: T) => void;
     #speed: number;
@@ -28,7 +23,7 @@ export class C_Lerp<
 
     #targetValue: T;
 
-    constructor(options: C_LerpOptions<T, TEngine>) {
+    constructor(options: C_LerpOptions<T>) {
         const { name = 'lerp', ...rest } = options;
         super({ name, ...rest });
 
@@ -143,13 +138,12 @@ export class C_Lerp<
     }
 }
 
-interface OpacityLerpOptions<TEngine extends Engine = Engine>
-    extends Omit<C_LerpOptions<number, TEngine>, 'get' | 'set'> {
+interface OpacityLerpOptions extends Omit<C_LerpOptions<number>, 'get' | 'set'> {
     target: { opacity?: number; setOpacity?: (value: number) => void };
 }
 
-export class C_LerpOpacity<TEngine extends Engine = Engine> extends C_Lerp<number, TEngine> {
-    constructor(options: OpacityLerpOptions<TEngine>) {
+export class C_LerpOpacity extends C_Lerp<number> {
+    constructor(options: OpacityLerpOptions) {
         const { name = 'opacity_lerp', target, ...rest } = options;
         super({
             name,
@@ -166,16 +160,13 @@ export class C_LerpOpacity<TEngine extends Engine = Engine> extends C_Lerp<numbe
     }
 }
 
-interface PositionLerpOptions<V extends IVector<number>, TEngine extends Engine = Engine>
-    extends Omit<C_LerpOptions<V, TEngine>, 'get' | 'set'> {
+interface PositionLerpOptions<V extends IVector<number>>
+    extends Omit<C_LerpOptions<V>, 'get' | 'set'> {
     target: { position: V; setPosition?: (value: V) => void };
 }
 
-export class C_LerpPosition<
-    V extends IVector<number>,
-    TEngine extends Engine = Engine,
-> extends C_Lerp<V, TEngine> {
-    constructor(options: PositionLerpOptions<V, TEngine>) {
+export class C_LerpPosition<V extends IVector<number>> extends C_Lerp<V> {
+    constructor(options: PositionLerpOptions<V>) {
         const { name = 'position_lerp', target, type = 'fractional', ...rest } = options;
         super({
             name,
@@ -193,13 +184,13 @@ export class C_LerpPosition<
     }
 }
 
-interface RotationLerpOptions<TEngine extends Engine = Engine>
-    extends Omit<C_LerpOptions<number, TEngine>, 'get' | 'set'> {
+interface RotationLerpOptions
+    extends Omit<C_LerpOptions<number>, 'get' | 'set'> {
     target: { rotation: number; setRotation?: (value: number) => void };
 }
 
-export class C_LerpRotation<TEngine extends Engine = Engine> extends C_Lerp<number, TEngine> {
-    constructor(options: RotationLerpOptions<TEngine>) {
+export class C_LerpRotation extends C_Lerp<number> {
+    constructor(options: RotationLerpOptions) {
         const { name = 'rotation_lerp', variant = 'degrees', target, ...rest } = options;
         super({
             name,

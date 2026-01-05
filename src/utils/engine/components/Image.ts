@@ -1,18 +1,17 @@
 import { C_Drawable, type C_DrawableOptions } from '.';
-import type { Engine } from '..';
 import { Vector, type VectorConstructor } from '../math';
 import type { RenderCommandStream } from '../systems/render/command';
 
-interface C_ImageOptions<TEngine extends Engine = Engine> extends C_DrawableOptions<TEngine> {
+interface C_ImageOptions extends C_DrawableOptions {
     imageName: string;
     repeat?: VectorConstructor;
 }
 
-export class C_Image<TEngine extends Engine = Engine> extends C_Drawable<TEngine> {
+export class C_Image extends C_Drawable {
     #imageName: string;
     #repeat: Vector;
 
-    constructor(options: C_ImageOptions<TEngine>) {
+    constructor(options: C_ImageOptions) {
         super(options);
 
         const { imageName, repeat } = options;
@@ -36,12 +35,10 @@ export class C_Image<TEngine extends Engine = Engine> extends C_Drawable<TEngine
         this.#repeat = new Vector(repeat ?? 1);
     }
 
-    override queueRenderCommands(stream: RenderCommandStream): void {
-        if (!this._entity || !this.#imageName) {
-            return;
+    override queueRenderCommands(stream: RenderCommandStream): boolean {
+        if (!this._entity || !this.#imageName || !super.queueRenderCommands(stream)) {
+            return false;
         }
-
-        super.queueRenderCommands(stream);
 
         stream.drawImage(
             -this.origin.x * this.scale.x,
@@ -54,5 +51,7 @@ export class C_Image<TEngine extends Engine = Engine> extends C_Drawable<TEngine
             1,
             1,
         );
+
+        return true;
     }
 }

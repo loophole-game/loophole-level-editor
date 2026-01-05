@@ -2,18 +2,16 @@ import { Entity, type EntityOptions } from '../../engine/entities';
 import { C_Shape, type C_ShapeOptions } from '../../engine/components/Shape';
 import { zoomToScale } from '../../engine/utils';
 import { Vector, type IVector, type VectorConstructor } from '@/utils/engine/math';
-import type { Engine } from '@/utils/engine';
 
-export interface E_InfiniteShapeOptions<TEngine extends Engine = Engine>
-    extends EntityOptions<TEngine> {
-    shapeOptions: Omit<C_ShapeOptions<TEngine>, 'engine'>;
+export interface E_InfiniteShapeOptions extends EntityOptions {
+    shapeOptions: C_ShapeOptions;
     tileSize: VectorConstructor;
     zoomCullThresh?: number;
     offset?: VectorConstructor;
     infiniteAxes?: Partial<IVector<boolean>>;
 }
 
-export class E_InfiniteShape<TEngine extends Engine = Engine> extends Entity<TEngine> {
+export class E_InfiniteShape extends Entity {
     #shape: C_Shape;
     #offset: Vector;
     #tileSize: Vector;
@@ -21,11 +19,11 @@ export class E_InfiniteShape<TEngine extends Engine = Engine> extends Entity<TEn
     #infiniteAxes: IVector<boolean>;
     #position: Vector | null = null;
 
-    constructor(options: E_InfiniteShapeOptions<TEngine>) {
+    constructor(options: E_InfiniteShapeOptions) {
         const { name = 'infinite_shape', ...rest } = options;
         super({ name, cull: 'none', ...rest });
 
-        this.#shape = this.addComponents(C_Shape<TEngine>, options.shapeOptions);
+        this.#shape = this.addComponents(C_Shape, options.shapeOptions);
         if (!options.shapeOptions.gap) {
             this.#shape.gap = new Vector(options.tileSize).div(this.scale);
         }

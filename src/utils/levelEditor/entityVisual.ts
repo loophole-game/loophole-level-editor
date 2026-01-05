@@ -1,3 +1,4 @@
+import type { LevelEditor } from '.';
 import { C_Image } from '../engine/components/Image';
 import { C_Shape, type Shape } from '../engine/components/Shape';
 import { Entity, type EntityOptions } from '../engine/entities';
@@ -11,7 +12,6 @@ import {
     WIRE_CORNER_SPRITE,
 } from '../utils';
 import type { Loophole_EntityWithID, Loophole_ExtendedEntityType } from './externalLevelSchema';
-import { LevelEditor } from '.';
 import { E_Tile, GridScene } from './scenes/grid';
 import { E_InfiniteShape } from './scenes/InfiniteShape';
 
@@ -27,7 +27,7 @@ interface ExplosionDecals {
     arrows: E_InfiniteShape;
 }
 
-interface E_EntityVisualOptions extends EntityOptions<LevelEditor> {
+interface E_EntityVisualOptions extends EntityOptions {
     mode: Mode;
     tile?: E_Tile;
     variant?: Variant;
@@ -51,7 +51,7 @@ export class E_EntityVisual extends Entity<LevelEditor> {
         const { name = 'entity_visual', opacity, ...rest } = options;
         super({ name, ...rest });
         this.#opacity = opacity ?? 1;
-        this.#tileImage = this.addComponents(C_Image<LevelEditor>, {
+        this.#tileImage = this.addComponents(C_Image, {
             name: `${name}-image`,
             imageName: '',
             style: {
@@ -196,7 +196,7 @@ export class E_EntityVisual extends Entity<LevelEditor> {
 
     #requestTileShapes(...shapes: Shape[]) {
         while (this.#tileShapes.length < shapes.length) {
-            const shape = this.addComponents(C_Shape<LevelEditor>, {
+            const shape = this.addComponents(C_Shape, {
                 name: 'tile',
                 shape: 'RECT',
             });
@@ -217,7 +217,7 @@ export class E_EntityVisual extends Entity<LevelEditor> {
 
     #createTimeMachineDecals() {
         if (!this.#timeMachineDecals) {
-            const arrow = this.addComponents(C_Shape<LevelEditor>, {
+            const arrow = this.addComponents(C_Shape, {
                 name: 'arrow',
                 shape: 'LINE',
                 start: { x: -0.2, y: 0 },
@@ -287,7 +287,7 @@ export class E_EntityVisual extends Entity<LevelEditor> {
     #createExplosionDecals() {
         if (!this.#explosionDecals) {
             this.#explosionDecals = {
-                arrows: this._engine.addEntities(E_InfiniteShape<LevelEditor>, {
+                arrows: this.addEntities(E_InfiniteShape, {
                     name: 'arrows',
                     shapeOptions: {
                         name: 'arrow',
@@ -309,8 +309,8 @@ export class E_EntityVisual extends Entity<LevelEditor> {
             this.#explosionDecals.arrows.setEnabled(true);
         }
 
-        if (this.#tile?.entity) {
-            const direction = getLoopholeEntityDirection(this.#tile?.entity);
+        if (this.#tile) {
+            const direction = getLoopholeEntityDirection(this.#tile.entity);
             const halfSize = 3;
             if (direction === 'RIGHT') {
                 this.#explosionDecals.arrows.shape.setStart({ x: -halfSize, y: 0 });

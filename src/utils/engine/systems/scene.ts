@@ -16,7 +16,7 @@ export class Scene<TEngine extends Engine = Engine> {
     protected readonly _name: string;
 
     protected _engine: TEngine;
-    #rootEntity: Entity | null = null;
+    #rootEntity!: Entity;
     #zIndex: number = 0;
 
     constructor(options: SceneOptions<TEngine>) {
@@ -41,9 +41,8 @@ export class Scene<TEngine extends Engine = Engine> {
     set zIndex(zIndex: number) {
         if (this.#zIndex !== zIndex && !isNaN(zIndex)) {
             this.#zIndex = zIndex;
-            if (this.#rootEntity) {
-                this.#rootEntity.setZIndex(zIndex);
-            }
+
+            this.#rootEntity.setZIndex(zIndex);
         }
     }
 
@@ -51,26 +50,26 @@ export class Scene<TEngine extends Engine = Engine> {
         return this._engine;
     }
 
-    get rootEntity(): Readonly<Entity> | null {
+    get rootEntity(): Readonly<Entity> {
         return this.#rootEntity;
     }
 
-    set rootEntity(rootEntity: Entity | null) {
+    set rootEntity(rootEntity: Entity) {
         this.#rootEntity = rootEntity;
     }
 
-    add<
-        T extends Entity<TEngine>,
-        TOptions extends EntityOptions<TEngine> = EntityOptions<TEngine>,
-    >(ctor: new (options: TOptions) => T, options: Omit<TOptions, 'engine'>): T;
-    add<
-        T extends Entity<TEngine>,
-        TOptions extends EntityOptions<TEngine> = EntityOptions<TEngine>,
-    >(ctor: new (options: TOptions) => T, ...optionObjs: Omit<TOptions, 'engine'>[]): T[];
-    add<
-        T extends Entity<TEngine>,
-        TOptions extends EntityOptions<TEngine> = EntityOptions<TEngine>,
-    >(ctor: new (options: TOptions) => T, ...optionObjs: Omit<TOptions, 'engine'>[]): T | T[] {
+    add<T extends Entity<TEngine>, TOptions extends EntityOptions = EntityOptions>(
+        ctor: new (options: TOptions) => T,
+        options: Omit<TOptions, 'engine'>,
+    ): T;
+    add<T extends Entity<TEngine>, TOptions extends EntityOptions = EntityOptions>(
+        ctor: new (options: TOptions) => T,
+        ...optionObjs: Omit<TOptions, 'engine'>[]
+    ): T[];
+    add<T extends Entity<TEngine>, TOptions extends EntityOptions = EntityOptions>(
+        ctor: new (options: TOptions) => T,
+        ...optionObjs: Omit<TOptions, 'engine'>[]
+    ): T | T[] {
         const instances = (optionObjs.length > 0 ? optionObjs : [{}]).map((option) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const entity = new ctor({ ...option, engine: this._engine, scene: this.name } as any);

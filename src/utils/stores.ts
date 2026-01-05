@@ -256,7 +256,7 @@ export const useAppStore = create<AppStore>()(
                 interfaceHidden: state.interfaceHidden,
             }),
             version: 3,
-            migrate: () => {},
+            migrate: (persistedState) => persistedState,
         },
     ),
 );
@@ -300,7 +300,7 @@ export const useSettingsStore = create<SettingsStore>()(
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({ ...state }),
             version: 1,
-            migrate: () => {},
+            migrate: (persistedState) => persistedState,
         },
     ),
 );

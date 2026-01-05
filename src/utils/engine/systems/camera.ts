@@ -201,6 +201,8 @@ export class CameraSystem extends System {
             const rotationRad = (-this.#camera.rotation * Math.PI) / 180;
             const worldCenter = new Vector(worldCenterOffset).rotate(rotationRad).extract();
 
+            this.#camera.size.x = worldSize.x;
+            this.#camera.size.y = worldSize.y;
             this.#camera.boundingBox = calculateRectangleBoundingBox(
                 worldCenter,
                 worldSize,

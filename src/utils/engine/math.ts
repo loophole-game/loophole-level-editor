@@ -3,7 +3,7 @@ export interface IVector<T> {
     y: T;
 }
 
-export type VectorConstructor = number | IVector<number>;
+export type VectorConstructor<T = number> = T | IVector<T>;
 
 /**
  * A 2D vector class for position, direction, and scale operations.

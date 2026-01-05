@@ -81,22 +81,22 @@ class E_TileCursor extends Entity<LevelEditor> {
 
     #prevBrushEntityType: Loophole_ExtendedEntityType | null = null;
 
-    constructor(options: EntityOptions<LevelEditor>) {
+    constructor(options: EntityOptions) {
         super({ name: 'cursor', ...options });
 
         this.#entityVisual = this.addEntities(E_EntityVisual, { mode: 'brush' });
-        this.#tileOpacityLerp = this.#entityVisual.addComponents(C_LerpOpacity<LevelEditor>, {
+        this.#tileOpacityLerp = this.#entityVisual.addComponents(C_LerpOpacity, {
             target: this.#entityVisual,
             speed: 4,
         });
         this.#entityVisual.setOpacity(this.#getBrushOpacity());
 
         this.setZIndex(50);
-        this.#positionLerp = this.addComponents(C_LerpPosition<Vector, LevelEditor>, {
+        this.#positionLerp = this.addComponents(C_LerpPosition<Vector>, {
             target: this,
             speed: 20,
         });
-        this.#tileRotationLerp = this.addComponents(C_LerpRotation<LevelEditor>, {
+        this.#tileRotationLerp = this.addComponents(C_LerpRotation, {
             target: this,
             speed: 1000,
         });
@@ -547,16 +547,16 @@ class E_SelectionCursor extends Entity<LevelEditor> {
     #active: boolean = false;
     #wasActive: boolean = false;
 
-    constructor(options: EntityOptions<LevelEditor>) {
+    constructor(options: EntityOptions) {
         super({ name: 'ms_cursor', ...options });
 
-        this.#shapeComp = this.addComponents(C_Shape<LevelEditor>, {
+        this.#shapeComp = this.addComponents(C_Shape, {
             name: 'rect',
             shape: 'RECT',
             style: { fillStyle: 'blue' },
             origin: 0,
         });
-        this.#opacityLerp = this.addComponents(C_LerpOpacity<LevelEditor>, {
+        this.#opacityLerp = this.addComponents(C_LerpOpacity, {
             target: this.#shapeComp,
             speed: 5,
         });
@@ -671,10 +671,10 @@ class E_DragCursor extends Entity<LevelEditor> {
 
     #opacity = 0;
 
-    constructor(options: EntityOptions<LevelEditor>) {
+    constructor(options: EntityOptions) {
         super({ name: 'drag_handle', ...options });
 
-        this.#upArrowOutline = this.addComponents(C_Shape<LevelEditor>, {
+        this.#upArrowOutline = this.addComponents(C_Shape, {
             name: 'up-arrow-outline',
             shape: 'LINE',
             start: { x: 0, y: -0.5 },
@@ -682,7 +682,7 @@ class E_DragCursor extends Entity<LevelEditor> {
             style: { lineWidth: 0.25, strokeStyle: 'white' },
             endTip: { type: 'arrow', length: 0.5 },
         });
-        this.#rightArrowOutline = this.addComponents(C_Shape<LevelEditor>, {
+        this.#rightArrowOutline = this.addComponents(C_Shape, {
             name: 'right-arrow-outline',
             shape: 'LINE',
             start: { x: 0.5, y: 0 },
@@ -691,7 +691,7 @@ class E_DragCursor extends Entity<LevelEditor> {
             endTip: { type: 'arrow', length: 0.5 },
         });
 
-        this.#upArrow = this.addComponents(C_Shape<LevelEditor>, {
+        this.#upArrow = this.addComponents(C_Shape, {
             name: 'up-arrow',
             shape: 'LINE',
             start: { x: 0, y: -0.5 },
@@ -699,7 +699,7 @@ class E_DragCursor extends Entity<LevelEditor> {
             style: { lineWidth: 0.15, strokeStyle: 'blue' },
             endTip: { type: 'arrow', length: 0.5 },
         });
-        this.#rightArrow = this.addComponents(C_Shape<LevelEditor>, {
+        this.#rightArrow = this.addComponents(C_Shape, {
             name: 'right-arrow',
             shape: 'LINE',
             start: { x: 0.5, y: 0 },
@@ -707,7 +707,7 @@ class E_DragCursor extends Entity<LevelEditor> {
             style: { lineWidth: 0.15, strokeStyle: 'green' },
             endTip: { type: 'arrow', length: 0.5 },
         });
-        const shape = this.addComponents(C_Shape<LevelEditor>, {
+        const shape = this.addComponents(C_Shape, {
             shape: 'RECT',
             style: { fillStyle: BOX_COLOR_BOTH, strokeStyle: 'red', lineWidth: 2 },
         });
@@ -719,19 +719,19 @@ class E_DragCursor extends Entity<LevelEditor> {
             shape,
         ];
 
-        this.#boxPointerTarget = this.addComponents(C_PointerTarget<LevelEditor>, {
+        this.#boxPointerTarget = this.addComponents(C_PointerTarget, {
             cursorOnHover: 'move',
             cursorPriority: CURSOR_PRIORITY.HANDLE_HOVER,
         });
 
-        this.#opacityLerp = this.addComponents(C_Lerp<number, LevelEditor>, {
+        this.#opacityLerp = this.addComponents(C_Lerp<number>, {
             get: () => this.#opacity,
             set: (value: number) => {
                 this.opacity = value;
             },
             speed: 10,
         });
-        this.#positionLerp = this.addComponents(C_LerpPosition<Vector, LevelEditor>, {
+        this.#positionLerp = this.addComponents(C_LerpPosition<Vector>, {
             target: this,
             speed: 30,
         });
@@ -742,7 +742,7 @@ class E_DragCursor extends Entity<LevelEditor> {
             position: { x: 0, y: -(HANDLE_ARROW_LENGTH + 0.5) / 2 },
             scale: { x: 1, y: HANDLE_ARROW_LENGTH - 0.5 },
         });
-        this.#upPointerTarget = upEntity.addComponents(C_PointerTarget<LevelEditor>, {
+        this.#upPointerTarget = upEntity.addComponents(C_PointerTarget, {
             cursorOnHover: 'ns-resize',
             cursorPriority: CURSOR_PRIORITY.HANDLE_HOVER,
         });
@@ -752,7 +752,7 @@ class E_DragCursor extends Entity<LevelEditor> {
             position: { x: (HANDLE_ARROW_LENGTH + 0.5) / 2, y: 0 },
             scale: { x: HANDLE_ARROW_LENGTH - 0.5, y: 1 },
         });
-        this.#rightPointerTarget = rightEntity.addComponents(C_PointerTarget<LevelEditor>, {
+        this.#rightPointerTarget = rightEntity.addComponents(C_PointerTarget, {
             cursorOnHover: 'ew-resize',
             cursorPriority: CURSOR_PRIORITY.HANDLE_HOVER,
         });
@@ -1004,7 +1004,12 @@ export class UIScene extends Scene {
         this.#editor = editor;
         this.add(E_SelectionCursor, { scale: 0, cull: 'none' });
         this.add(E_TileCursor, { cull: 'none' });
-        this.add(E_DragCursor, { zIndex: 200, scale: 28, scaleToCamera: true, cull: 'none' });
+        this.add(E_DragCursor, {
+            zIndex: 200,
+            scale: 28,
+            scaleRelativeToCamera: true,
+            cull: 'none',
+        });
     }
 
     override update(deltaTime: number): boolean {

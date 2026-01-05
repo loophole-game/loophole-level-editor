@@ -4,7 +4,6 @@ import { useEffect, useRef } from 'react';
 import { EngineCanvas } from '../engine/EngineCanvas';
 import TopPanel from './TopPanel';
 import TilePicker from './TilePicker';
-import { FPSCounter } from '../engine/FPSCounter';
 import { LayerButtons } from './LayerButtons';
 import { EntityInspector } from './EntityInspector';
 import type { Loophole_InternalLevel } from '@/utils/levelEditor/externalLevelSchema';
@@ -119,16 +118,6 @@ export function LevelEditorComponent() {
                 </div>
                 <OpenInterfacePanel />
                 <ResetViewportPanel />
-                <div
-                    className={clsx(
-                        'fixed bottom-0 right-0 text-right transition-opacity p-2 bg-linear-to-br from-black/5 to-black/70 rounded-tl-lg',
-                        {
-                            'opacity-0 pointer-events-none': !showEngineStats,
-                        },
-                    )}
-                >
-                    <FPSCounter editorRef={levelEditorRef} />
-                </div>
             </div>
         </div>
     );

@@ -1,20 +1,21 @@
 import { Component, type ComponentOptions } from '.';
-import type { Engine } from '..';
 import { Vector, type VectorConstructor } from '../math';
 import type { BoundingBox } from '../types';
 
-export interface C_TransformOptions<TEngine extends Engine = Engine>
-    extends ComponentOptions<TEngine> {
+export interface C_TransformOptions extends ComponentOptions {
     position: VectorConstructor;
     rotation: number;
     scale: VectorConstructor;
 }
 
-export class C_Transform<TEngine extends Engine = Engine> extends Component<TEngine> {
+export class C_Transform extends Component {
     #position: Vector = new Vector(0);
     #rotation: number = 0;
     #scale: Vector = new Vector(1);
+
+    #positionOffset: Vector = new Vector(0);
     #scaleMult: Vector = new Vector(1);
+
     #localMatrix: DOMMatrix = new DOMMatrix();
     #localMatrixDirty: boolean = true;
 
@@ -31,7 +32,7 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
         new DOMPoint(),
     ];
 
-    constructor(options: C_TransformOptions<TEngine>) {
+    constructor(options: C_TransformOptions) {
         const { name = 'transform', ...rest } = options;
         super({
             name,
@@ -124,6 +125,16 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
         }
     }
 
+    setPositionOffset(positionOffset: VectorConstructor): void {
+        const x = typeof positionOffset === 'number' ? positionOffset : positionOffset.x;
+        const y = typeof positionOffset === 'number' ? positionOffset : positionOffset.y;
+        if (x !== this.#positionOffset.x || y !== this.#positionOffset.y) {
+            this.#positionOffset.x = x;
+            this.#positionOffset.y = y;
+            this.#markLocalDirty();
+        }
+    }
+
     setScaleMult(scaleMult: VectorConstructor): void {
         const x = typeof scaleMult === 'number' ? scaleMult : scaleMult.x;
         const y = typeof scaleMult === 'number' ? scaleMult : scaleMult.y;
@@ -156,7 +167,10 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
         localMatrix.e = 0;
         localMatrix.f = 0;
 
-        localMatrix.translateSelf(this.#position.x, this.#position.y);
+        localMatrix.translateSelf(
+            this.#position.x + this.#positionOffset.x,
+            this.#position.y + this.#positionOffset.y,
+        );
         localMatrix.rotateSelf(this.#rotation);
         localMatrix.scaleSelf(this.#scale.x * this.#scaleMult.x, this.#scale.y * this.#scaleMult.y);
         this.#localMatrixDirty = false;
@@ -218,6 +232,7 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
 
     #markLocalDirty() {
         this.#localMatrixDirty = true;
+        this.markBoundingBoxDirty();
         for (const child of this.entity.children) {
             child.transform.#markWorldDirty();
         }
@@ -225,9 +240,18 @@ export class C_Transform<TEngine extends Engine = Engine> extends Component<TEng
 
     #markWorldDirty() {
         this.#worldMatrixDirty = true;
-        this.#boundingBoxDirty = true;
+        this.markBoundingBoxDirty();
         for (const child of this.entity.children) {
             child.transform.#markWorldDirty();
+        }
+    }
+
+    markBoundingBoxDirty() {
+        if (!this.#boundingBoxDirty) {
+            this.#boundingBoxDirty = true;
+            if (this.entity.parent) {
+                this.entity.parent.transform.markBoundingBoxDirty();
+            }
         }
     }
 }

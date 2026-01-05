@@ -40,6 +40,7 @@ export function EngineCanvas({
     const [canvasSize, setCanvasSize] = useState<IVector<number>>(
         calculateCanvasSize(window.innerWidth, window.innerHeight, aspectRatio),
     );
+    const [dpr] = useState(() => window.devicePixelRatio || 1);
 
     useEffect(() => {
         if (engineRef.current) {
@@ -218,5 +219,13 @@ export function EngineCanvas({
         };
     }, [canvasSize, engineRef, scrollDirection, scrollSensitivity]);
 
-    return <canvas {...rest} ref={canvasRef} width={canvasSize.x} height={canvasSize.y} />;
+    return (
+        <canvas
+            {...rest}
+            ref={canvasRef}
+            width={canvasSize.x * dpr}
+            height={canvasSize.y * dpr}
+            style={{ width: `${canvasSize.x}px`, height: `${canvasSize.y}px` }}
+        />
+    );
 }

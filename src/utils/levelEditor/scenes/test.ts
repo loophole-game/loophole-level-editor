@@ -1,9 +1,9 @@
+import { C_Text } from '@/utils/engine/components/Text';
 import { C_Shape } from '../../engine/components/Shape';
 import { Entity, type EntityOptions } from '../../engine/entities';
-import { PointerButton } from '../../engine/systems/pointer';
 import { Scene } from '../../engine/systems/scene';
-import type { Engine } from '../../engine';
 import type { IVector } from '@/utils/engine/math';
+import type { TwoAxisAlignment } from '@/utils/engine/types';
 
 const NUM_BOXES = 50;
 
@@ -20,72 +20,36 @@ export class TestScene extends Scene {
                 name: 'Top Left',
                 scale: 0.25,
                 position: { x: -0.5, y: -0.5 },
-                components: [
-                    this._engine.createComponent(C_Shape<Engine>, {
-                        name: 'Dot',
-                        shape: 'ELLIPSE',
-                        style: { fillStyle: 'yellow' },
-                    }),
-                ],
+                components: [],
             },
             {
                 name: 'Top Right',
                 scale: 0.25,
                 position: { x: 0.5, y: -0.5 },
-                components: [
-                    this._engine.createComponent(C_Shape<Engine>, {
-                        name: 'Dot',
-                        shape: 'ELLIPSE',
-                        style: { fillStyle: 'green' },
-                    }),
-                ],
+                components: [],
             },
             {
                 name: 'Bottom Left',
                 scale: 0.25,
                 position: { x: -0.5, y: 0.5 },
-                components: [
-                    this._engine.createComponent(C_Shape<Engine>, {
-                        name: 'Dot',
-                        shape: 'ELLIPSE',
-                        style: { fillStyle: 'blue' },
-                    }),
-                ],
+                components: [],
             },
             {
                 name: 'Bottom Right',
                 scale: 0.25,
                 position: 0.5,
-                components: [
-                    this._engine.createComponent(C_Shape<Engine>, {
-                        name: 'Dot',
-                        shape: 'ELLIPSE',
-                        style: { fillStyle: 'purple' },
-                    }),
-                ],
+                components: [],
             },
             {
                 name: 'Center Behind',
                 scale: 1.25,
                 zIndex: -1,
-                components: [
-                    this._engine.createComponent(C_Shape<Engine>, {
-                        name: 'Dot',
-                        shape: 'ELLIPSE',
-                        style: { fillStyle: 'orange' },
-                    }),
-                ],
+                components: [],
             },
             {
                 name: 'Center Above',
                 scale: 0.02,
-                components: [
-                    this._engine.createComponent(C_Shape<Engine>, {
-                        name: 'Dot',
-                        shape: 'ELLIPSE',
-                        style: { fillStyle: 'white' },
-                    }),
-                ],
+                components: [],
             },
         );
 
@@ -113,6 +77,14 @@ export class TestScene extends Scene {
                 y: 400,
             })
             .setScale({ x: 300, y: 300 });
+
+        this.#loadTextAlignmentTest();
+    }
+
+    override update(deltaTime: number): boolean {
+        this.#rotatingBox?.rotate(90 * deltaTime);
+
+        return true;
     }
 
     #generateNestedBoxes(count: number, pattern: IVector<number>[]): Entity {
@@ -130,7 +102,7 @@ export class TestScene extends Scene {
             const entity: Entity = currEntity
                 ? currEntity.addEntities(Entity, entityOptions)
                 : this._engine.addEntities(Entity, entityOptions);
-            entity.addComponents(C_Shape<Engine>, {
+            entity.addComponents(C_Shape, {
                 name: `Box Level ${i + 1}`,
                 shape: 'RECT',
                 style: {
@@ -148,13 +120,56 @@ export class TestScene extends Scene {
         return root!;
     }
 
-    override update(deltaTime: number): boolean {
-        this.#rotatingBox?.rotate(90 * deltaTime);
+    #loadTextAlignmentTest() {
+        const textAlignments: TwoAxisAlignment[] = [
+            'top-left',
+            'top-center',
+            'top-right',
+            'left',
+            'center',
+            'right',
+            'bottom-left',
+            'bottom-center',
+            'bottom-right',
+        ];
 
-        if (this._engine.pointerState[PointerButton.LEFT].pressed) {
-            this._engine.destroyScene(this._id);
+        const debugText = 'Alignment\nTest';
+        const gridSize = 3;
+        const cellWidth = 200;
+        const cellHeight = 200;
+        const startX = -300;
+        const startY = -300;
+
+        for (let i = 0; i < textAlignments.length; i++) {
+            const col = i % gridSize;
+            const row = Math.floor(i / gridSize);
+            const x = startX + col * cellWidth + cellWidth / 2;
+            const y = startY + row * cellHeight + cellHeight / 2;
+
+            const textEntity = this.add(Entity, {
+                name: `textAlign_${textAlignments[i]}`,
+                zIndex: 1000,
+            });
+            textEntity.transform.position.set({ x, y });
+
+            // Add a guide marker at the center point
+            textEntity.addComponents(C_Shape, {
+                shape: 'ELLIPSE',
+                style: {
+                    fillStyle: 'blue',
+                },
+                scale: 10,
+            });
+
+            // Add the text with the current alignment
+            textEntity.addComponents(C_Text, {
+                text: `${debugText}\n(${textAlignments[i]})`,
+                fontSize: 14,
+                textAlign: textAlignments[i],
+                style: {
+                    fillStyle: 'white',
+                },
+            });
         }
-
-        return true;
     }
 }

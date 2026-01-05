@@ -7,6 +7,8 @@ export interface RenderStyle {
     lineJoin?: CanvasLineJoin;
     lineCap?: CanvasLineCap;
     imageSmoothingEnabled?: boolean;
+    font?: string;
+    textBaseline?: CanvasTextBaseline;
 }
 
 export const DEFAULT_RENDER_STYLE: Required<RenderStyle> = {
@@ -16,4 +18,6 @@ export const DEFAULT_RENDER_STYLE: Required<RenderStyle> = {
     lineJoin: 'miter',
     lineCap: 'butt',
     imageSmoothingEnabled: true,
+    font: '10px sans-serif',
+    textBaseline: 'top',
 };
