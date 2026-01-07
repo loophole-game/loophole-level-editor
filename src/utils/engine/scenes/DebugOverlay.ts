@@ -11,6 +11,8 @@ import { C_Text } from '../components/Text';
 const IMPORTANT_TRACE_THRESHOLD = 0.2;
 const IMPORTANT_TRACE_STALE_TIME = 5000;
 
+const HEADER_SIZE = 16;
+
 export class C_StatsDebug extends C_Drawable {
     #text: C_Text;
     #importantTraces: Map<string, number> = new Map();
@@ -41,12 +43,12 @@ export class C_StatsDebug extends C_Drawable {
         }
 
         const currentTime = performance.now();
-        let text = `FPS: ${stats.fps}\n\n`;
+        let text = `<size=${HEADER_SIZE}><bold>FPS: ${stats.fps}</bold></size>\n\n`;
 
         text += this.#buildTraceText(stats.traces, 0, '', currentTime);
 
         if (stats.renderCommands) {
-            text += '\nRender Commands\n';
+            text += '\n';
             const renderStats = stats.renderCommands;
             text += this.#buildCacheText('transform', renderStats.transform);
             text += this.#buildCacheText('setStyle', renderStats.setStyle);
@@ -89,7 +91,7 @@ export class C_StatsDebug extends C_Drawable {
             }
 
             const padding = ' '.repeat(depth * 2);
-            const traceText = `${name}${numCalls > 1 ? ` (${numCalls})` : ''}: ${time.toFixed(1)}ms`;
+            const traceText = `${name}${numCalls > 1 ? ` (${numCalls})` : ''}: <bold>${time.toFixed(1)}ms</bold>`;
             text += padding + traceText + '\n';
 
             if (subFrames.length > 0) {
@@ -106,7 +108,7 @@ export class C_StatsDebug extends C_Drawable {
             stats.cached > 0
                 ? ` (${((stats.cached / (stats.total + stats.cached)) * 100).toFixed(1)}% cached)`
                 : '';
-        return `${name}: ${stats.total}${cachedPercent}\n`;
+        return `${name}: <bold>${stats.total}${cachedPercent}</bold>\n`;
     }
 }
 
