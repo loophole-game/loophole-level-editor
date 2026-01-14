@@ -12,6 +12,7 @@ const IMPORTANT_TRACE_THRESHOLD = 0.2;
 const IMPORTANT_TRACE_STALE_TIME = 5000;
 
 const HEADER_SIZE = 16;
+const LABEL_COLOR = '#CCCCCC';
 
 export class C_StatsDebug extends C_Drawable {
     #text: C_Text;
@@ -91,7 +92,7 @@ export class C_StatsDebug extends C_Drawable {
             }
 
             const padding = ' '.repeat(depth * 2);
-            const traceText = `${name}${numCalls > 1 ? ` (${numCalls})` : ''}: <bold>${time.toFixed(1)}ms</bold>`;
+            const traceText = `<color=${LABEL_COLOR}>${name}${numCalls > 1 ? ` (${numCalls})` : ''}:</color> <bold>${time.toFixed(1)}ms</bold>`;
             text += padding + traceText + '\n';
 
             if (subFrames.length > 0) {
@@ -108,7 +109,7 @@ export class C_StatsDebug extends C_Drawable {
             stats.cached > 0
                 ? ` (${((stats.cached / (stats.total + stats.cached)) * 100).toFixed(1)}% cached)`
                 : '';
-        return `${name}: <bold>${stats.total}${cachedPercent}</bold>\n`;
+        return `<color=${LABEL_COLOR}>${name}:</color> <bold>${stats.total}${cachedPercent}</bold>\n`;
     }
 }
 

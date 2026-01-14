@@ -44,7 +44,9 @@ pnpm type-check
 
 ## How it works (under the hood)
 
-The editor is built with **React + TypeScript + Vite**, but most of the "editor feel" comes from a custom canvas engine and an editor layer on top:
+The editor is built with **React + TypeScript + Vite**, but most of the "editor feel" comes from a custom canvas engine and an editor layer on top.
+
+That engine core has been spun into [Sundae](https://github.com/wakeupinagear/sundae), a fully standalone canvas engine. In the near future, this editor will begin targeting a public build of Sundae, and most of the engine code here will be deleted. For now, though, here's the general engine structure:
 
 - **Engine core** (`src/utils/engine/`):
     - ECS-ish structure (entities + components + systems)
