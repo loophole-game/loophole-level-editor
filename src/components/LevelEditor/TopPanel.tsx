@@ -1,89 +1,22 @@
-import {
-    AppWindow,
-    Camera,
-    File,
-    Grid,
-    Keyboard,
-    Mouse,
-    Paintbrush,
-    Plus,
-    RefreshCw,
-    Rocket,
-    Settings,
-    Trash2,
-    Upload,
-    Wrench,
-} from 'lucide-react';
-import { useAppStore, useCurrentLevel, useSettingsStore } from '../../utils/stores';
+import { Rocket } from 'lucide-react';
+import { useAppStore, useCurrentLevel } from '../../utils/stores';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Slider } from '../ui/slider';
 import { Panel } from '../Panel';
-import {
-    DropdownMenu,
-    DropdownMenuCheckboxItem,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuPortal,
-    DropdownMenuSeparator,
-    DropdownMenuSub,
-    DropdownMenuSubContent,
-    DropdownMenuSubTrigger,
-    DropdownMenuTrigger,
-} from '../ui/dropdown-menu';
-import {
-    COLOR_PALETTE_METADATA,
-    createLevelWithMetadata,
-    DEFAULT_LEVEL_NAME,
-    exportLoopholeInternalLevel,
-    formatToSnakeCase,
-    Loophole_ColorPalette,
-} from '@/utils/utils';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
-import { ToggleGroup, ToggleGroupItem } from '../ui/toggle-group';
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from '../ui/alert-dialog';
-import { v4 } from 'uuid';
-import { useState } from 'react';
-import type {
-    Loophole_Level,
-    Loophole_InternalLevel,
-} from '@/utils/levelEditor/externalLevelSchema';
+import { DEFAULT_LEVEL_NAME, exportLoopholeInternalLevel, formatToSnakeCase } from '@/utils/utils';
 import clsx from 'clsx';
+import { Separator } from '../ui/separator';
+import { SettingsDropdown } from './SettingsDropdown';
+import { ColorPalettePicker } from './ColorPalettePicker';
+import { MetadataEditor } from './MetadataEditor';
 
 interface TopPanelProps {
     className?: string;
 }
 
 export default function TopPanel({ className }: TopPanelProps) {
-    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-
-    const levels = useAppStore((state) => state.levels);
-    const currentLevel = useCurrentLevel();
     const updateLevel = useAppStore((state) => state.updateLevel);
-    const resetLevel = useAppStore((state) => state.resetLevel);
-    const addLevel = useAppStore((state) => state.addLevel);
-    const removeLevel = useAppStore((state) => state.removeLevel);
-    const setActiveLevelID = useAppStore((state) => state.setActiveLevelID);
-    const centerCameraOnLevel = useAppStore((state) => state.centerCameraOnLevel);
-    const setInterfaceHidden = useAppStore((state) => state.setInterfaceHidden);
-
-    const scrollDirection = useSettingsStore((state) => state.scrollDirection);
-    const scrollSensitivity = useSettingsStore((state) => state.scrollSensitivity);
-    const showEngineStats = useSettingsStore((state) => state.showEngineStats);
-    const showGrid = useSettingsStore((state) => state.showGrid);
-    const showKeybindings = useSettingsStore((state) => state.showKeybindings);
-    const setUserSettings = useSettingsStore((state) => state.setUserSettings);
-
+    const currentLevel = useCurrentLevel();
     if (!currentLevel) return null;
 
     const { name } = currentLevel;
@@ -102,73 +35,6 @@ export default function TopPanel({ className }: TopPanelProps) {
         URL.revokeObjectURL(url);
     };
 
-    const importLevelFromFile = () => {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.json';
-        input.onchange = async (e) => {
-            const file = (e.target as HTMLInputElement).files?.[0];
-            if (!file) return;
-
-            try {
-                const text = await file.text();
-                const externalLevel = JSON.parse(text) as Loophole_Level;
-
-                // Validate the external level structure
-                if (externalLevel.version !== 0) {
-                    alert('Invalid level version');
-                    return;
-                }
-
-                // Convert external level to internal level format
-                const internalLevel: Loophole_InternalLevel = {
-                    ...externalLevel,
-                    id: v4(),
-                    updatedAt: Date.now(),
-                    entrance: {
-                        ...externalLevel.entrance,
-                        tID: v4(),
-                    },
-                    explosions: externalLevel.explosions.map((explosion) => ({
-                        ...explosion,
-                        tID: v4(),
-                    })),
-                    entities: externalLevel.entities.map((entity) => ({
-                        ...entity,
-                        tID: v4(),
-                    })),
-                };
-
-                // Add the imported level
-                addLevel(internalLevel, true);
-            } catch (error) {
-                // eslint-disable-next-line no-console
-                console.error('Failed to import level:', error);
-                alert('Failed to import level.');
-            }
-        };
-        input.click();
-    };
-
-    const handleDeleteClick = () => {
-        const levelCount = Object.keys(levels).length;
-
-        // Prevent deletion if it's the only level
-        if (levelCount === 1) {
-            alert('Cannot delete the only level. Create a new level first.');
-            return;
-        }
-
-        setShowDeleteDialog(true);
-    };
-
-    const confirmDelete = () => {
-        if (!currentLevel) return;
-
-        removeLevel(currentLevel.id);
-        setShowDeleteDialog(false);
-    };
-
     return (
         <Panel className={clsx('flex items-center w-full', className)}>
             <Input
@@ -178,178 +44,15 @@ export default function TopPanel({ className }: TopPanelProps) {
                 placeholder={DEFAULT_LEVEL_NAME}
                 onChange={(e) => updateLevel(currentLevel.id, { name: e.target.value })}
             />
+            <MetadataEditor />
+            <ColorPalettePicker />
+            <Separator orientation="vertical" className="mx-2" />
             <Button variant="loophole" onClick={downloadLevel}>
                 <Rocket className="size-5" />
                 Test Level
             </Button>
-            <Popover>
-                <PopoverTrigger asChild>
-                    <Button variant="loophole" size="icon">
-                        <Paintbrush className="size-5" />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent align="end" className="flex flex-col gap-2 w-64">
-                    <h4 className="leading-none font-medium">Color Palette</h4>
-                    <ToggleGroup
-                        type="single"
-                        value={currentLevel.colorPalette.toString()}
-                        className="w-full"
-                        onValueChange={(value) => {
-                            if (value) {
-                                updateLevel(currentLevel.id, {
-                                    colorPalette: parseInt(value) as Loophole_ColorPalette,
-                                });
-                            }
-                        }}
-                    >
-                        {Object.values(Loophole_ColorPalette).map((palette) => (
-                            <ToggleGroupItem key={palette} value={palette.toString()}>
-                                {palette + 1}
-                            </ToggleGroupItem>
-                        ))}
-                    </ToggleGroup>
-                    <img
-                        src={`${COLOR_PALETTE_METADATA[currentLevel.colorPalette].image}`}
-                        alt="Color Palette Screenshot"
-                        className="rounded-md"
-                    />
-                </PopoverContent>
-            </Popover>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="loophole" size="icon">
-                        <Settings className="size-5" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end">
-                    <DropdownMenuLabel>Level Settings</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => addLevel(createLevelWithMetadata(''), true)}>
-                        <Plus /> New Level
-                    </DropdownMenuItem>
-                    <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                            <Upload /> Load Level
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuPortal>
-                            <DropdownMenuSubContent>
-                                {Object.values(levels).length > 1 && (
-                                    <>
-                                        {Object.values(levels)
-                                            .sort((a, b) => b.updatedAt - a.updatedAt)
-                                            .map((level) =>
-                                                level.id === currentLevel.id ? null : (
-                                                    <DropdownMenuItem
-                                                        key={level.id}
-                                                        onClick={() =>
-                                                            setTimeout(
-                                                                () => setActiveLevelID(level.id),
-                                                                100,
-                                                            )
-                                                        }
-                                                    >
-                                                        <File />{' '}
-                                                        {level.name.trim() || DEFAULT_LEVEL_NAME}
-                                                    </DropdownMenuItem>
-                                                ),
-                                            )}
-                                        <DropdownMenuSeparator />
-                                    </>
-                                )}
-                                <DropdownMenuItem onClick={importLevelFromFile}>
-                                    <Plus />
-                                    Import From File
-                                </DropdownMenuItem>
-                            </DropdownMenuSubContent>
-                        </DropdownMenuPortal>
-                    </DropdownMenuSub>
-                    <DropdownMenuItem
-                        onClick={() => {
-                            resetLevel(currentLevel.id);
-                            centerCameraOnLevel();
-                        }}
-                    >
-                        <RefreshCw /> Clear Current Level
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={handleDeleteClick} className="text-destructive">
-                        <Trash2 className="text-destructive" /> Delete Current Level
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel>Viewport Settings</DropdownMenuLabel>
-                    <DropdownMenuItem onClick={() => centerCameraOnLevel()}>
-                        <Camera /> Fit to Content
-                    </DropdownMenuItem>
-                    <div className="px-2 py-2">
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium">Scroll Sensitivity</span>
-                            <span className="text-sm text-muted-foreground">
-                                {scrollSensitivity.toFixed(1)}x
-                            </span>
-                        </div>
-                        <Slider
-                            value={[scrollSensitivity]}
-                            onValueChange={([value]) =>
-                                setUserSettings({ scrollSensitivity: value })
-                            }
-                            min={0.2}
-                            max={2}
-                            step={0.05}
-                            className="w-full"
-                        />
-                    </div>
-                    <DropdownMenuCheckboxItem
-                        checked={scrollDirection === -1}
-                        onCheckedChange={(checked) =>
-                            setUserSettings({ scrollDirection: checked ? -1 : 1 })
-                        }
-                    >
-                        <Mouse />
-                        Invert Scroll Direction
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel>Editor Settings</DropdownMenuLabel>
-                    <DropdownMenuCheckboxItem checked onClick={() => setInterfaceHidden(true)}>
-                        <AppWindow /> UI Panels
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                        checked={showKeybindings}
-                        onCheckedChange={(checked) => setUserSettings({ showKeybindings: checked })}
-                    >
-                        <Keyboard /> Keybindings
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                        checked={showGrid}
-                        onCheckedChange={(checked) => setUserSettings({ showGrid: checked })}
-                    >
-                        <Grid /> Grid
-                    </DropdownMenuCheckboxItem>
-                    <DropdownMenuCheckboxItem
-                        checked={showEngineStats}
-                        onCheckedChange={(checked) => setUserSettings({ showEngineStats: checked })}
-                    >
-                        <Wrench /> Debug Stats
-                    </DropdownMenuCheckboxItem>
-                </DropdownMenuContent>
-            </DropdownMenu>
-            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Level</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Are you sure you want to delete "{levelName}"? This action cannot be
-                            undone.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction
-                            onClick={confirmDelete}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                            Delete
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            <Separator orientation="vertical" className="mx-2" />
+            <SettingsDropdown levelName={levelName} />
         </Panel>
     );
 }

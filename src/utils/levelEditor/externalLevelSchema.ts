@@ -68,6 +68,10 @@ export type Loophole_Level = {
     //    5: blue floor & green walls
     //    6: white floor & red walls
     colorPalette: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+    // If true, all the reachable regions in this level will automatically be "discovered".
+    // (i.e. These regions will be visible, as if the player had already explored the whole level.)
+    // Default value is false.
+    automaticallyDiscoverVision: boolean;
     // The configuration of explosions in this level.
     explosions: Loophole_Explosion[];
     // The entity for the time machine that the player will spawn inside.

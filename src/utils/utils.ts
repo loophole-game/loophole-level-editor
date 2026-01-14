@@ -448,8 +448,14 @@ export const PICKER_ENTITY_METADATA: Record<Loophole_ExtendedEntityType, EntityM
         {} as Record<Loophole_ExtendedEntityType, EntityMetadata>,
     );
 
-export const createLevelWithMetadata = (name: string, id?: string): Loophole_InternalLevel => ({
+export const createLevelWithMetadata = (
+    name: string,
+    id?: string,
+    description?: string,
+    automaticallyDiscoverVision?: boolean,
+): Loophole_InternalLevel => ({
     colorPalette: 0,
+    automaticallyDiscoverVision: automaticallyDiscoverVision ?? false,
     entities: [],
     entrance: {
         entityType: 'TIME_MACHINE',
@@ -460,7 +466,7 @@ export const createLevelWithMetadata = (name: string, id?: string): Loophole_Int
     exitPosition: { x: 1, y: 0 },
     version: 0,
     name,
-    description: '',
+    description: description ?? '',
     id: id ?? v4(),
     explosions: [],
     imageFile: '',

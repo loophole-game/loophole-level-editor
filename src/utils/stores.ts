@@ -133,7 +133,12 @@ export const useAppStore = create<AppStore>()(
                         levels: {
                             ...state.levels,
                             [id]: {
-                                ...createLevelWithMetadata(state.levels[id].name ?? '', id),
+                                ...createLevelWithMetadata(
+                                    state.levels[id].name ?? '',
+                                    id,
+                                    state.levels[id].description ?? '',
+                                    state.levels[id].automaticallyDiscoverVision ?? false,
+                                ),
                                 updatedAt: Date.now(),
                             },
                         },
